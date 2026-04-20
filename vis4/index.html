@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steam 二十年 · 独立游戏崛起史</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-eyebrow">DATA VISUALIZATION · TSINGHUA UNIVERSITY</div>
+  <h1 class="hero-title">STEAM <span class="year">二十年</span></h1>
+  <p class="hero-sub">独立游戏如何从零崛起，重塑全球最大 PC 游戏生态 · 2004–2024</p>
+  <div class="stats-ribbon" id="stats-ribbon">
+    <div class="stat-cell">
+      <div class="stat-num c-indie">50,000<sup style="font-size:16px">+</sup></div>
+      <div class="stat-label">STEAM 在售游戏总数（2024）</div>
+      <div class="stat-trend">↑ 2004年约150款</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num c-indie">98.9%</div>
+      <div class="stat-label">发布数量中的独立游戏占比</div>
+      <div class="stat-trend">↑ 2012年仅40%</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num c-aa">48%</div>
+      <div class="stat-label">独立游戏收入份额（2024 YTD）</div>
+      <div class="stat-trend">↑ 2018年仅25% · VG Insights</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" style="color:var(--text)">1.32亿</div>
+      <div class="stat-label">STEAM 月活用户（2024）</div>
+      <div class="stat-trend">峰值同时在线 3700万</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ LEGEND ═══ -->
+<div class="legend-strip">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--indie)"></div>INDIE 独立游戏</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--aa)"></div>AA 中型厂商</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--aaa)"></div>AAA 3A大作</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--f2p)"></div>F2P 免费游玩</div>
+  <div class="legend-source">DATA: STEAMSPY API · STEAM STORE API · VG INSIGHTS 2024</div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+  <!-- VIEW 1: STREAM GRAPH -->
+  <section class="section" id="sec-stream">
+    <div class="section-header">
+      <div class="section-num">01 — MARKET</div>
+      <div class="section-meta">
+        <div class="section-tag">Market Share · 2004–2024</div>
+        <div class="section-title">市场格局演变</div>
+        <div class="section-desc">各类型游戏发布数量占比的二十年流动 · 悬停查看年度数据 · <strong style="color:var(--indie)">点击年份</strong>联动下方散点图</div>
+      </div>
+      <div class="section-controls">
+        <button class="pill active" data-sm="count">发布数量</button>
+        <button class="pill" data-sm="ccu">在线人数</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="stream-inner">
+        <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+      </div>
+      <!-- Year indicator bar -->
+      <div class="year-indicator" id="year-indicator" style="display:none">
+        <span class="yi-label">已选年份：</span>
+        <span class="yi-year" id="yi-year">—</span>
+        <button class="yi-clear" id="yi-clear">✕ 清除</button>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏年发布量首次超越 AA+3A 之和；
+        <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 4,000 <em>跳升至 7,000（+75%）</em>；
+        <span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。
+        <br><br>
+        <strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——2024年平均每天有 52 款新游戏上架，
+        单款游戏的中位曝光机会反而低于2014年。数量增长并不等于生态健康，这一矛盾贯穿独立游戏崛起的全过程。
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 2: BUBBLE SCATTER -->
+  <section class="section" id="sec-scatter">
+    <div class="section-header">
+      <div class="section-num">02 — QUALITY</div>
+      <div class="section-meta">
+        <div class="section-tag">Reputation × Popularity × Scale</div>
+        <div class="section-title">口碑 · 人气 · 规模</div>
+        <div class="section-desc">好评率 vs 峰值在线人数（对数轴） · 气泡半径 = 估算拥有人数 · <strong style="color:var(--text)">点击气泡</strong>查看详情</div>
+      </div>
+      <div class="section-controls">
+        <div class="search-box">
+          <input type="text" class="search-input" id="scatter-search" placeholder="搜索游戏名...">
+        </div>
+        <button class="pill active" data-sf="all">ALL</button>
+        <button class="pill" data-sf="Indie">INDIE</button>
+        <button class="pill" data-sf="AA">AA</button>
+        <button class="pill" data-sf="AAA">AAA</button>
+        <button class="pill" data-sf="F2P">F2P</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="scatter-wrap">
+        <div class="chart-inner" id="scatter-inner" style="flex:1">
+          <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+        </div>
+        <div class="detail-panel" id="detail-panel">
+          <div class="detail-empty">
+            <div class="detail-empty-icon">◎</div>
+            <div class="detail-empty-text">点击任意气泡<br>查看游戏详情</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        独立游戏平均好评率（约75%）已与3A大作（约74%）<em>几乎持平</em>——口碑差距在2013年曾超过15个百分点。
+        右上"神作象限"（好评率>90% & CCU>100k）中，独立游戏数量已首次超越3A大作（2022年起）。
+        <br><br>
+        <strong>值得注意的模式：</strong>图中可见独立游戏的分布呈"倒L型"——多数集中在<em>高好评但低人气</em>区域，
+        说明独立游戏的质量天花板已经打破，但<em>市场注意力的分配仍然极度不均</em>。
+        少数"破圈"独立作品（如 Palworld、Valheim）的人气可比肩3A，但大多数优质独立作品仍面临"叫好不叫座"的困境。
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 3: DECAY CURVES -->
+  <section class="section" id="sec-decay">
+    <div class="section-header">
+      <div class="section-num">03 — RETENTION</div>
+      <div class="section-meta">
+        <div class="section-tag">Player Retention · 0–24 Months</div>
+        <div class="section-title">首周断崖 vs 长尾缓降</div>
+        <div class="section-desc">发布后各月归一化在线人数（% of 首月峰值） · <strong style="color:var(--text)">点击图例</strong>高亮单条曲线</div>
+      </div>
+      <div class="section-controls">
+        <button class="pill active" data-dr="on">参考线</button>
+        <button class="pill" data-dr="off">隐藏</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="decay-inner">
+        <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+      </div>
+      <div class="decay-legend" id="decay-legend"></div>
+      <!-- Data provenance badge -->
+      <div class="data-badge" id="decay-badge">
+        <span class="badge-icon">ℹ</span>
+        <span class="badge-text">曲线基于行业研究参数（Game Analytics / Konvoy）参数化建模，衰减系数与真实公开数据趋势一致，非逐月实测值</span>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        <strong>3A大作</strong>（红色系）：营销驱动的首发热潮在 3 个月内消退，峰值普遍降至 20% 以下，验证了"买了即弃"的消费模式；
+        <em>独立游戏长青款</em>（绿色系）：口碑驱动的持续流量，《星露谷物语》发布 24 个月后仍保持峰值 35% 的日活；
+        <strong>F2P游戏</strong>：内容更新维持曲线最为平坦，商业模式与留存高度绑定。
+        <br><br>
+        <strong>核心发现：</strong>留存曲线的形状差异揭示了两种根本不同的<em>商业模式</em>：
+        3A依赖首周销量爆发，回收高额开发成本，因此必须重营销轻社区；
+        独立游戏依赖口碑长尾，首月成绩可能平平，但12个月后的留存率反而决定了总收入。
+        这解释了为什么越来越多的独立工作室选择<em>Early Access</em>策略——它本质上是用时间换曝光，用社区反馈代替营销预算。
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 4: METHODOLOGY (NEW) -->
+  <section class="section" id="sec-method">
+    <div class="section-header">
+      <div class="section-num">04 — METHOD</div>
+      <div class="section-meta">
+        <div class="section-tag">Data Pipeline & Classification</div>
+        <div class="section-title">数据方法论</div>
+        <div class="section-desc">从采集到可视化的完整数据管线 · 分类标准 · 局限性说明</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="method-inner">
+        <!-- Will be populated by method.js -->
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        <strong>数据局限性：</strong>① SteamSpy 的 owners 字段为估算区间（如"200,000–500,000"），本项目取中值，实际误差可达 ±40%；
+        ② 游戏分类采用规则引擎（发行商名单 + 标签 + 价格 + 拥有量），未使用机器学习，边界案例（如《黑神话》按本项目规则归为AA）可能与大众认知不一致；
+        ③ 视图三的衰减曲线为参数化模型而非逐月实测数据，<em>趋势可信但精确数值仅供参考</em>。
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>STEAM 二十年 · 独立游戏崛起史 · 数据可视化大实验</span>
+  <span>DATA: STEAMSPY · STEAM STORE API · VG INSIGHTS 2024 · D3.JS v7</span>
+</footer>
+
+<div class="tip" id="tip"></div>
+
+<!-- JS modules -->
+<script src="js/colors.js"></script>
+<script src="js/data.js"></script>
+<script src="js/stream.js"></script>
+<script src="js/scatter.js"></script>
+<script src="js/decay.js"></script>
+<script src="js/method.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

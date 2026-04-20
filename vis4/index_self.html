@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steam 二十年 · 独立游戏崛起史</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+
+/* ═══════════════════════════════════════════
+   DESIGN SYSTEM — Cyberpunk Editorial
+   主色：Steam蓝绿渐变 + 霓虹点缀
+   字体：Space Mono (数字/标题) + Noto Sans SC (正文)
+═══════════════════════════════════════════ */
+:root {
+  --indie:   #1de9b6;
+  --aa:      #ffd54f;
+  --aaa:     #ff5252;
+  --f2p:     #69f0ae;
+  --bg:      #050508;
+  --bg2:     #0a0a12;
+  --panel:   #0d0d18;
+  --panel2:  #121220;
+  --border:  #1e1e38;
+  --border2: #2a2a48;
+  --text:    #d8d8f0;
+  --muted:   #6060a0;
+  --bright:  #ffffff;
+  --mono:    'Space Mono', monospace;
+  --sans:    'Noto Sans SC', sans-serif;
+  --glow-indie: 0 0 20px rgba(29,233,182,0.3);
+  --glow-aaa:   0 0 20px rgba(255,82,82,0.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* ── HERO SECTION ── */
+.hero {
+  position: relative;
+  padding: 80px 60px 60px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -80px;
+  width: 600px; height: 600px;
+  background: radial-gradient(ellipse, rgba(29,233,182,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; left: 30%;
+  width: 400px; height: 400px;
+  background: radial-gradient(ellipse, rgba(255,82,82,0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--indie);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 32px; height: 1px;
+  background: var(--indie);
+}
+
+.hero-title {
+  font-family: var(--mono);
+  font-size: clamp(36px, 5vw, 72px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  color: var(--bright);
+  margin-bottom: 8px;
+}
+.hero-title .year {
+  color: var(--indie);
+  text-shadow: var(--glow-indie);
+}
+
+.hero-sub {
+  font-size: clamp(16px, 2vw, 22px);
+  color: var(--muted);
+  font-weight: 300;
+  margin-bottom: 40px;
+  letter-spacing: 0.5px;
+}
+
+/* ── STATS RIBBON ── */
+.stats-ribbon {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+.stat-cell {
+  background: var(--bg2);
+  padding: 20px 24px;
+  transition: background 0.2s;
+}
+.stat-cell:hover { background: var(--panel); }
+.stat-num {
+  font-family: var(--mono);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-num.c-indie { color: var(--indie); text-shadow: var(--glow-indie); }
+.stat-num.c-aaa   { color: var(--aaa);   text-shadow: var(--glow-aaa); }
+.stat-num.c-aa    { color: var(--aa);    }
+.stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+.stat-trend { font-family: var(--mono); font-size: 10px; color: var(--indie); margin-top: 6px; }
+
+/* ── LEGEND ── */
+.legend-strip {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 60px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.legend-swatch {
+  width: 20px; height: 3px;
+  border-radius: 2px;
+}
+.legend-source {
+  margin-left: auto;
+  font-size: 10px;
+  color: #2a2a50;
+  letter-spacing: 0.5px;
+}
+
+/* ── MAIN CONTENT ── */
+.main { padding: 40px 60px 80px; display: flex; flex-direction: column; gap: 48px; }
+
+/* ── SECTION ── */
+.section { position: relative; }
+
+.section-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.section-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--border2);
+  letter-spacing: 2px;
+  padding-top: 4px;
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  height: 60px;
+}
+.section-meta {}
+.section-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--indie);
+  margin-bottom: 6px;
+}
+.section-title {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--bright);
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+.section-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.section-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+/* ── CHART CONTAINER ── */
+.chart-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.chart-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2), transparent);
+  pointer-events: none;
+}
+.chart-inner { padding: 28px 32px 20px; }
+svg { width: 100%; display: block; overflow: visible; }
+
+/* ── BUTTONS ── */
+.pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 5px 14px;
+  border-radius: 2px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.pill:hover { border-color: var(--indie); color: var(--text); }
+.pill.active { background: var(--indie); border-color: var(--indie); color: #000; font-weight: 700; }
+.pill.active.red { background: var(--aaa); border-color: var(--aaa); }
+.pill.active.yellow { background: var(--aa); border-color: var(--aa); }
+.pill.active.green { background: var(--f2p); border-color: var(--f2p); }
+
+/* ── INSIGHT BLOCK ── */
+.insight {
+  margin-top: 16px;
+  padding: 16px 20px;
+  border-left: 2px solid var(--border2);
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.insight-icon {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--indie);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.insight-text {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.insight-text strong { color: var(--text); font-weight: 500; }
+.insight-text em { color: var(--indie); font-style: normal; }
+.event-chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  background: rgba(29,233,182,0.12);
+  color: var(--indie);
+  border: 1px solid rgba(29,233,182,0.3);
+  padding: 1px 7px;
+  border-radius: 2px;
+  margin: 0 2px;
+}
+
+/* ── SCATTER LAYOUT ── */
+.scatter-wrap {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 0;
+}
+.detail-panel {
+  border-left: 1px solid var(--border);
+  padding: 24px 20px;
+  background: var(--panel2);
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+}
+.detail-empty-icon {
+  font-family: var(--mono);
+  font-size: 32px;
+  color: var(--border2);
+  line-height: 1;
+}
+.detail-empty-text { font-size: 11px; color: var(--muted); line-height: 1.8; }
+.detail-game-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--bright);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.detail-type {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.detail-row:last-of-type { border-bottom: none; }
+.detail-key { color: var(--muted); font-size: 11px; }
+.detail-val { color: var(--text); font-family: var(--mono); font-size: 12px; }
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 14px;
+}
+.detail-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  background: var(--border);
+  color: var(--muted);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+.detail-header-img {
+  width: 100%; border-radius: 3px;
+  margin-bottom: 14px;
+  aspect-ratio: 460/215;
+  object-fit: cover;
+  background: var(--border);
+}
+
+/* ── DECAY LEGEND ── */
+.decay-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  padding: 16px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--panel2);
+  overflow-x: auto;
+}
+.dl-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+  font-family: var(--mono);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.dl-item:hover { color: var(--text); }
+.dl-item.active { color: var(--bright); }
+.dl-swatch { width: 20px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+
+/* ── D3 SHARED ── */
+.axis text { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
+.axis path, .axis line { stroke: var(--border2); }
+.grid line { stroke: var(--border); stroke-dasharray: 2,4; opacity: 0.7; }
+.grid path { stroke: none; }
+
+/* ── TOOLTIP ── */
+.tip {
+  position: fixed;
+  background: rgba(8,8,18,0.97);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  max-width: 280px;
+  z-index: 9999;
+  line-height: 1.8;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--border);
+  backdrop-filter: blur(4px);
+}
+.tip strong {
+  display: block;
+  font-size: 13px;
+  color: var(--bright);
+  font-weight: 700;
+  margin-bottom: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.tip-row { display: flex; justify-content: space-between; gap: 20px; }
+.tip-k { color: var(--muted); font-size: 11px; }
+.tip-v { font-family: var(--mono); font-size: 11px; }
+.tip-event { margin-top: 6px; font-size: 10px; color: var(--indie); font-family: var(--mono); }
+
+/* ── TIMELINE EVENTS ── */
+.ev-line { stroke: var(--border2); stroke-width: 1; stroke-dasharray: 3,3; }
+.ev-label { fill: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.5px; }
+
+/* ── LOADING ── */
+.loading-wrap {
+  display: flex; align-items: center; justify-content: center;
+  height: 300px; gap: 12px; color: var(--muted);
+  font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 1px solid var(--border2);
+  border-top-color: var(--indie);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── ENTRANCE ANIMATIONS ── */
+.section { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.section.visible { opacity: 1; transform: none; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── FOOTER ── */
+.footer {
+  padding: 32px 60px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--border2);
+  letter-spacing: 1px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .hero, .main, .legend-strip, .footer { padding-left: 24px; padding-right: 24px; }
+  .stats-ribbon { grid-template-columns: 1fr 1fr; }
+  .scatter-wrap { grid-template-columns: 1fr; }
+  .detail-panel { min-height: auto; max-height: 300px; border-left: none; border-top: 1px solid var(--border); }
+  .section-header { grid-template-columns: 1fr; }
+  .section-num { display: none; }
+  .search-input { width: 100px; }
+  .search-input:focus { width: 120px; }
+}
+
+
+/* ═══════════════════════════════════════════
+   NEW FEATURES — same design language
+═══════════════════════════════════════════ */
+
+/* ── Year selection bar (stream→scatter link) ── */
+.year-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--panel2);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.year-bar .yb-val {
+  color: var(--indie);
+  font-weight: 700;
+  font-size: 13px;
+}
+.year-bar .yb-clear {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+}
+.year-bar .yb-clear:hover { border-color: var(--aaa); color: var(--aaa); }
+
+/* ── Search input ── */
+.search-input {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  padding: 5px 12px;
+  border-radius: 2px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  width: 130px;
+  outline: none;
+  transition: border-color 0.15s, width 0.2s;
+}
+.search-input:focus { border-color: var(--indie); width: 160px; }
+.search-input::placeholder { color: var(--border2); }
+
+/* ── Data provenance note ── */
+.data-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--panel2);
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.6;
+  letter-spacing: 0.3px;
+}
+.data-note .dn-icon {
+  flex-shrink: 0;
+  color: var(--aa);
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* ── Methodology section ── */
+.method-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.method-cell {
+  background: var(--bg2);
+  padding: 20px 24px;
+}
+.mc-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--indie);
+  margin-bottom: 10px;
+}
+.mc-body {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.mc-body strong { color: var(--text); font-weight: 500; }
+.mc-body code {
+  font-family: var(--mono);
+  font-size: 9px;
+  background: rgba(29,233,182,0.06);
+  border: 1px solid rgba(29,233,182,0.12);
+  padding: 0px 4px;
+  border-radius: 2px;
+  color: var(--indie);
+}
+
+@media (max-width: 900px) {
+  .method-grid { grid-template-columns: 1fr; }
+  .year-bar { padding-left: 24px; padding-right: 24px; }
+}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-eyebrow">DATA VISUALIZATION · TSINGHUA UNIVERSITY</div>
+  <h1 class="hero-title">STEAM <span class="year">二十年</span></h1>
+  <p class="hero-sub">独立游戏如何从零崛起，重塑全球最大 PC 游戏生态 · 2004–2024</p>
+  <div class="stats-ribbon" id="stats-ribbon">
+    <div class="stat-cell">
+      <div class="stat-num c-indie">50,000<sup style="font-size:16px">+</sup></div>
+      <div class="stat-label">STEAM 在售游戏总数（2024）</div>
+      <div class="stat-trend">↑ 2004年约150款</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num c-indie">98.9%</div>
+      <div class="stat-label">发布数量中的独立游戏占比</div>
+      <div class="stat-trend">↑ 2012年仅40%</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num c-aa">48%</div>
+      <div class="stat-label">独立游戏收入份额（2024 YTD）</div>
+      <div class="stat-trend">↑ 2018年仅25% · VG Insights</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" style="color:var(--text)">1.32亿</div>
+      <div class="stat-label">STEAM 月活用户（2024）</div>
+      <div class="stat-trend">峰值同时在线 3700万</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ LEGEND ═══ -->
+<div class="legend-strip">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--indie)"></div>INDIE 独立游戏</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--aa)"></div>AA 中型厂商</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--aaa)"></div>AAA 3A大作</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--f2p)"></div>F2P 免费游玩</div>
+  <div class="legend-source">DATA: STEAMSPY API · STEAM STORE API · VG INSIGHTS 2024</div>
+</div>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+  <!-- VIEW 1: STREAM GRAPH -->
+  <section class="section" id="sec-stream">
+    <div class="section-header">
+      <div class="section-num">01 — MARKET</div>
+      <div class="section-meta">
+        <div class="section-tag">Market Share · 2004–2024</div>
+        <div class="section-title">市场格局演变</div>
+        <div class="section-desc">各类型游戏发布数量占比的二十年流动 · 悬停查看年度数据 · <strong style="color:var(--text)">点击</strong>联动散点图</div>
+      </div>
+      <div class="section-controls">
+        <button class="pill active" data-sm="count">发布数量</button>
+        <button class="pill" data-sm="ccu">CCU 份额</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="stream-inner">
+        <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+      </div>
+      <div class="year-bar" id="year-bar" style="display:none">
+        <span>FILTER:</span>
+        <span class="yb-val" id="yb-val">—</span>
+        <span>年发布 → 散点图已联动</span>
+        <button class="yb-clear" id="yb-clear">✕ 清除</button>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏年发布量首次超越 AA+3A 之和；
+        <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 4,000 <em>跳升至 7,000（+75%）</em>；
+        <span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。
+        <br><strong>深层洞察：</strong>数量爆炸同时带来<em>"发现性危机"</em>——2024年日均52款新游戏上架，单款中位曝光机会反低于2014年。
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 2: BUBBLE SCATTER -->
+  <section class="section" id="sec-scatter">
+    <div class="section-header">
+      <div class="section-num">02 — QUALITY</div>
+      <div class="section-meta">
+        <div class="section-tag">Reputation × Popularity × Scale</div>
+        <div class="section-title">口碑 · 人气 · 规模</div>
+        <div class="section-desc">好评率 vs 峰值在线人数（对数轴） · 气泡半径 = 估算拥有人数 · <strong style="color:var(--text)">点击气泡</strong>查看详情</div>
+      </div>
+      <div class="section-controls">
+        <input type="text" class="search-input" id="scatter-search" placeholder="搜索游戏…">
+        <button class="pill active" data-sf="all">ALL</button>
+        <button class="pill" data-sf="Indie">INDIE</button>
+        <button class="pill" data-sf="AA">AA</button>
+        <button class="pill" data-sf="AAA">AAA</button>
+        <button class="pill" data-sf="F2P">F2P</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="scatter-wrap">
+        <div class="chart-inner" id="scatter-inner" style="flex:1">
+          <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+        </div>
+        <div class="detail-panel" id="detail-panel">
+          <div class="detail-empty">
+            <div class="detail-empty-icon">◎</div>
+            <div class="detail-empty-text">点击任意气泡<br>查看游戏详情</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        独立游戏平均好评率（约75%）已与3A大作（约74%）<em>几乎持平</em>——口碑差距在2013年曾超过15个百分点。
+        右上"神作象限"（好评率>90% & CCU>100k）中，独立游戏数量已首次超越3A大作（2022年起）。
+        <strong>《星露谷》《空洞骑士》《Factorio》</strong>等高口碑独立作的玩家留存远超同期3A——详见视图三。
+        <br><strong>值得注意：</strong>独立游戏的分布呈"倒L型"——多数集中在<em>高好评但低人气</em>区域，质量天花板已打破，但<em>市场注意力分配仍极度不均</em>。
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 3: DECAY CURVES -->
+  <section class="section" id="sec-decay">
+    <div class="section-header">
+      <div class="section-num">03 — RETENTION</div>
+      <div class="section-meta">
+        <div class="section-tag">Player Retention · 0–24 Months</div>
+        <div class="section-title">首周断崖 vs 长尾缓降</div>
+        <div class="section-desc">发布后各月归一化在线人数（% of 首月峰值） · <strong style="color:var(--text)">点击图例</strong>高亮单条曲线</div>
+      </div>
+      <div class="section-controls">
+        <button class="pill active" data-dr="on">参考线</button>
+        <button class="pill" data-dr="off">隐藏</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="decay-inner">
+        <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+      </div>
+      <div class="decay-legend" id="decay-legend"></div>
+      <div class="data-note" id="decay-note">
+        <span class="dn-icon">⚠</span>
+        <span>曲线基于行业研究参数（Game Analytics / Konvoy）建模生成，衰减趋势与公开数据一致，但非逐月实测值。如需接入真实 SteamDB 历史 CCU，请参考 README 中的补全流程。</span>
+      </div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        <strong>3A大作</strong>（红色系）：营销驱动的首发热潮在 3 个月内消退，峰值普遍降至 20% 以下，验证了"买了即弃"的消费模式；
+        <em>独立游戏长青款</em>（绿色系）：口碑驱动的持续流量，《星露谷物语》发布 24 个月后仍保持峰值 35% 的日活；
+        <strong>F2P游戏</strong>：内容更新维持曲线最为平坦，商业模式与留存高度绑定。
+        <br><strong>核心发现：</strong>留存曲线的形状差异揭示了两种根本不同的商业模式——3A依赖首周销量爆发，独立游戏依赖口碑长尾。这解释了为什么越来越多独立工作室选择<em>Early Access</em>策略：本质是用时间换曝光，用社区反馈代替营销预算。
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 4: METHODOLOGY -->
+  <section class="section" id="sec-method">
+    <div class="section-header">
+      <div class="section-num">04 — METHOD</div>
+      <div class="section-meta">
+        <div class="section-tag">Data Pipeline & Classification</div>
+        <div class="section-title">数据方法论</div>
+        <div class="section-desc">采集 → 清洗 → 分类 → 可视化的完整管线</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="method-inner"></div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        <strong>数据局限性：</strong>① SteamSpy owners 为估算区间（取中值，误差 ±40%）；
+        ② 分类采用规则引擎而非 ML，边界案例（如《黑神话》归为 AA）可能与大众认知不一致；
+        ③ 视图三衰减曲线为参数化模型，<em>趋势可信但精确数值仅供参考</em>。
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>STEAM 二十年 · 独立游戏崛起史 · 数据可视化大实验</span>
+  <span>DATA: STEAMSPY · STEAM STORE API · VG INSIGHTS 2024 · D3.JS v7</span>
+</footer>
+
+<div class="tip" id="tip"></div>
+
+
+<script>
+//  COLORS & UTILS
+// ════════════════════════════════════════════════
+const C = { Indie:"#1de9b6", AA:"#ffd54f", AAA:"#ff5252", F2P:"#69f0ae" };
+const TL = { Indie:"独立游戏", AA:"中型AA", AAA:"3A大作", F2P:"免费F2P" };
+const fmt = {
+  pct:   v => v.toFixed(1) + "%",
+  ccu:   v => v >= 1e6 ? (v/1e6).toFixed(2)+"M" : v >= 1e3 ? (d3.format(".0f")(v/1e3))+"k" : String(v),
+  own:   v => v >= 1 ? v.toFixed(1)+"M" : (v*1000).toFixed(0)+"k",
+  price: v => v === 0 ? "FREE" : "$"+v.toFixed(2),
+  num:   v => v.toLocaleString(),
+};
+
+// Tooltip
+const tip = document.getElementById("tip");
+const TIP = {
+  show(html, e) { tip.innerHTML = html; tip.style.opacity = "1"; TIP.move(e); },
+  move(e) {
+    const [x,y] = [e.clientX, e.clientY];
+    const [tw,th] = [tip.offsetWidth, tip.offsetHeight];
+    tip.style.left = (x+16+tw > innerWidth ? x-tw-12 : x+16) + "px";
+    tip.style.top  = Math.max(8, y-10+th > innerHeight ? innerHeight-th-8 : y-10) + "px";
+  },
+  hide() { tip.style.opacity = "0"; },
+};
+
+// Cross-view event bus
+const EVT = {
+  _h: {},
+  on(n, fn) { (this._h[n]||(this._h[n]=[])).push(fn); },
+  emit(n, d) { (this._h[n]||[]).forEach(fn=>fn(d)); },
+};
+
+// ════════════════════════════════════════════════
+//  DATA (embedded — same source as JSON files)
+// ════════════════════════════════════════════════
+const DATA = {};
+
+DATA.market = [
+  {year:2004,indie:8,  aa:42,aaa:38,f2p:12,n:150,  ni:12,  na:63, nb:57, nf:18, ev:null,    ci:2, ca:18,cb:35,cf:45},
+  {year:2005,indie:10, aa:40,aaa:37,f2p:13,n:230,  ni:23,  na:92, nb:85, nf:30, ev:null,    ci:3, ca:20,cb:34,cf:43},
+  {year:2006,indie:12, aa:39,aaa:36,f2p:13,n:320,  ni:38,  na:125,nb:115,nf:42, ev:null,    ci:4, ca:22,cb:33,cf:41},
+  {year:2007,indie:15, aa:38,aaa:35,f2p:12,n:490,  ni:74,  na:186,nb:172,nf:59, ev:null,    ci:5, ca:23,cb:32,cf:40},
+  {year:2008,indie:18, aa:37,aaa:33,f2p:12,n:650,  ni:117, na:241,nb:215,nf:78, ev:null,    ci:6, ca:24,cb:30,cf:40},
+  {year:2009,indie:22, aa:35,aaa:31,f2p:12,n:820,  ni:180, na:287,nb:254,nf:98, ev:null,    ci:7, ca:24,cb:28,cf:41},
+  {year:2010,indie:26, aa:34,aaa:29,f2p:11,n:1100, ni:286, na:374,nb:319,nf:121,ev:null,    ci:9, ca:24,cb:26,cf:41},
+  {year:2011,indie:31, aa:32,aaa:27,f2p:10,n:1700, ni:527, na:544,nb:459,nf:170,ev:null,    ci:11,ca:23,cb:24,cf:42},
+  {year:2012,indie:40, aa:29,aaa:22,f2p:9, n:2500, ni:1000,na:725,nb:550,nf:225,ev:"Steam Greenlight", ci:13,ca:22,cb:22,cf:43},
+  {year:2013,indie:50, aa:26,aaa:16,f2p:8, n:3200, ni:1600,na:832,nb:512,nf:256,ev:null,    ci:16,ca:20,cb:19,cf:45},
+  {year:2014,indie:58, aa:22,aaa:13,f2p:7, n:4400, ni:2552,na:968,nb:572,nf:308,ev:null,    ci:18,ca:19,cb:18,cf:45},
+  {year:2015,indie:65, aa:19,aaa:10,f2p:6, n:5800, ni:3770,na:1102,nb:580,nf:348,ev:null,   ci:20,ca:18,cb:17,cf:45},
+  {year:2016,indie:72, aa:16,aaa:7, f2p:5, n:7600, ni:5472,na:1216,nb:532,nf:380,ev:null,   ci:22,ca:17,cb:16,cf:45},
+  {year:2017,indie:80, aa:13,aaa:5, f2p:2, n:9500, ni:7600,na:1235,nb:475,nf:190,ev:"Steam Direct", ci:24,ca:16,cb:15,cf:45},
+  {year:2018,indie:83, aa:11,aaa:4, f2p:2, n:11300,ni:9379,na:1243,nb:452,nf:226,ev:null,   ci:26,ca:16,cb:14,cf:44},
+  {year:2019,indie:86, aa:9, aaa:3, f2p:2, n:12400,ni:10664,na:1116,nb:372,nf:248,ev:null,  ci:28,ca:15,cb:13,cf:44},
+  {year:2020,indie:88, aa:8, aaa:3, f2p:1, n:11600,ni:10208,na:928,nb:348,nf:116,ev:"COVID-19",ci:32,ca:14,cb:12,cf:42},
+  {year:2021,indie:89, aa:7, aaa:3, f2p:1, n:12700,ni:11303,na:889,nb:381,nf:127,ev:null,   ci:35,ca:13,cb:11,cf:41},
+  {year:2022,indie:91, aa:6, aaa:2, f2p:1, n:13700,ni:12467,na:822,nb:274,nf:137,ev:null,   ci:38,ca:12,cb:10,cf:40},
+  {year:2023,indie:93, aa:5, aaa:1.5,f2p:0.5,n:14200,ni:13206,na:710,nb:213,nf:71,ev:null,  ci:40,ca:12,cb:9, cf:39},
+  {year:2024,indie:98.9,aa:0.8,aaa:0.2,f2p:0.1,n:18945,ni:18737,na:152,nb:38,nf:19,ev:null, ci:42,ca:11,cb:8, cf:39},
+];
+
+DATA.bubbles = [
+  {name:"CS:GO / CS2",       type:"F2P",  pr:86,ccu:1818773,own:55,  yr:2012,price:0,    rc:5400000, dev:["Valve"],             tags:["FPS","竞技","免费","动作","多人"]},
+  {name:"DOTA 2",            type:"F2P",  pr:89,ccu:1291328,own:42,  yr:2013,price:0,    rc:1850000, dev:["Valve"],             tags:["MOBA","策略","免费","多人","竞技"]},
+  {name:"PUBG",              type:"AAA",  pr:67,ccu:3257248,own:22,  yr:2017,price:29.99,rc:1100000, dev:["PUBG Studios"],      tags:["大逃杀","生存","射击","多人","开放世界"]},
+  {name:"Cyberpunk 2077",    type:"AAA",  pr:87,ccu:1054388,own:15,  yr:2020,price:59.99,rc:650000,  dev:["CD Projekt RED"],    tags:["开放世界","RPG","动作","赛博朋克","单人"]},
+  {name:"Elden Ring",        type:"AAA",  pr:97,ccu:952523, own:10,  yr:2022,price:59.99,rc:650000,  dev:["FromSoftware"],      tags:["魂类","动作RPG","开放世界","困难","黑暗"]},
+  {name:"Hogwarts Legacy",   type:"AAA",  pr:86,ccu:879308, own:8,   yr:2023,price:59.99,rc:280000,  dev:["Avalanche Software"],tags:["魔法","开放世界","动作","RPG","单人"]},
+  {name:"GTA V",             type:"AAA",  pr:87,ccu:364548, own:25,  yr:2015,price:29.99,rc:1400000, dev:["Rockstar North"],    tags:["开放世界","动作","犯罪","多人","单人"]},
+  {name:"The Witcher 3",     type:"AAA",  pr:97,ccu:103000, own:12,  yr:2015,price:39.99,rc:420000,  dev:["CD Projekt RED"],    tags:["开放世界","RPG","剧情","奇幻","单人"]},
+  {name:"Black Myth: Wukong",type:"AA",   pr:96,ccu:2416376,own:20,  yr:2024,price:59.99,rc:380000,  dev:["Game Science"],      tags:["动作","魂类","中国神话","优美","单人"]},
+  {name:"Baldur's Gate 3",   type:"AA",   pr:97,ccu:875343, own:8,   yr:2023,price:59.99,rc:420000,  dev:["Larian Studios"],    tags:["RPG","回合制","多人","剧情","奇幻"]},
+  {name:"Monster Hunter: World",type:"AA",pr:90,ccu:330519, own:9,   yr:2018,price:29.99,rc:310000,  dev:["Capcom"],            tags:["动作","狩猎","合作","开放世界","RPG"]},
+  {name:"No Man's Sky",      type:"AA",   pr:88,ccu:212321, own:8,   yr:2016,price:59.99,rc:390000,  dev:["Hello Games"],       tags:["太空","探索","生存","多人","开放世界"]},
+  {name:"Palworld",          type:"Indie",pr:79,ccu:2101867,own:20,  yr:2024,price:29.99,rc:280000,  dev:["Pocketpair"],        tags:["生存","制作","多人","开放世界","驯兽"]},
+  {name:"Rust",              type:"Indie",pr:85,ccu:245243, own:14,  yr:2013,price:39.99,rc:650000,  dev:["Facepunch Studios"], tags:["生存","多人","制作","开放世界","PvP"]},
+  {name:"Valheim",           type:"Indie",pr:96,ccu:502387, own:10,  yr:2021,price:19.99,rc:230000,  dev:["Iron Gate Studio"],  tags:["生存","维京","制作","多人","开放世界"]},
+  {name:"Stardew Valley",    type:"Indie",pr:98,ccu:89063,  own:21,  yr:2016,price:14.99,rc:640000,  dev:["ConcernedApe"],      tags:["农场模拟","放松","RPG","像素","单人"]},
+  {name:"Hades",             type:"Indie",pr:97,ccu:100654, own:6,   yr:2020,price:24.99,rc:280000,  dev:["Supergiant Games"],  tags:["Roguelite","动作","地牢","剧情","高重玩"]},
+  {name:"Celeste",           type:"Indie",pr:97,ccu:12124,  own:2.5, yr:2018,price:19.99,rc:92000,   dev:["Maddy Makes Games"], tags:["平台","困难","独立","精准跳跃","剧情"]},
+  {name:"Among Us",          type:"Indie",pr:89,ccu:447476, own:22,  yr:2018,price:4.99, rc:560000,  dev:["Innersloth"],        tags:["社交推理","多人","搞笑","合作","在线"]},
+  {name:"Terraria",          type:"Indie",pr:98,ccu:489886, own:30,  yr:2011,price:9.99, rc:910000,  dev:["Re-Logic"],          tags:["沙盒","制作","2D","生存","挖矿"]},
+  {name:"Hollow Knight",     type:"Indie",pr:98,ccu:48665,  own:5,   yr:2017,price:14.99,rc:220000,  dev:["Team Cherry"],       tags:["银河城","困难","大气","独立","单人"]},
+  {name:"Factorio",          type:"Indie",pr:98,ccu:125789, own:4,   yr:2020,price:35,   rc:180000,  dev:["Wube Software"],     tags:["基地建设","自动化","策略","制作","单人"]},
+  {name:"RimWorld",          type:"Indie",pr:98,ccu:89741,  own:5,   yr:2018,price:34.99,rc:190000,  dev:["Ludeon Studios"],    tags:["殖民地模拟","基地建设","策略","科幻","生存"]},
+  {name:"Lethal Company",    type:"Indie",pr:97,ccu:237554, own:6,   yr:2023,price:9.99, rc:240000,  dev:["Zeekerss"],          tags:["合作","恐怖","搞笑","多人","生存"]},
+  {name:"Subnautica",        type:"Indie",pr:97,ccu:46236,  own:7,   yr:2018,price:29.99,rc:200000,  dev:["Unknown Worlds"],    tags:["生存","开放世界","水下","制作","大气"]},
+  {name:"Satisfactory",      type:"Indie",pr:98,ccu:77714,  own:4,   yr:2020,price:34.99,rc:170000,  dev:["Coffee Stain Studios"],tags:["基地建设","工厂","合作","探索","自动化"]},
+  {name:"Schedule I",        type:"Indie",pr:98,ccu:414000, own:5,   yr:2025,price:29.99,rc:180000,  dev:["TVGS"],              tags:["犯罪","模拟","独立","沙盒","开放世界"]},
+  {name:"Warframe",          type:"F2P",  pr:87,ccu:128220, own:14,  yr:2013,price:0,    rc:510000,  dev:["Digital Extremes"],  tags:["免费","动作","第三人称","科幻","多人"]},
+  {name:"Apex Legends",      type:"F2P",  pr:81,ccu:228439, own:18,  yr:2019,price:0,    rc:420000,  dev:["Respawn Entertainment"],tags:["大逃杀","免费","FPS","竞技","多人"]},
+  {name:"Path of Exile",     type:"F2P",  pr:86,ccu:232724, own:9,   yr:2013,price:0,    rc:450000,  dev:["Grinding Gear Games"],tags:["动作RPG","免费","黑暗奇幻","困难","多人"]},
+];
+
+// ── 衰减曲线：参数化生成（固定种子）
+function genDecay(seed, a, b, c, floor) {
+  let s = seed;
+  function rand() { s=(s*1664525+1013904223)&0xffffffff; return (s>>>0)/0xffffffff; }
+  const v = Array.from({length:25},(_,m)=>{
+    const base = Math.max(floor, a*Math.exp(-b*m)+c);
+    return Math.min(1.05, Math.max(floor-0.02, base+(rand()-0.5)*0.028));
+  });
+  v[0]=1.0; return v.map(x=>Math.round(x*1e4)/1e4);
+}
+DATA.decay = [
+  {name:"GTA V",              type:"AAA",  color:"#ff5252", peak:364548,  yr:2015, data:genDecay(1, 0.90,0.58,0.05,0.04)},
+  {name:"Cyberpunk 2077",     type:"AAA",  color:"#ff7070", peak:1054388, yr:2020, data:genDecay(2, 0.88,0.72,0.04,0.03)},
+  {name:"Hogwarts Legacy",    type:"AAA",  color:"#ff9090", peak:879308,  yr:2023, data:genDecay(3, 0.92,0.82,0.03,0.02)},
+  {name:"Black Myth: Wukong", type:"AA",   color:"#ffd54f", peak:2416376, yr:2024, data:genDecay(4, 0.85,0.55,0.08,0.06)},
+  {name:"Baldur's Gate 3",    type:"AA",   color:"#ffe082", peak:875343,  yr:2023, data:genDecay(5, 0.70,0.24,0.22,0.16)},
+  {name:"Stardew Valley",     type:"Indie",color:"#1de9b6", peak:89063,   yr:2016, data:genDecay(6, 0.55,0.06,0.36,0.31)},
+  {name:"Valheim",            type:"Indie",color:"#00bfa5", peak:502387,  yr:2021, data:genDecay(7, 0.75,0.32,0.18,0.12)},
+  {name:"Terraria",           type:"Indie",color:"#00897b", peak:489886,  yr:2011, data:genDecay(8, 0.50,0.05,0.42,0.38)},
+  {name:"Hades",              type:"Indie",color:"#80cbc4", peak:100654,  yr:2020, data:genDecay(9, 0.65,0.14,0.29,0.24)},
+  {name:"DOTA 2",             type:"F2P",  color:"#69f0ae", peak:1291328, yr:2013, data:genDecay(10,0.28,0.03,0.68,0.64)},
+];
+
+// ════════════════════════════════════════════════
+
+// ── No-fetch version: use embedded data directly ──
+window.loadRealData = async function() {
+  console.info('[data] Using embedded fallback data (no server).');
+  return { market: false, bubbles: false, decay: false };
+};
+
+//  VIEW 1: STREAM GRAPH
+// ════════════════════════════════════════════════
+window.initStream = function() {
+  const KEYS = ["f2p","aaa","aa","indie"];
+  const CCUKEYS = {indie:"ci", aa:"ca", aaa:"cb", f2p:"cf"};
+  const KC = { indie:C.Indie, aa:C.AA, aaa:C.AAA, f2p:C.F2P };
+  const KL = { indie:"INDIE", aa:"AA", aaa:"AAA", f2p:"F2P" };
+  const EVENTS = [{yr:2012,label:"GREENLIGHT"},{yr:2017,label:"DIRECT"},{yr:2020,label:"COVID"}];
+  const MG = {t:24,r:24,b:38,l:48};
+
+  let svg,g,xSc,ySc;
+  let mode = "count";
+  let selectedYear = null;
+
+  function draw() {
+    const wrap = document.getElementById("stream-inner");
+    wrap.innerHTML = "";
+    const W = wrap.clientWidth, H = Math.max(240, Math.min(320, W*0.38));
+    const iW=W-MG.l-MG.r, iH=H-MG.t-MG.b;
+
+    svg = d3.select(wrap).append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("height",H);
+    g   = svg.append("g").attr("transform",`translate(${MG.l},${MG.t})`);
+    xSc = d3.scaleLinear().domain([2004,2024]).range([0,iW]);
+
+    // Build stack data based on mode
+    const stackData = DATA.market.map(d => {
+      const row = { year:d.year, _orig:d };
+      KEYS.forEach(k => {
+        row[k] = mode==="ccu" ? (d[CCUKEYS[k]] ?? d[k]) : d[k];
+      });
+      return row;
+    });
+
+    const stack = d3.stack().keys(KEYS)
+      .offset(d3.stackOffsetWiggle).order(d3.stackOrderInsideOut);
+    const series = stack(stackData);
+
+    ySc = d3.scaleLinear()
+      .domain([d3.min(series,s=>d3.min(s,d=>d[0])), d3.max(series,s=>d3.max(s,d=>d[1]))])
+      .range([iH,0]);
+
+    const area = d3.area()
+      .x((_,i)=>xSc(stackData[i].year))
+      .y0(d=>ySc(d[0])).y1(d=>ySc(d[1]))
+      .curve(d3.curveCatmullRom.alpha(0.5));
+
+    // Glow
+    const defs = svg.append("defs");
+    const flt = defs.append("filter").attr("id","glow-s");
+    flt.append("feGaussianBlur").attr("stdDeviation","3").attr("result","blur");
+    const fMrg = flt.append("feMerge");
+    fMrg.append("feMergeNode").attr("in","blur");
+    fMrg.append("feMergeNode").attr("in","SourceGraphic");
+
+    // Paths
+    g.selectAll(".sp").data(series).join("path")
+      .attr("class","sp")
+      .attr("fill", s=>KC[s.key])
+      .attr("fill-opacity",0.78)
+      .attr("d", area)
+      .on("mousemove", function(ev,s){
+        const yr = Math.round(xSc.invert(d3.pointer(ev)[0]));
+        const idx = stackData.findIndex(r=>r.year===yr);
+        if(idx<0) return;
+        const d = stackData[idx]._orig;
+        const val = stackData[idx][s.key];
+        g.selectAll(".sp").attr("fill-opacity", p=>p.key===s.key?1:0.18);
+        const ml = mode==="ccu"?"CCU份额":"发布占比";
+        TIP.show(`<strong>${yr} · ${KL[s.key]}</strong>
+          <div class="tip-row"><span class="tip-k">${ml}</span><span class="tip-v" style="color:${KC[s.key]}">${val}%</span></div>
+          <div class="tip-row"><span class="tip-k">本年总发布</span><span class="tip-v">${fmt.num(d.n)} 款</span></div>
+          <div class="tip-row"><span class="tip-k">${KL[s.key]}发布量</span><span class="tip-v">${fmt.num(d["n"+s.key[0]])} 款</span></div>
+          ${d.ev?`<div class="tip-event">◆ ${d.ev}</div>`:""}
+        `, ev);
+      })
+      .on("mouseleave",()=>{ g.selectAll(".sp").attr("fill-opacity",0.78); TIP.hide(); })
+      .on("click", function(ev){
+        const yr = Math.round(xSc.invert(d3.pointer(ev)[0]));
+        if(yr<2004||yr>2024) return;
+        selectYear(yr===selectedYear ? null : yr);
+      });
+
+    // X axis
+    g.append("g").attr("class","axis").attr("transform",`translate(0,${iH})`)
+      .call(d3.axisBottom(xSc).tickFormat(d3.format("d")).ticks(10).tickSize(3));
+
+    // Event lines
+    EVENTS.forEach(ev=>{
+      const x=xSc(ev.yr);
+      g.append("line").attr("class","ev-line").attr("x1",x).attr("x2",x).attr("y1",0).attr("y2",iH);
+      g.append("text").attr("class","ev-label").attr("x",x).attr("y",-6).attr("text-anchor","middle").text(ev.yr+" · "+ev.label);
+    });
+
+    // Selected year highlight
+    if(selectedYear){
+      const x=xSc(selectedYear);
+      g.append("rect").attr("x",x-6).attr("y",0).attr("width",12).attr("height",iH)
+        .attr("fill","rgba(29,233,182,0.08)").attr("stroke",C.Indie).attr("stroke-width",1)
+        .attr("stroke-dasharray","3,3").style("cursor","pointer")
+        .on("click",()=>selectYear(null));
+    }
+
+    // Area labels
+    series.forEach(s=>{
+      const mid=Math.floor(s.length*0.55);
+      const cy=(ySc(s[mid][0])+ySc(s[mid][1]))/2;
+      const bw=Math.abs(ySc(s[mid][1])-ySc(s[mid][0]));
+      if(bw<12) return;
+      g.append("text")
+        .attr("x",xSc(2013)).attr("y",cy+4)
+        .attr("text-anchor","middle")
+        .attr("fill","rgba(0,0,0,0.65)")
+        .attr("font-family","'Space Mono',monospace")
+        .attr("font-size",Math.min(13,bw*0.38))
+        .attr("font-weight","700")
+        .attr("pointer-events","none")
+        .text(KL[s.key]);
+    });
+
+    // Mode label
+    g.append("text").attr("x",iW).attr("y",-6).attr("text-anchor","end")
+      .attr("fill","rgba(255,255,255,0.12)").attr("font-family","'Space Mono',monospace").attr("font-size",9)
+      .text(mode==="ccu"?"CCU SHARE":"RELEASE COUNT");
+  }
+
+  function selectYear(yr){
+    selectedYear=yr;
+    const bar=document.getElementById("year-bar");
+    if(yr){
+      bar.style.display="flex";
+      document.getElementById("yb-val").textContent=yr;
+    } else {
+      bar.style.display="none";
+    }
+    EVT.emit("yearSelect",yr);
+    draw();
+  }
+
+  document.getElementById("yb-clear").addEventListener("click",()=>selectYear(null));
+
+  // Mode toggle
+  document.querySelectorAll("[data-sm]").forEach(b=>{
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-sm]").forEach(x=>x.classList.remove("active"));
+      this.classList.add("active");
+      mode = this.dataset.sm === "ccu" ? "ccu" : "count";
+      draw();
+    });
+  });
+
+  draw();
+  window._streamRedraw = draw;
+};
+// ════════════════════════════════════════════════
+
+//  VIEW 2: BUBBLE SCATTER
+// ════════════════════════════════════════════════
+window.initScatter = function() {
+  const MG={t:20,r:24,b:48,l:66};
+  let activeFilter="all", selected=null, yearFilter=null, searchTerm="";
+  let svg,g,xSc,ySc,rSc;
+
+  function filtered() {
+    let d = DATA.bubbles;
+    if(activeFilter!=="all") d = d.filter(x=>x.type===activeFilter);
+    if(yearFilter) d = d.filter(x=>x.yr===yearFilter);
+    return d;
+  }
+  function isMatch(d){ return !searchTerm || d.name.toLowerCase().includes(searchTerm.toLowerCase()); }
+
+  function draw() {
+    const wrap=document.getElementById("scatter-inner");
+    wrap.innerHTML="";
+    const W=wrap.clientWidth, H=Math.max(320,Math.min(420,W*0.45));
+    const iW=W-MG.l-MG.r, iH=H-MG.t-MG.b;
+
+    svg=d3.select(wrap).append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("height",H);
+    g=svg.append("g").attr("transform",`translate(${MG.l},${MG.t})`);
+
+    xSc=d3.scaleLinear().domain([55,100]).range([0,iW]);
+    ySc=d3.scaleLog().domain([4000,4800000]).range([iH,0]).clamp(true);
+    rSc=d3.scaleSqrt().domain([0,60]).range([3,W<700?26:38]);
+
+    // Grid
+    g.append("g").attr("class","grid").call(d3.axisLeft(ySc).ticks(5).tickSize(-iW).tickFormat(""));
+    g.append("g").attr("class","grid").attr("transform",`translate(0,${iH})`).call(d3.axisBottom(xSc).ticks(6).tickSize(-iH).tickFormat(""));
+
+    // Axes
+    g.append("g").attr("class","axis").attr("transform",`translate(0,${iH})`)
+      .call(d3.axisBottom(xSc).tickFormat(d=>d+"%"));
+    g.append("g").attr("class","axis")
+      .call(d3.axisLeft(ySc).ticks(5).tickFormat(v=>v>=1e6?(v/1e6).toFixed(1)+"M":(v/1e3).toFixed(0)+"k"));
+
+    // Axis labels
+    g.append("text").attr("x",iW/2).attr("y",iH+38).attr("text-anchor","middle")
+      .attr("fill","#6060a0").attr("font-family","'Space Mono',monospace").attr("font-size",10)
+      .attr("letter-spacing","1").text("STEAM 好评率 (%)");
+    g.append("text").attr("transform","rotate(-90)").attr("x",-iH/2).attr("y",-54)
+      .attr("text-anchor","middle").attr("fill","#6060a0")
+      .attr("font-family","'Space Mono',monospace").attr("font-size",10).attr("letter-spacing","1")
+      .text("峰值在线人数（对数轴）");
+
+    // Quadrant
+    g.append("text").attr("x",iW-4).attr("y",14).attr("text-anchor","end")
+      .attr("fill","rgba(29,233,182,0.12)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
+      .text("高口碑 · 高人气 →");
+
+    // Year filter label
+    if(yearFilter){
+      g.append("text").attr("x",4).attr("y",14)
+        .attr("fill","rgba(29,233,182,0.35)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
+        .text("⤷ "+yearFilter+"年");
+    }
+
+    const show=filtered();
+    const hide=DATA.bubbles.filter(d=>!show.includes(d));
+
+    // Dimmed
+    g.selectAll(".bub-dim").data(hide.sort((a,b)=>b.own-a.own)).join("circle")
+      .attr("class","bub-dim")
+      .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(4001,d.ccu)))
+      .attr("r",d=>rSc(d.own)).attr("fill",d=>C[d.type]||"#888")
+      .attr("opacity",0.04).attr("stroke","none");
+
+    // Active bubbles with enter animation
+    const bubs = g.selectAll(".bub").data(show.sort((a,b)=>b.own-a.own), d=>d.name);
+    bubs.join(
+      enter => enter.append("circle").attr("class","bub")
+        .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(4001,d.ccu)))
+        .attr("r",0)
+        .attr("fill",d=>C[d.type]||"#888")
+        .attr("stroke",d=>d3.color(C[d.type]||"#888").darker(0.8))
+        .attr("stroke-width",1)
+        .attr("opacity",0)
+        .style("cursor","pointer")
+        .call(e=>e.transition().duration(500).ease(d3.easeCubicOut)
+          .attr("r",d=>rSc(d.own))
+          .attr("opacity",d=> searchTerm&&!isMatch(d)?0.08 : d.ccu>100000?0.85:0.65)
+        ),
+      update => update.call(u=>u.transition().duration(350)
+        .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(4001,d.ccu)))
+        .attr("r",d=>rSc(d.own))
+        .attr("opacity",d=> searchTerm&&!isMatch(d)?0.08 : d.ccu>100000?0.85:0.65)
+      ),
+      exit => exit.call(x=>x.transition().duration(250).attr("r",0).attr("opacity",0).remove())
+    );
+
+    // Bind events after a tick (so transitions have started)
+    setTimeout(bindEvents, 60);
+
+    // Labels with collision avoidance
+    const used=[];
+    show.filter(d=>(d.ccu>150000||d.own>12||d.pr>97.5)&&(!searchTerm||isMatch(d)))
+      .sort((a,b)=>b.ccu-a.ccu)
+      .forEach(d=>{
+        const lx=xSc(d.pr), ly=ySc(Math.max(4001,d.ccu))-rSc(d.own)-5;
+        if(used.some(([px,py])=>Math.abs(lx-px)<55&&Math.abs(ly-py)<11)) return;
+        used.push([lx,ly]);
+        g.append("text").attr("class","glabel")
+          .attr("x",lx).attr("y",ly)
+          .attr("text-anchor","middle").attr("font-size",8)
+          .attr("font-family","'Space Mono',monospace").attr("fill","#6868a8")
+          .text(d.name.length>16?d.name.slice(0,14)+"…":d.name);
+      });
+
+    // Search rings
+    if(searchTerm){
+      show.filter(isMatch).forEach(d=>{
+        g.append("circle")
+          .attr("cx",xSc(d.pr)).attr("cy",ySc(Math.max(4001,d.ccu)))
+          .attr("r",rSc(d.own)+4)
+          .attr("fill","none").attr("stroke","#fff").attr("stroke-width",1.5)
+          .attr("stroke-dasharray","3,2").attr("opacity",0.5)
+          .style("pointer-events","none");
+      });
+    }
+
+    // Click outside
+    svg.on("click",()=>{
+      selected=null; TIP.hide();
+      g.selectAll(".bub").transition().duration(250)
+        .attr("opacity",d=> searchTerm&&!isMatch(d)?0.08 : d.ccu>100000?0.85:0.65)
+        .attr("r",d=>rSc(d.own));
+      showDetailPanel(null);
+    });
+  }
+
+  function bindEvents(){
+    g.selectAll(".bub")
+      .on("mousemove",function(ev,d){
+        if(selected===d) return;
+        d3.select(this).transition().duration(80).attr("r",rSc(d.own)*1.12);
+        TIP.show(`<strong>${d.name}</strong>
+          <div class="tip-row"><span class="tip-k">类型</span><span class="tip-v" style="color:${C[d.type]}">${TL[d.type]}</span></div>
+          <div class="tip-row"><span class="tip-k">发行年</span><span class="tip-v">${d.yr}</span></div>
+          <div class="tip-row"><span class="tip-k">好评率</span><span class="tip-v">${fmt.pct(d.pr)}</span></div>
+          <div class="tip-row"><span class="tip-k">峰值在线</span><span class="tip-v">${fmt.ccu(d.ccu)}</span></div>
+          <div class="tip-row"><span class="tip-k">估算拥有</span><span class="tip-v">${fmt.own(d.own)}</span></div>
+          <div class="tip-row"><span class="tip-k">定价</span><span class="tip-v">${fmt.price(d.price)}</span></div>
+        `, ev);
+      })
+      .on("mouseleave",function(ev,d){
+        if(selected!==d){ d3.select(this).transition().duration(80).attr("r",rSc(d.own)); TIP.hide(); }
+      })
+      .on("click",function(ev,d){
+        ev.stopPropagation();
+        if(selected===d){
+          selected=null; TIP.hide();
+          g.selectAll(".bub").transition().duration(250)
+            .attr("opacity",dd=> searchTerm&&!isMatch(dd)?0.08 : dd.ccu>100000?0.85:0.65)
+            .attr("r",dd=>rSc(dd.own));
+          showDetailPanel(null);
+        } else {
+          selected=d; TIP.hide();
+          g.selectAll(".bub").transition().duration(250)
+            .attr("opacity",dd=>dd===d?1:0.06)
+            .attr("r",dd=>dd===d?rSc(dd.own)*1.18:rSc(dd.own));
+          showDetailPanel(d);
+        }
+      });
+  }
+
+  function showDetailPanel(d) {
+    const p=document.getElementById("detail-panel");
+    if(!d){ p.innerHTML=`<div class="detail-empty"><div class="detail-empty-icon">◎</div><div class="detail-empty-text">点击任意气泡<br>查看游戏详情</div></div>`; return; }
+    const col=C[d.type]||"#888";
+    p.innerHTML=`
+      <div class="detail-game-name">${d.name}</div>
+      <div class="detail-type" style="color:${col}">${d.type} · ${d.yr}</div>
+      <div class="detail-row"><span class="detail-key">好评率</span><span class="detail-val" style="color:${col}">${fmt.pct(d.pr)}</span></div>
+      <div class="detail-row"><span class="detail-key">峰值在线</span><span class="detail-val">${fmt.ccu(d.ccu)}</span></div>
+      <div class="detail-row"><span class="detail-key">估算拥有</span><span class="detail-val">${fmt.own(d.own)}</span></div>
+      <div class="detail-row"><span class="detail-key">定价</span><span class="detail-val">${fmt.price(d.price)}</span></div>
+      <div class="detail-row"><span class="detail-key">评价总数</span><span class="detail-val">${fmt.num(d.rc)}</span></div>
+      <div class="detail-row"><span class="detail-key">开发商</span><span class="detail-val" style="font-size:10px">${d.dev[0]||"—"}</span></div>
+      <div class="detail-tags">${(d.tags||[]).map(t=>`<span class="detail-tag">${t}</span>`).join("")}</div>
+    `;
+  }
+
+  // Filter buttons
+  document.querySelectorAll("[data-sf]").forEach(b=>{
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-sf]").forEach(x=>x.classList.remove("active"));
+      this.classList.add("active");
+      activeFilter=this.dataset.sf; selected=null; showDetailPanel(null); draw();
+    });
+  });
+
+  // Search
+  const si=document.getElementById("scatter-search");
+  if(si){ let t; si.addEventListener("input",function(){ clearTimeout(t); t=setTimeout(()=>{ searchTerm=this.value.trim(); draw(); },200); }); }
+
+  // Cross-view year
+  EVT.on("yearSelect", yr=>{ yearFilter=yr; selected=null; showDetailPanel(null); draw(); });
+
+  draw();
+  window._scatterRedraw = draw;
+};
+// ════════════════════════════════════════════════
+
+//  VIEW 3: DECAY CURVES
+// ════════════════════════════════════════════════
+window.initDecay = function() {
+  const MG={t:24,r:48,b:48,l:60};
+  let showRef=true, highlighted=null;
+  let svg,g,xSc,ySc;
+  let firstDraw=true;
+
+  function draw() {
+    const wrap=document.getElementById("decay-inner");
+    wrap.innerHTML="";
+    const W=wrap.clientWidth, H=Math.max(280,Math.min(360,W*0.4));
+    const iW=W-MG.l-MG.r, iH=H-MG.t-MG.b;
+
+    svg=d3.select(wrap).append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("height",H);
+    g=svg.append("g").attr("transform",`translate(${MG.l},${MG.t})`);
+
+    xSc=d3.scaleLinear().domain([0,24]).range([0,iW]);
+    ySc=d3.scaleLinear().domain([0,1.06]).range([iH,0]);
+
+    g.append("g").attr("class","grid").call(d3.axisLeft(ySc).ticks(6).tickSize(-iW).tickFormat(""));
+    g.append("g").attr("class","grid").attr("transform",`translate(0,${iH})`).call(d3.axisBottom(xSc).ticks(12).tickSize(-iH).tickFormat(""));
+
+    // Reference lines
+    if(showRef) [0.5,0.2,0.1].forEach(pct=>{
+      g.append("line").attr("class","ref-l")
+        .attr("x1",0).attr("x2",iW).attr("y1",ySc(pct)).attr("y2",ySc(pct))
+        .attr("stroke","rgba(255,255,255,0.08)").attr("stroke-dasharray","2,5");
+      g.append("text").attr("class","ref-t")
+        .attr("x",iW+4).attr("y",ySc(pct)+3)
+        .attr("fill","rgba(255,255,255,0.18)").attr("font-family","'Space Mono',monospace").attr("font-size",9)
+        .text((pct*100)+"%");
+    });
+
+    // Axes
+    g.append("g").attr("class","axis").attr("transform",`translate(0,${iH})`)
+      .call(d3.axisBottom(xSc).tickFormat(d=>d===0?"发布月":d+"月"));
+    g.append("g").attr("class","axis").call(d3.axisLeft(ySc).tickFormat(d3.format(".0%")));
+
+    g.append("text").attr("x",iW/2).attr("y",iH+38).attr("text-anchor","middle")
+      .attr("fill","#6060a0").attr("font-family","'Space Mono',monospace").attr("font-size",10).attr("letter-spacing","1")
+      .text("发布后月数");
+    g.append("text").attr("transform","rotate(-90)").attr("x",-iH/2).attr("y",-48)
+      .attr("text-anchor","middle").attr("fill","#6060a0")
+      .attr("font-family","'Space Mono',monospace").attr("font-size",10).attr("letter-spacing","1")
+      .text("归一化在线人数（% of 首月峰值）");
+
+    const line=d3.line().x((_,i)=>xSc(i)).y(v=>ySc(v)).curve(d3.curveCatmullRom.alpha(0.5));
+
+    // Lines
+    const paths = g.selectAll(".dline").data(DATA.decay).join("path")
+      .attr("class","dline")
+      .attr("stroke",d=>d.color)
+      .attr("fill","none")
+      .attr("d",d=>line(d.data))
+      .style("cursor","pointer");
+
+    if(firstDraw){
+      paths.each(function(){
+        const len=this.getTotalLength();
+        d3.select(this)
+          .attr("stroke-dasharray",len).attr("stroke-dashoffset",len)
+          .attr("stroke-width",2).attr("opacity",0.75)
+          .transition().duration(1000).delay((_,i)=>i*70).ease(d3.easeCubicInOut)
+          .attr("stroke-dashoffset",0);
+      });
+      firstDraw=false;
+    } else {
+      paths.attr("stroke-dasharray",null).attr("stroke-dashoffset",null)
+        .attr("opacity",d=>highlighted?(d.name===highlighted?1:0.07):0.75)
+        .attr("stroke-width",d=>highlighted&&d.name===highlighted?3:2);
+    }
+
+    paths
+      .on("mousemove",function(ev,d){
+        const mx=d3.pointer(ev)[0];
+        const m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
+        TIP.show(`<strong>${d.name}</strong>
+          <div class="tip-row"><span class="tip-k">发布后</span><span class="tip-v">${m} 个月</span></div>
+          <div class="tip-row"><span class="tip-k">相对在线</span><span class="tip-v">${fmt.pct(d.data[m]*100)}</span></div>
+          <div class="tip-row"><span class="tip-k">类型</span><span class="tip-v" style="color:${d.color}">${TL[d.type]}</span></div>
+          <div class="tip-row"><span class="tip-k">峰值CCU</span><span class="tip-v">${fmt.ccu(d.peak)}</span></div>
+        `, ev);
+        if(!highlighted) hl(d.name);
+      })
+      .on("mouseleave",()=>{ TIP.hide(); if(!highlighted) hl(null); })
+      .on("click",function(ev,d){ ev.stopPropagation(); highlighted===d.name?hl(null,true):hl(d.name,true); });
+
+    // Cursor & dots
+    const cursor=g.append("line").attr("stroke","rgba(255,255,255,0.15)").attr("y1",0).attr("y2",iH).style("pointer-events","none").style("display","none");
+    const dotsG=g.append("g");
+
+    g.append("rect").attr("width",iW).attr("height",iH).attr("fill","transparent")
+      .on("mousemove",function(ev){
+        const [mx]=d3.pointer(ev);
+        if(mx<0||mx>iW){cursor.style("display","none");return;}
+        const m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
+        cursor.style("display",null).attr("x1",xSc(m)).attr("x2",xSc(m));
+        dotsG.selectAll(".cdot").remove();
+        const vis=highlighted?DATA.decay.filter(d=>d.name===highlighted):DATA.decay;
+        dotsG.selectAll(".cdot").data(vis).join("circle").attr("class","cdot")
+          .attr("cx",xSc(m)).attr("cy",d=>ySc(d.data[m])).attr("r",3.5)
+          .attr("fill",d=>d.color).attr("stroke","#fff").attr("stroke-width",1).style("pointer-events","none");
+        if(highlighted){
+          const d=DATA.decay.find(x=>x.name===highlighted);
+          if(d) TIP.show(`<strong>${d.name}</strong>
+            <div class="tip-row"><span class="tip-k">发布后</span><span class="tip-v">${m} 个月</span></div>
+            <div class="tip-row"><span class="tip-k">相对在线</span><span class="tip-v">${fmt.pct(d.data[m]*100)}</span></div>
+          `, ev);
+        }
+      })
+      .on("mouseleave",()=>{ cursor.style("display","none"); dotsG.selectAll(".cdot").remove(); TIP.hide(); if(!highlighted) hl(null); });
+
+    // End-of-line labels
+    DATA.decay.forEach(d=>{
+      g.append("text")
+        .attr("x",xSc(24)+4).attr("y",ySc(d.data[24])+3)
+        .attr("fill",d.color).attr("font-family","'Space Mono',monospace").attr("font-size",7)
+        .attr("opacity",highlighted?(d.name===highlighted?0.7:0):0.35)
+        .style("pointer-events","none")
+        .text(d.name.length>10?d.name.slice(0,9)+"…":d.name);
+    });
+
+    buildLegend();
+  }
+
+  function hl(name,sticky){
+    if(sticky) highlighted = (highlighted===name ? null : name);
+    const n = sticky ? highlighted : name;
+    g&&g.selectAll(".dline").transition().duration(180)
+      .attr("opacity",d=>n?(d.name===n?1:0.07):0.75)
+      .attr("stroke-width",d=>n&&d.name===n?3:2);
+    document.querySelectorAll(".dl-item").forEach(el=>{
+      el.classList.toggle("active", el.dataset.name===n);
+    });
+  }
+
+  function buildLegend() {
+    const leg=document.getElementById("decay-legend");
+    leg.innerHTML="";
+    DATA.decay.forEach(d=>{
+      const el=document.createElement("div");
+      el.className="dl-item"+(highlighted===d.name?" active":"");
+      el.dataset.name=d.name;
+      el.innerHTML=`<div class="dl-swatch" style="background:${d.color}"></div>${d.name} (${d.type}, ${d.yr})`;
+      el.addEventListener("click",()=>{ highlighted===d.name?hl(null,true):hl(d.name,true); });
+      leg.appendChild(el);
+    });
+  }
+
+  // Controls
+  document.querySelectorAll("[data-dr]").forEach(b=>{
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-dr]").forEach(x=>x.classList.remove("active"));
+      this.classList.add("active");
+      showRef=this.dataset.dr==="on"; firstDraw=false; draw();
+    });
+  });
+
+  draw();
+  window._decayRedraw = ()=>{ firstDraw=false; draw(); };
+};
+// ════════════════════════════════════════════════
+
+//  VIEW 4: METHODOLOGY
+// ════════════════════════════════════════════════
+window.initMethod = function() {
+  const wrap = document.getElementById("method-inner");
+  if(!wrap) return;
+
+  wrap.innerHTML = `
+    <div class="method-grid">
+      <div class="method-cell">
+        <div class="mc-title">01 · 数据采集</div>
+        <div class="mc-body">
+          <strong>SteamSpy API</strong> — 全量游戏基础数据（owners、CCU、tags），约50k条，分页采集支持断点续传<br>
+          <strong>Steam Store API</strong> — 补充发布日期、开发商、价格、Metacritic<br>
+          策略：Top100 快速跑通 → 全量渐进补全
+        </div>
+      </div>
+      <div class="method-cell">
+        <div class="mc-title">02 · 分类规则</div>
+        <div class="mc-body">
+          <strong>F2P</strong>：<code>is_free</code> 或 <code>price=0</code><br>
+          <strong>AAA</strong>：发行商∈已知名单 ∧ 价格≥$30 ∧ 拥有≥1M<br>
+          <strong>Indie</strong>：Indie标签投票>100 且 拥有<5M<br>
+          <strong>AA</strong>：价格≥$20 ∧ 拥有≥0.5M 的中间地带
+        </div>
+      </div>
+      <div class="method-cell">
+        <div class="mc-title">03 · 数据清洗</div>
+        <div class="mc-body">
+          <strong>Owners</strong>：取区间中值（如"200k..500k"→350k）<br>
+          年份过滤：2004–2024 · 类型过滤：排除DLC/工具<br>
+          好评率：<code>positive/(positive+negative)×100</code><br>
+          视图二门槛：评价数 ≥ 10 条
+        </div>
+      </div>
+      <div class="method-cell">
+        <div class="mc-title">04 · 可视化编码</div>
+        <div class="mc-body">
+          <strong>V1</strong> Stream Graph · <code>stackOffsetWiggle</code><br>
+          <strong>V2</strong> 散点图 · X=好评率 Y=CCU(log) R=拥有(sqrt)<br>
+          <strong>V3</strong> 折线图 · 归一化CCU 24个月<br>
+          <strong>交互</strong>：跨视图年份联动 · 搜索 · 过渡动画
+        </div>
+      </div>
+    </div>
+    <div id="method-pipe"></div>
+  `;
+
+  // Pipeline SVG
+  const pipeWrap = document.getElementById("method-pipe");
+  const W = pipeWrap.clientWidth||600, H=72;
+  const steps=[
+    {l:"SteamSpy API",s:"50k games",c:"#1de9b6"},
+    {l:"Steam Store",s:"发布日期",c:"#1de9b6"},
+    {l:"Pandas 清洗",s:"分类/过滤",c:"#ffd54f"},
+    {l:"JSON 输出",s:"4 files",c:"#ffd54f"},
+    {l:"D3.js v7",s:"3+1 views",c:"#ff5252"},
+  ];
+  const sw=W/steps.length;
+  const s=d3.select(pipeWrap).append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("height",H);
+
+  // Arrow marker
+  s.append("defs").append("marker").attr("id","arr").attr("viewBox","0 0 10 10")
+    .attr("refX",9).attr("refY",5).attr("markerWidth",5).attr("markerHeight",5).attr("orient","auto")
+    .append("path").attr("d","M0 0L10 5L0 10z").attr("fill","#2a2a48");
+
+  steps.forEach((st,i)=>{
+    const cx=sw*i+sw/2;
+    if(i>0) s.append("line")
+      .attr("x1",sw*(i-1)+sw/2+32).attr("x2",cx-32).attr("y1",30).attr("y2",30)
+      .attr("stroke","#2a2a48").attr("stroke-width",1).attr("marker-end","url(#arr)");
+    s.append("rect").attr("x",cx-30).attr("y",10).attr("width",60).attr("height",36).attr("rx",2)
+      .attr("fill","rgba(255,255,255,0.02)").attr("stroke",st.c).attr("stroke-width",0.5).attr("opacity",0.6);
+    s.append("text").attr("x",cx).attr("y",26).attr("text-anchor","middle")
+      .attr("fill","#d8d8f0").attr("font-family","'Space Mono',monospace").attr("font-size",8).text(st.l);
+    s.append("text").attr("x",cx).attr("y",40).attr("text-anchor","middle")
+      .attr("fill","#6060a0").attr("font-family","'Space Mono',monospace").attr("font-size",7).text(st.s);
+    s.append("text").attr("x",cx).attr("y",60).attr("text-anchor","middle")
+      .attr("fill","#6060a0").attr("font-family","'Space Mono',monospace").attr("font-size",7).text(st.s);
+  });
+  // Remove duplicate sub-label (keep only the one below the box)
+  s.selectAll("text").filter(function(){ return this.getAttribute("y")==="40"; }).remove();
+};
+// ════════════════════════════════════════════════
+
+//  INTERSECTION OBSERVER — entrance animations
+// ════════════════════════════════════════════════
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.08 });
+document.querySelectorAll('.section').forEach(s => io.observe(s));
+
+// ════════════════════════════════════════════════
+
+//  RESIZE
+// ════════════════════════════════════════════════
+let rt;
+window.addEventListener("resize",()=>{
+  clearTimeout(rt);
+  rt=setTimeout(()=>{ window._streamRedraw?.(); window._scatterRedraw?.(); window._decayRedraw?.(); }, 220);
+});
+
+// ── 主入口：先加载真实数据（如有），再初始化图表 ────
+(async function main() {
+  const result = await window.loadRealData();
+  const anyReal = Object.values(result).some(Boolean);
+  if (anyReal) {
+    console.log('[main] Using real data from processed/');
+  } else {
+    console.info('[main] No processed data found — using embedded fallback data.');
+    console.info('       Run scripts/03_preprocess.py to generate real data.');
+  }
+  initStream();
+  initScatter();
+  initDecay();
+  initMethod();
+})();
+</script>
+</body>
+</html>

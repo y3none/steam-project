@@ -1,0 +1,153 @@
+# Steam二十年：独立游戏如何重塑电子游戏市场生态
+**数据可视化大实验 · 清华大学计算机系**
+
+---
+
+## 项目结构
+
+```
+steam_project/
+├── scripts/
+│   ├── 01_fetch_steamspy.py      # 从 SteamSpy API 获取游戏数据
+│   ├── 02_fetch_steam_store.py   # 从 Steam Store API 补充发布日期
+│   └── 03_preprocess.py          # 数据清洗、分类、生成 D3 所需 JSON
+├── data/
+│   ├── raw/                      # 原始数据（脚本输出）
+│   └── processed/                # 预处理后数据（vis 读取）
+│       ├── market_share.json     # 视图一：年度市场份额
+│       ├── bubbles.json          # 视图二：散点气泡数据
+│       ├── decay.json            # 视图三：生命周期衰减曲线
+│       └── meta.json             # 全局元数据
+└── vis/
+    ├── index.html                # 主页面
+    ├── css/style.css             # 样式
+    └── js/
+        ├── colors.js             # 颜色系统 & 格式化工具
+        ├── tooltip.js            # 全局 Tooltip 控制器
+        ├── stream.js             # 视图一：Stream Graph
+        ├── scatter.js            # 视图二：气泡散点图
+        ├── decay.js              # 视图三：衰减曲线
+        └── main.js               # 主入口：数据加载 & 响应式
+```
+
+---
+
+## 快速开始（三步走）
+
+### 第零步：环境准备
+```bash
+pip install requests pandas numpy tqdm
+```
+
+### 第一步：获取数据
+```bash
+cd scripts
+python 01_fetch_steamspy.py
+```
+- 先获取 Top100 榜单（约10秒）
+- 全量数据需 1-2 小时，**可中途 Ctrl+C，下次运行自动续传**
+- 如果只想快速跑通，**跳过全量获取**，后续脚本自动使用 Top100
+
+```bash
+python 02_fetch_steam_store.py
+```
+- 补充发布日期、开发商等字段（视图一必需）
+- 建议先用默认的 `max_games=5000`，约需 2.5 小时
+- 同样支持断点续传
+
+### 第二步：预处理
+```bash
+python 03_preprocess.py
+```
+- 自动生成 `data/processed/` 下的四个 JSON 文件
+- 如果 `decay_manual.json` 不存在，会自动生成示例衰减数据并提示
+
+### 第三步：查看可视化
+```bash
+# 方法A：用任意 HTTP 服务器（推荐）
+cd vis
+python -m http.server 8080
+# 浏览器打开 http://localhost:8080
+
+# 方法B：直接双击 vis/index.html（部分浏览器可能因 CORS 限制无法加载本地 JSON）
+# 此时可视化会自动使用内嵌的备用数据，所有功能正常可用
+```
+
+---
+
+## 视图功能说明
+
+### 视图一：市场格局演变（Stream Graph）
+- 展示 2004–2024 年各类型游戏（Indie/AA/3A/F2P）发布数量占比的流动变化
+- 标注 Greenlight（2012）、Steam Direct（2017）、COVID（2020）三个政策节点
+- **悬停**任意区域查看该年详细数字
+- **切换按钮**可在发布数量和 CCU 份额之间切换
+
+### 视图二：口碑×人气×规模散点图（气泡图）
+- X轴：Steam 好评率；Y轴：历史同时在线峰值（对数）；气泡大小：拥有人数
+- **筛选按钮**：按游戏类型过滤，非选中类淡出
+- **点击气泡**：右侧详情面板显示该游戏完整信息（封面图、标签等）
+- **点击空白处**：取消选中
+
+### 视图三：玩家留存曲线（折线对比图）
+- 展示发布后 24 个月的归一化在线人数变化
+- 纵轴为相对发布首月峰值的百分比，方便跨游戏对比
+- **点击图例项**：高亮该游戏曲线，其余曲线淡出
+- **再次点击**：取消高亮，恢复全部显示
+- **鼠标移动**：显示当前月份对应的精确数值
+
+---
+
+## 补充真实衰减曲线数据（可选）
+
+视图三默认使用基于行业研究数据参数化生成的曲线。如需使用真实历史 CCU 数据：
+
+1. 查看 `data/raw/decay_candidates.json`，里面列出了推荐补全的游戏及其 SteamDB 链接
+2. 访问对应的 SteamDB 页面（如 `https://steamdb.info/app/413150/charts/`），记录历年月度峰值 CCU
+3. 按如下格式创建 `data/raw/decay_manual.json`：
+
+```json
+[
+  {
+    "name": "Stardew Valley",
+    "type": "Indie",
+    "release_year": 2016,
+    "peak_ccu": 89063,
+    "monthly_ccu": [89063, 68000, 55000, 48000, 42000, 38000, 35000, ...]
+  }
+]
+```
+
+4. 重新运行 `python 03_preprocess.py`，视图三将自动使用真实数据。
+
+---
+
+## 数据来源与合规说明
+
+| 数据源 | 许可证 | 用途 |
+|--------|--------|------|
+| SteamSpy API (`steamspy.com/api.php`) | 公开免费，官方声明服务于学生/研究者 | 视图二气泡数据 |
+| Steam Store API (`store.steampowered.com/api/appdetails`) | Valve 公开接口，无需 Key | 发布日期、开发商 |
+| Kaggle FronkonGames 数据集 | CC0 公共领域 | 视图二备用 |
+| VG Insights 2024 报告 | 公开报告（数字用于标注） | 统计卡片 |
+
+所有数据均不含用户个人信息，无涉密和隐私风险。
+
+---
+
+## 技术实现
+
+- **前端**：D3.js v7，原生 JavaScript（ES6+），无其他依赖
+- **后端**：Python 3.8+（仅用于数据获取和预处理，无需运行时）
+- **图表类型**：Stream Graph（stackOffsetWiggle）、气泡散点图（log scale）、折线对比图
+- **交互**：跨视图联动（年份滑块驱动）、气泡点击详情面板、衰减曲线图例高亮、响应式布局
+
+---
+
+## 参考文献
+
+1. VG Insights. *Global Indie Games Market Report 2024*. October 2024.
+2. Galyonkin, S. *SteamSpy API Documentation*. https://steamspy.com/api.php
+3. Shneiderman, B. *The eyes have it*. IEEE Symposium on Visual Languages, 1996.
+4. Harrower, M., Brewer, C. A. *ColorBrewer.org*. The Cartographic Journal, 2003.
+5. Gasselseder et al. *From Fads to Classics*. arXiv:2506.08881, 2025.

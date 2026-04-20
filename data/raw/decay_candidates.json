@@ -1,0 +1,182 @@
+[
+  {
+    "appid": "252490",
+    "name": "",
+    "type": "Indie",
+    "peak_ccu": 143870,
+    "year": 2018,
+    "steamdb_url": "https://steamdb.info/app/252490/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "431960",
+    "name": "",
+    "type": "Indie",
+    "peak_ccu": 91184,
+    "year": 2018,
+    "steamdb_url": "https://steamdb.info/app/431960/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "413150",
+    "name": "",
+    "type": "Indie",
+    "peak_ccu": 50662,
+    "year": 2016,
+    "steamdb_url": "https://steamdb.info/app/413150/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "1366800",
+    "name": "",
+    "type": "Indie",
+    "peak_ccu": 41428,
+    "year": 2020,
+    "steamdb_url": "https://steamdb.info/app/1366800/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "322330",
+    "name": "",
+    "type": "Indie",
+    "peak_ccu": 30542,
+    "year": 2016,
+    "steamdb_url": "https://steamdb.info/app/322330/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "1086940",
+    "name": "",
+    "type": "AA",
+    "peak_ccu": 54771,
+    "year": 2023,
+    "steamdb_url": "https://steamdb.info/app/1086940/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "553850",
+    "name": "",
+    "type": "AA",
+    "peak_ccu": 53399,
+    "year": 2024,
+    "steamdb_url": "https://steamdb.info/app/553850/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "381210",
+    "name": "",
+    "type": "AA",
+    "peak_ccu": 44886,
+    "year": 2016,
+    "steamdb_url": "https://steamdb.info/app/381210/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "221100",
+    "name": "",
+    "type": "AA",
+    "peak_ccu": 37066,
+    "year": 2018,
+    "steamdb_url": "https://steamdb.info/app/221100/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "394360",
+    "name": "",
+    "type": "AA",
+    "peak_ccu": 32112,
+    "year": 2016,
+    "steamdb_url": "https://steamdb.info/app/394360/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "2669320",
+    "name": "",
+    "type": "AAA",
+    "peak_ccu": 42032,
+    "year": 2024,
+    "steamdb_url": "https://steamdb.info/app/2669320/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "1245620",
+    "name": "",
+    "type": "AAA",
+    "peak_ccu": 29529,
+    "year": 2022,
+    "steamdb_url": "https://steamdb.info/app/1245620/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "489830",
+    "name": "",
+    "type": "AAA",
+    "peak_ccu": 25085,
+    "year": 2016,
+    "steamdb_url": "https://steamdb.info/app/489830/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "1142710",
+    "name": "",
+    "type": "AAA",
+    "peak_ccu": 16842,
+    "year": 2022,
+    "steamdb_url": "https://steamdb.info/app/1142710/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "813780",
+    "name": "",
+    "type": "AAA",
+    "peak_ccu": 13465,
+    "year": 2019,
+    "steamdb_url": "https://steamdb.info/app/813780/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "730",
+    "name": "",
+    "type": "F2P",
+    "peak_ccu": 1013936,
+    "year": 2012,
+    "steamdb_url": "https://steamdb.info/app/730/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "578080",
+    "name": "",
+    "type": "F2P",
+    "peak_ccu": 314682,
+    "year": 2017,
+    "steamdb_url": "https://steamdb.info/app/578080/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "1172470",
+    "name": "",
+    "type": "F2P",
+    "peak_ccu": 124262,
+    "year": 2020,
+    "steamdb_url": "https://steamdb.info/app/1172470/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "271590",
+    "name": "",
+    "type": "F2P",
+    "peak_ccu": 67851,
+    "year": 2015,
+    "steamdb_url": "https://steamdb.info/app/271590/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "1938090",
+    "name": "",
+    "type": "F2P",
+    "peak_ccu": 67419,
+    "year": 2022,
+    "steamdb_url": "https://steamdb.info/app/1938090/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  }
+]
