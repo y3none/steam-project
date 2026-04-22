@@ -26,15 +26,18 @@ window.initScatter = function() {
   function draw() {
     const wrap=document.getElementById("scatter-inner");
     wrap.innerHTML="";
-    const W=wrap.clientWidth, H=Math.max(320,Math.min(420,W*0.45));
+    const W=wrap.clientWidth, H=Math.max(500,Math.min(700,W*0.55));
     iW=W-MG.l-MG.r; iH=H-MG.t-MG.b;
 
     svg=d3.select(wrap).append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("height",H);
     g=svg.append("g").attr("transform",`translate(${MG.l},${MG.t})`);
 
-    xSc=d3.scaleLinear().domain([55,100]).range([0,iW]);
-    ySc=d3.scaleLog().domain([4000,4800000]).range([iH,0]).clamp(true);
+    xSc=d3.scaleLinear().domain([40,100]).range([0,iW]);
+    ySc=d3.scaleLog().domain([2,4800000]).range([iH,0]).clamp(true);
     rSc=d3.scaleSqrt().domain([0,60]).range([3,W<700?26:38]);
+    // const n = DATA.bubbles.length;
+    // const maxR = n > 200 ? 16 : n > 100 ? 22 : 38;
+    // rSc=d3.scaleSqrt().domain([0,60]).range([2, maxR]);
 
     // Grid
     g.append("g").attr("class","grid").call(d3.axisLeft(ySc).ticks(5).tickSize(-iW).tickFormat(""));
@@ -74,7 +77,7 @@ window.initScatter = function() {
     // Background dimmed bubbles
     g.selectAll(".bub-dim").data(hide.sort((a,b)=>b.own-a.own)).join("circle")
       .attr("class","bub-dim")
-      .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(4001,d.ccu)))
+      .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(1,d.ccu)))
       .attr("r",d=>rSc(d.own)).attr("fill",d=>C[d.type]||"#888")
       .attr("opacity",0.04).attr("stroke","none");
 
@@ -85,7 +88,7 @@ window.initScatter = function() {
       enter => enter.append("circle")
         .attr("class","bub")
         .attr("cx",d=>xSc(d.pr))
-        .attr("cy",d=>ySc(Math.max(4001,d.ccu)))
+        .attr("cy",d=>ySc(Math.max(1,d.ccu)))
         .attr("r",0)
         .attr("fill",d=>C[d.type]||"#888")
         .attr("stroke",d=>d3.color(C[d.type]||"#888").darker(0.8))
@@ -102,7 +105,7 @@ window.initScatter = function() {
       update => update
         .call(update => update.transition().duration(400)
           .attr("cx",d=>xSc(d.pr))
-          .attr("cy",d=>ySc(Math.max(4001,d.ccu)))
+          .attr("cy",d=>ySc(Math.max(1,d.ccu)))
           .attr("r", d=>rSc(d.own))
           .attr("opacity", d => {
             if (searchTerm && !getSearchMatch(d)) return 0.08;
@@ -163,7 +166,7 @@ window.initScatter = function() {
     const usedPositions = [];
     labelCandidates.forEach(d => {
       const lx = xSc(d.pr);
-      const ly = ySc(Math.max(4001,d.ccu)) - rSc(d.own) - 6;
+      const ly = ySc(Math.max(1,d.ccu)) - rSc(d.own) - 6;
       // Check if too close to existing label
       const tooClose = usedPositions.some(([px,py]) =>
         Math.abs(lx-px) < 60 && Math.abs(ly-py) < 12
