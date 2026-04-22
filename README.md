@@ -65,9 +65,10 @@ python 03_preprocess.py
 ### 第三步：查看可视化
 ```bash
 # 方法A：用任意 HTTP 服务器（推荐）
-cd vis
+# 在根目录执行
 python -m http.server 8080
 # 浏览器打开 http://localhost:8080
+# 浏览器点击vis4进入可视化界面
 
 # 方法B：直接双击 vis/index.html（部分浏览器可能因 CORS 限制无法加载本地 JSON）
 # 此时可视化会自动使用内嵌的备用数据，所有功能正常可用
