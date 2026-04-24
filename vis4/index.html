@@ -99,8 +99,9 @@
         <div class="section-desc">好评率 vs 峰值在线人数（对数轴） · 气泡半径 = 估算拥有人数 · <strong style="color:var(--text)">点击气泡</strong>查看详情</div>
       </div>
       <div class="section-controls">
-        <div class="search-box">
-          <input type="text" class="search-input" id="scatter-search" placeholder="搜索游戏名...">
+        <div class="search-box" id="search-wrap">
+          <input type="text" class="search-input" id="scatter-search" placeholder="搜索游戏名..." autocomplete="off" spellcheck="false">
+          <div class="search-results" id="search-results"></div>
         </div>
         <button class="pill active" data-sf="all">ALL</button>
         <button class="pill" data-sf="Indie">INDIE</button>

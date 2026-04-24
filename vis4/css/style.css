@@ -1,4 +1,3 @@
-
 /* ═══════════════════════════════════════════
    DESIGN SYSTEM — Cyberpunk Editorial
    主色：Steam蓝绿渐变 + 霓虹点缀
@@ -288,6 +287,71 @@ svg { width: 100%; display: block; overflow: visible; }
   width: 180px;
 }
 .search-input::placeholder { color: var(--border2); }
+
+/* ── SEARCH DROPDOWN ── */
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 240px;
+  margin-top: 4px;
+  background: rgba(8,8,18,0.97);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 60;
+  display: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+}
+.search-results.open { display: block; }
+.search-item {
+  padding: 7px 12px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.search-item:last-child { border-bottom: none; }
+.search-item:hover, .search-item.kb-active { background: var(--panel2); }
+.search-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-item-type {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.search-item mark {
+  background: none;
+  color: var(--indie);
+  font-weight: 700;
+}
+.search-no-result {
+  padding: 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* ── SEARCH HIGHLIGHT RING ── */
+.search-ring-pulse {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-dasharray: 4,3;
+  pointer-events: none;
+  animation: ring-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ring-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 0.25; }
+}
 
 /* ── YEAR INDICATOR (cross-view linking) ── */
 .year-indicator {
