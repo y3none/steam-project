@@ -73,7 +73,13 @@ def classify_game_type(row: dict) -> str:
     """
     根据多个维度判断游戏类型：Indie / AA / AAA / F2P
     规则设计参考 VG Insights 分类标准（基于开发商规模+价格+owners）
+
+    改进点：
+    1. F2P 不再仅凭 price=0 判断，需结合 tags/genres 中的 Free to Play 信号
+    2. 已知误分类游戏通过手动覆盖表修正
+    3. 限免独立游戏（price=0 但无 F2P 标签）不再被误判为 F2P
     """
+    name       = str(row.get("name", "")).strip()
     is_free    = row.get("is_free", False)
     price      = row.get("price_usd", 0) or 0
     owners_m   = row.get("owners_m", 0) or 0
@@ -82,11 +88,53 @@ def classify_game_type(row: dict) -> str:
     developers = row.get("developers", []) or []
     publishers = row.get("publishers", []) or []
 
-    # F2P 判断
-    if is_free or price == 0:
+    # ── 0. 手动覆盖表：修正已知误分类 ──
+    MANUAL_OVERRIDES = {
+        # 限免但本质是付费独立游戏
+        "Celeste":           "Indie",
+        "A Short Hike":      "Indie",
+        "Minit":             "Indie",
+        "Oxenfree":          "Indie",
+        "Superhot":          "Indie",
+        "Into the Breach":   "Indie",
+        "Limbo":             "Indie",
+        "Inside":            "Indie",
+        "Subnautica":        "Indie",
+        "Mudrunner":         "Indie",
+        # 大厂出品但常被归为 AA 的
+        "Black Myth: Wukong":"AA",
+        "Baldur's Gate 3":   "AA",
+        "Monster Hunter: World": "AA",
+        "No Man's Sky":      "AA",
+        # F2P 大作
+        "DOTA 2":            "F2P",
+        "CS:GO":             "F2P",
+        "Counter-Strike 2":  "F2P",
+        "Apex Legends":      "F2P",
+        "Warframe":          "F2P",
+        "Path of Exile":     "F2P",
+        "Genshin Impact":    "F2P",
+        "Destiny 2":         "F2P",
+        "Team Fortress 2":   "F2P",
+    }
+    if name in MANUAL_OVERRIDES:
+        return MANUAL_OVERRIDES[name]
+
+    # ── 1. F2P 判断：需要 tags/genres 中有 Free to Play 信号 ──
+    has_f2p_tag = (
+        tags.get("Free to Play", 0) > 50
+        or tags.get("Free To Play", 0) > 50
+        or tags.get("F2P", 0) > 50
+        or "free to play" in genres
+    )
+
+    if has_f2p_tag and (is_free or price == 0):
         return "F2P"
 
-    # 已知 AAA 发行商列表（部分）
+    # price=0 但没有 F2P 标签 → 可能是限免/慈善包/早期免费
+    # 不直接判定 F2P，继续往下走其他规则
+
+    # ── 2. AAA 发行商列表 ──
     AAA_PUBLISHERS = {
         "Electronic Arts", "Activision", "Ubisoft", "Take-Two Interactive",
         "Bethesda Softworks", "2K Games", "Warner Bros. Games", "Square Enix",
@@ -94,23 +142,31 @@ def classify_game_type(row: dict) -> str:
         "Sony Interactive Entertainment", "Microsoft Studios",
         "Xbox Game Studios", "Rockstar Games", "CD Projekt",
         "THQ Nordic", "Deep Silver", "Focus Entertainment",
+        "Activision Blizzard", "505 Games", "Devolver Digital",
     }
-    
+
     pub_set = set(publishers)
     if pub_set & AAA_PUBLISHERS and price >= 29.99 and owners_m >= 1.0:
         return "AAA"
-    
-    # Indie 标签强信号
-    indie_tag_votes = tags.get("Indie", 0)
+
+    # ── 3. Indie 标签强信号 ──
+    indie_tag_votes = 0
+    if isinstance(tags, dict):
+        indie_tag_votes = tags.get("Indie", 0)
+        if isinstance(indie_tag_votes, str):
+            try: indie_tag_votes = int(indie_tag_votes)
+            except: indie_tag_votes = 0
+
     if indie_tag_votes > 100 or "indie" in genres:
         if owners_m < 5.0 or price <= 39.99:
             return "Indie"
-    
-    # AA：中间地带（较大的独立工作室或小型商业发行商）
+
+    # ── 4. AA：中间地带 ──
     if price >= 19.99 and owners_m >= 0.5:
         return "AA"
-    
-    return "Indie"  # 默认归为 Indie
+
+    # ── 5. 兜底：price=0 且无 F2P 标签的归为 Indie ──
+    return "Indie"
 
 
 # ══════════════════════════════════════════════════
@@ -314,43 +370,82 @@ def _get_event(year: int) -> str | None:
 #  视图二：气泡散点图
 # ══════════════════════════════════════════════════
 
-def process_bubbles(df_reviewed: pd.DataFrame, top_n: int = 500) -> list[dict]:
+def process_bubbles(df_reviewed: pd.DataFrame, top_n: int = 160) -> list[dict]:
     """
     选取有代表性的游戏作为气泡散点图数据点。
-    策略：
-    1. 各类型各取前 N/4 款（按 owners_m 排序）
-    2. 额外纳入好评率极高（>95%）但人气较低的游戏（"被低估的神作"）
-    3. 过滤掉 pos_rate 缺失的游戏
+    策略（分层采样）：
+    1. 每个类型（Indie/AA/AAA/F2P）分高/中/低人气三档各取一批
+    2. 额外纳入"被低估的神作"（好评率 > 95%，owners < 2M）
+    3. 总量控制在 150–200 条
+    4. 过滤 CCU=0 和 pos_rate 缺失的游戏
     """
     print("\n处理视图二：气泡散点图...")
-    
+
     df = df_reviewed.dropna(subset=["pos_rate", "owners_m"]).copy()
     df = df[df["ccu"] > 0]  # 必须有 CCU 数据
-    
-    per_type = top_n // 4
+
+    type_list = ["Indie", "AA", "AAA", "F2P"]
+    # 每个类型的基础配额
+    base_per_type = top_n // 4  # 约 40
+
     selected = []
-    
-    for game_type in ["Indie", "AA", "AAA", "F2P"]:
-        sub = df[df["game_type"] == game_type].nlargest(per_type, "owners_m")
-        selected.append(sub)
-    
-    # 额外：高好评低人气的独立游戏
+
+    for game_type in type_list:
+        sub = df[df["game_type"] == game_type].copy()
+        if len(sub) == 0:
+            continue
+
+        # 按 owners_m 排序后分三档
+        sub_sorted = sub.sort_values("owners_m", ascending=False)
+        n = len(sub_sorted)
+        quota = base_per_type
+
+        if n <= quota:
+            # 该类型数据不足，全取
+            selected.append(sub_sorted)
+        else:
+            # 分三档：高人气（前 30%）、中人气（30%-70%）、低人气（后 30%）
+            cut1 = max(1, int(n * 0.3))
+            cut2 = max(cut1 + 1, int(n * 0.7))
+
+            tier_high = sub_sorted.iloc[:cut1]
+            tier_mid  = sub_sorted.iloc[cut1:cut2]
+            tier_low  = sub_sorted.iloc[cut2:]
+
+            # 高人气多取，低人气少取
+            n_high = max(3, int(quota * 0.50))
+            n_mid  = max(3, int(quota * 0.30))
+            n_low  = max(2, quota - n_high - n_mid)
+
+            picked_high = tier_high.head(n_high)
+            # 中档和低档随机采样，保证多样性
+            picked_mid  = tier_mid.sample(n=min(n_mid, len(tier_mid)), random_state=42)
+            picked_low  = tier_low.sample(n=min(n_low, len(tier_low)), random_state=42)
+
+            selected.extend([picked_high, picked_mid, picked_low])
+
+        print(f"    {game_type}: 可选 {n} 款，取样 {min(n, quota)} 款（高/中/低分层）")
+
+    # ── 额外：被低估的神作 ──
+    already_ids = set(pd.concat(selected)["appid"].values) if selected else set()
     hidden_gems = df[
         (df["pos_rate"] >= 95) &
         (df["owners_m"] < 2.0) &
-        (df["review_count"] >= 50)
-    ].nlargest(30, "pos_rate")
+        (df["review_count"] >= 50) &
+        (~df["appid"].isin(already_ids))
+    ].nlargest(25, "pos_rate")
     selected.append(hidden_gems)
-    
+    print(f"    被低估神作: 额外 {len(hidden_gems)} 款（好评>95%, owners<2M）")
+
     df_sel = pd.concat(selected).drop_duplicates(subset=["appid"])
-    
+
     records = []
     for _, row in df_sel.iterrows():
         tags_dict = row["tags_dict"] if isinstance(row["tags_dict"], dict) else {}
         top_tags = sorted(tags_dict.items(), key=lambda x: -x[1])[:5]
         records.append({
             "appid":       str(row.get("appid", "")),
-            "name":        str(row.get("name", "")),
+            "name":        str(row.get("name", "") or row.get("name_spy", "") or row.get("name_store", "")),
             "type":        row["game_type"],
             "year":        int(row["year"]) if pd.notna(row.get("year")) else None,
             "pos_rate":    round(float(row["pos_rate"]), 1),
@@ -363,8 +458,8 @@ def process_bubbles(df_reviewed: pd.DataFrame, top_n: int = 500) -> list[dict]:
             "top_tags":    [t[0] for t in top_tags],
             "header_image":str(row.get("header_image", "")),
         })
-    
-    print(f"  生成 {len(records)} 个气泡数据点")
+
+    print(f"  生成 {len(records)} 个气泡数据点（目标 {top_n}，含神作补充）")
     return records
 
 
@@ -438,7 +533,7 @@ def process_decay(df_reviewed: pd.DataFrame) -> list[dict]:
             for _, row in sub.iterrows():
                 candidates.append({
                     "appid":    str(row.get("appid", "")),
-                    "name":     str(row.get("name", "")),
+                    "name":     str(row.get("name", "") or row.get("name_spy", "") or row.get("name_store", "")),
                     "type":     game_type,
                     "peak_ccu": int(row["ccu"]),
                     "year":     int(row["year"]) if pd.notna(row.get("year")) else None,
