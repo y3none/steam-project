@@ -39,6 +39,10 @@ steam_project/
 
 核心职责：确保数据干净、可信、够用，尽早拿到稳定数据。
 
+- [ ] **优先：补全四个数据来源并扩展数据至2025年**
+  - 补全Kaggle Steam Dataset、Steam Store API和SteamCharts.com
+  - 审查各数据，获取至最新年份
+
 - [x] **修复游戏类型分类规则**
   - 当前 `classify_game_type` 中 `price=0` 直接判定 F2P 过于粗暴
   - 结合 tags 中的 `"Free to Play"` 标签交叉验证
@@ -64,9 +68,6 @@ steam_project/
 - [ ] **扩展 meta.json 统计摘要**
   - 新增字段：各类型好评率中位数、平均 CCU、年度关键指标
   - 供前端 insight 区域和顶部统计卡片动态渲染使用
-
-- [ ] **扩展数据至2025年**
-  - 审查各数据，获取至最新年份
 
 ---
 
