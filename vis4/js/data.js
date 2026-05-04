@@ -113,6 +113,7 @@ window.loadRealData = async function() {
       rc:    d.review_count ?? d.rc ?? 0,
       dev:   d.developers ?? d.dev ?? [],
       tags:  d.top_tags  ?? d.tags ?? [],
+      header_image: d.header_image ?? null,
     }));
     console.log('[data] bubbles.json loaded, ' + DATA.bubbles.length + ' games');
   }

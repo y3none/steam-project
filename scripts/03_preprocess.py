@@ -367,6 +367,62 @@ def _get_event(year: int) -> str | None:
 
 
 # ══════════════════════════════════════════════════
+#  元数据 & 关键指标
+# ══════════════════════════════════════════════════
+
+def cal_meta(df_main: pd.DataFrame, df_reviewed: pd.DataFrame) -> dict:
+    """
+    计算全局元数据：各类型好评率中位数、平均 CCU、年度关键指标。
+    """
+    print("\n处理元数据...")
+
+    type_list = ["Indie", "AA", "AAA", "F2P"]
+    df_with_reviews = df_reviewed.dropna(subset=["pos_rate"])
+
+    # 各类型好评率中位数
+    pos_rate_median = {}
+    for t in type_list:
+        sub = df_with_reviews[df_with_reviews["game_type"] == t]["pos_rate"]
+        pos_rate_median[t] = round(float(sub.median()), 1) if len(sub) > 0 else None
+
+    # 各类型平均 CCU
+    avg_ccu = {}
+    for t in type_list:
+        sub = df_main[df_main["game_type"] == t]
+        avg_ccu[t] = round(float(sub["ccu"].mean()), 0) if len(sub) > 0 else 0
+
+    # 年度关键指标
+    yearly_stats = []
+    for year in sorted(df_main["year"].unique()):
+        sub = df_main[df_main["year"] == year]
+        sub_rev = df_reviewed[df_reviewed["year"] == year].dropna(subset=["pos_rate"])
+        yearly_stats.append({
+            "year":              int(year),
+            "total_releases":    int(len(sub)),
+            "total_ccu":         int(sub["ccu"].sum()),
+            "avg_pos_rate":      round(float(sub_rev["pos_rate"].mean()), 1) if len(sub_rev) > 0 else None,
+            "top_ccu_game":      sub.loc[sub["ccu"].idxmax(), "name_spy"] if len(sub) > 0 and sub["ccu"].max() > 0 else None,
+            "top_ccu_value":     int(sub["ccu"].max()) if len(sub) > 0 else 0,
+            "event":             _get_event(int(year)),
+        })
+
+    meta = {
+        "generated_at":      pd.Timestamp.now().isoformat(),
+        "year_range":        [int(df_main["year"].min()), int(df_main["year"].max())],
+        "total_games":       len(df_main),
+        "reviewed_games":    len(df_reviewed),
+        "type_counts":       df_main["game_type"].value_counts().to_dict(),
+        "pos_rate_median":   pos_rate_median,
+        "avg_ccu":           avg_ccu,
+        "yearly_stats":      yearly_stats,
+        "data_sources":      ["SteamSpy API", "Steam Store API", "VG Insights"],
+    }
+
+    print(f"  元数据：{len(df_main)} 款游戏，{len(yearly_stats)} 个年份")
+    return meta
+
+
+# ══════════════════════════════════════════════════
 #  视图二：气泡散点图
 # ══════════════════════════════════════════════════
 
@@ -616,30 +672,23 @@ if __name__ == "__main__":
     print("\n[2/5] 清洗和构建主 DataFrame...")
     df_main, df_reviewed = build_main_df(df_raw)
     
-    # 视图一
-    print("\n[3/5] 处理市场份额数据...")
-    market_data = process_market_share(df_main)
-    save_json(market_data, OUT_DIR / "market_share.json")
+    # # 视图一
+    # print("\n[3/5] 处理市场份额数据...")
+    # market_data = process_market_share(df_main)
+    # save_json(market_data, OUT_DIR / "market_share.json")
     
-    # 视图二
-    print("\n[4/5] 处理气泡散点数据...")
-    bubble_data = process_bubbles(df_reviewed)
-    save_json(bubble_data, OUT_DIR / "bubbles.json")
+    # # 视图二
+    # print("\n[4/5] 处理气泡散点数据...")
+    # bubble_data = process_bubbles(df_reviewed)
+    # save_json(bubble_data, OUT_DIR / "bubbles.json")
     
-    # 视图三
-    print("\n[5/5] 处理生命周期衰减数据...")
-    decay_data = process_decay(df_reviewed)
-    save_json(decay_data, OUT_DIR / "decay.json")
+    # # 视图三
+    # print("\n[5/5] 处理生命周期衰减数据...")
+    # decay_data = process_decay(df_reviewed)
+    # save_json(decay_data, OUT_DIR / "decay.json")
     
     # 元数据
-    meta = {
-        "generated_at":   pd.Timestamp.now().isoformat(),
-        "year_range":     [2004, 2024],
-        "total_games":    len(df_main),
-        "reviewed_games": len(df_reviewed),
-        "type_counts":    df_main["game_type"].value_counts().to_dict(),
-        "data_sources":   ["SteamSpy API", "Steam Store API", "VG Insights"],
-    }
+    meta = cal_meta(df_main, df_reviewed)
     save_json(meta, OUT_DIR / "meta.json")
     
     print("\n" + "=" * 60)
