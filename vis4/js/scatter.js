@@ -337,7 +337,10 @@ window.initScatter = function() {
     }
     const col=C[d.type]||"#888";
     const imgUrl=d.header_image||d.img||"";
-    const imgHtml=imgUrl?`<img class="detail-header-img" src="${imgUrl}" alt="${d.name}" onerror="this.style.display='none'">`:"";
+    const defaultImg="../images/banner.png";
+    const imgHtml=imgUrl
+      ?`<img class="detail-header-img" src="${imgUrl}" alt="${d.name}" onerror="this.onerror=null;this.src='${defaultImg}'">`
+      :`<img class="detail-header-img" src="${defaultImg}" alt="default">`;
     p.innerHTML=`
       ${imgHtml}
       <div class="detail-game-name">${d.name}</div>
