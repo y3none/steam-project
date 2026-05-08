@@ -36,6 +36,21 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 #  工具函数
 # ══════════════════════════════════════════════════
 
+def _get_name(row) -> str:
+    """兼容不同数据源的名称字段：Kaggle用name，SteamSpy+Store合并后用name_spy/name_store"""
+    for col in ("name", "name_spy", "name_store"):
+        try:
+            val = row[col] if col in row.index else None
+        except (KeyError, AttributeError, TypeError):
+            try:
+                val = row.get(col)
+            except (AttributeError, TypeError):
+                val = None
+        if val and str(val).strip():
+            return str(val).strip()
+    return ""
+
+
 def parse_owners_midpoint(owners_str: str) -> float:
     """
     解析 SteamSpy 的 owners 区间字符串，返回中值（百万）。
@@ -72,12 +87,19 @@ def parse_release_year(date_str: str) -> int | None:
 def classify_game_type(row: dict) -> str:
     """
     根据多个维度判断游戏类型：Indie / AA / AAA / F2P
-    规则设计参考 VG Insights 分类标准（基于开发商规模+价格+owners）
-
-    改进点：
-    1. F2P 不再仅凭 price=0 判断，需结合 tags/genres 中的 Free to Play 信号
-    2. 已知误分类游戏通过手动覆盖表修正
-    3. 限免独立游戏（price=0 但无 F2P 标签）不再被误判为 F2P
+    
+    分类标准与业界共识对齐：
+    - AAA：大型开发团队（100+人）、高预算（通常$50M+）、大发行商
+           代表：GTA V, Elden Ring, Black Myth: Wukong, Baldur's Gate 3
+    - AA：中等规模团队和预算，介于独立和3A之间
+           代表：Hellblade, A Plague Tale, No Man's Sky
+    - Indie：小型团队、自主发行或独立发行商、低预算
+           代表：Stardew Valley, Hollow Knight, Celeste
+    - F2P：免费游玩 + 内购驱动的商业模式
+           代表：Dota 2, CS2, Genshin Impact
+    
+    判定优先级：手动覆盖 > F2P标签 > 大厂AAA > Indie标签 > AA规模 > 兜底
+    注意：Kaggle 的 price 是当前售价（可能已降价），不能用于判定首发定位。
     """
     name       = str(row.get("name", "")).strip()
     is_free    = row.get("is_free", False)
@@ -88,9 +110,41 @@ def classify_game_type(row: dict) -> str:
     developers = row.get("developers", []) or []
     publishers = row.get("publishers", []) or []
 
-    # ── 0. 手动覆盖表：修正已知误分类 ──
+    # ── 0. 手动覆盖表：与业界共识对齐 ──
+    # 业界标准：AAA = 大型团队(100+人)、高预算(通常$50M+)、大发行商
+    #           AA = 中等规模团队/预算，介于独立与3A之间
+    #           Indie = 小型团队、自主发行或独立发行商、低预算
     MANUAL_OVERRIDES = {
-        # 限免但本质是付费独立游戏
+        # ── AAA 大作（业界公认3A，但规则引擎可能因降价/发行商名不匹配而误判）──
+        "Black Myth: Wukong":"AAA",   # Game Science, $140M+预算, 400+人团队
+        "Baldur's Gate 3":   "AAA",   # Larian Studios, $100M+预算, 400+人团队
+        "Monster Hunter: World":"AAA",# Capcom 旗舰
+        "Hogwarts Legacy":   "AAA",   # Avalanche/WB, $150M+预算
+        "Elden Ring":        "AAA",   # FromSoftware/Bandai Namco
+        "Red Dead Redemption 2":"AAA",# Rockstar
+        "Death Stranding":   "AAA",   # Kojima Productions/505 Games
+        "Sekiro: Shadows Die Twice":"AAA", # FromSoftware/Activision
+        "Star Wars Jedi: Fallen Order":"AAA",
+        "Star Wars Jedi: Survivor":"AAA",
+        "Horizon Zero Dawn": "AAA",
+        "God of War":        "AAA",
+        "Marvel's Spider-Man Remastered":"AAA",
+        "Marvel's Spider-Man: Miles Morales":"AAA",
+        "Resident Evil Village":"AAA",
+        "Resident Evil 4":   "AAA",
+        "Final Fantasy VII Remake Intergrade":"AAA",
+        "Final Fantasy XVI":  "AAA",
+        "Halo Infinite":     "AAA",
+        "Forza Horizon 5":   "AAA",
+        "Forza Horizon 4":   "AAA",
+        "Diablo IV":         "AAA",
+        # ── AA（中型制作，非独立但也不是3A规模）──
+        "No Man's Sky":      "AA",    # Hello Games, 中等团队
+        "A Plague Tale: Innocence":"AA",
+        "A Plague Tale: Requiem":"AA",
+        "Greedfall":         "AA",
+        "Hellblade: Senua's Sacrifice":"AA",
+        # ── 限免但本质是 Indie 的 ──
         "Celeste":           "Indie",
         "A Short Hike":      "Indie",
         "Minit":             "Indie",
@@ -101,21 +155,24 @@ def classify_game_type(row: dict) -> str:
         "Inside":            "Indie",
         "Subnautica":        "Indie",
         "Mudrunner":         "Indie",
-        # 大厂出品但常被归为 AA 的
-        "Black Myth: Wukong":"AA",
-        "Baldur's Gate 3":   "AA",
-        "Monster Hunter: World": "AA",
-        "No Man's Sky":      "AA",
-        # F2P 大作
+        # ── F2P 大作 ──
         "DOTA 2":            "F2P",
+        "Dota 2":            "F2P",
         "CS:GO":             "F2P",
         "Counter-Strike 2":  "F2P",
         "Apex Legends":      "F2P",
         "Warframe":          "F2P",
         "Path of Exile":     "F2P",
+        "Path of Exile 2":   "F2P",
         "Genshin Impact":    "F2P",
         "Destiny 2":         "F2P",
         "Team Fortress 2":   "F2P",
+        "Lost Ark":          "F2P",
+        "Smite":             "F2P",
+        "SMITE 2":           "F2P",
+        "Rocket League":     "F2P",
+        "Fall Guys":         "F2P",
+        "MultiVersus":       "F2P",
     }
     if name in MANUAL_OVERRIDES:
         return MANUAL_OVERRIDES[name]
@@ -142,11 +199,16 @@ def classify_game_type(row: dict) -> str:
         "Sony Interactive Entertainment", "Microsoft Studios",
         "Xbox Game Studios", "Rockstar Games", "CD Projekt",
         "THQ Nordic", "Deep Silver", "Focus Entertainment",
-        "Activision Blizzard", "505 Games", "Devolver Digital",
+        "Activision Blizzard", "505 Games",
+        "Valve", "Blizzard Entertainment", "Epic Games",
+        "Nintendo", "Riot Games", "Techland", "Paradox Interactive",
     }
 
     pub_set = set(publishers)
-    if pub_set & AAA_PUBLISHERS and price >= 29.99 and owners_m >= 1.0:
+    is_aaa_pub = bool(pub_set & AAA_PUBLISHERS)
+
+    # AAA 判定：大厂 + 有一定规模（价格门槛放宽——3A老游戏经常降价到$10以下）
+    if is_aaa_pub and owners_m >= 0.5:
         return "AAA"
 
     # ── 3. Indie 标签强信号 ──
@@ -157,15 +219,31 @@ def classify_game_type(row: dict) -> str:
             try: indie_tag_votes = int(indie_tag_votes)
             except: indie_tag_votes = 0
 
-    if indie_tag_votes > 100 or "indie" in genres:
+    has_indie_signal = (
+        indie_tag_votes > 100
+        or "indie" in genres
+        or (isinstance(tags, dict) and tags.get("Indie", 0) > 0)
+    )
+
+    if has_indie_signal:
         if owners_m < 5.0 or price <= 39.99:
             return "Indie"
 
     # ── 4. AA：中间地带 ──
     if price >= 19.99 and owners_m >= 0.5:
         return "AA"
+    # 大厂但拥有量不够 AAA 门槛（小众大厂游戏）
+    if is_aaa_pub:
+        return "AA"
+    # 拥有量很高但价格不高且无 Indie 标签（老游戏降价/区域定价）
+    if owners_m >= 2.0 and not has_indie_signal:
+        return "AA"
 
-    # ── 5. 兜底：price=0 且无 F2P 标签的归为 Indie ──
+    # ── 5. 兜底逻辑 ──
+    if not has_indie_signal:
+        if owners_m >= 0.5 or price >= 9.99:
+            return "AA"
+
     return "Indie"
 
 
@@ -175,8 +253,76 @@ def classify_game_type(row: dict) -> str:
 
 def load_raw_data() -> pd.DataFrame:
     """
-    合并 SteamSpy 和 Steam Store 数据，构建主 DataFrame。
+    合并数据，构建主 DataFrame。
+    优先级：Kaggle统一格式 > SteamSpy+Store > SteamSpy Only
     """
+    
+    # ── 优先检测 Kaggle 统一格式 ──────────────────────
+    kaggle_path = RAW_DIR / "kaggle_games.json"
+    kaggle_raw_paths = list(RAW_DIR.glob("kaggle_steam*.json")) + \
+                       list(RAW_DIR.glob("games.json")) + \
+                       list(RAW_DIR.glob("steam_games.json"))
+    
+    if kaggle_path.exists():
+        # 由 00_import_kaggle.py 预处理过的统一格式
+        print("加载 Kaggle 统一格式数据（kaggle_games.json）...")
+        with open(kaggle_path, encoding="utf-8") as f:
+            records = json.load(f)
+        df = pd.DataFrame(records)
+        df["appid"] = df["appid"].astype(str)
+        print(f"  Kaggle 记录数：{len(df)}")
+        return df
+    
+    if kaggle_raw_paths:
+        # 直接读取 Kaggle 原始 JSON（{appid: {game}} 格式）
+        raw_path = kaggle_raw_paths[0]
+        print(f"加载 Kaggle 原始数据（{raw_path.name}）...")
+        with open(raw_path, encoding="utf-8") as f:
+            raw = json.load(f)
+        
+        records = []
+        if isinstance(raw, dict):
+            for appid, game in tqdm(raw.items(), desc="  转换Kaggle数据"):
+                if not game.get("name"):
+                    continue
+                # Kaggle 的 price 已经是美元浮点数
+                price = float(game.get("price", 0) or 0)
+                tags = game.get("tags", {})
+                if isinstance(tags, list):
+                    tags = {t: 1 for t in tags}
+                genres = game.get("genres", [])
+                if isinstance(genres, str):
+                    genres = [genres] if genres else []
+                
+                is_free = (price == 0) and (
+                    "Free to Play" in genres or
+                    "Free to Play" in (tags if isinstance(tags, dict) else {})
+                )
+                
+                records.append({
+                    "appid":        str(appid),
+                    "name":         game.get("name", ""),
+                    "release_date": game.get("release_date", ""),
+                    "price_usd":    round(price, 2),
+                    "is_free":      is_free,
+                    "positive":     int(game.get("positive", 0) or 0),
+                    "negative":     int(game.get("negative", 0) or 0),
+                    "owners":       (game.get("estimated_owners", "0 - 0") or "0 - 0")
+                                     .replace(" - ", " .. "),
+                    "ccu":          int(game.get("peak_ccu", 0) or 0),
+                    "tags":         tags,
+                    "genres":       genres,
+                    "developers":   game.get("developers", []) or [],
+                    "publishers":   game.get("publishers", []) or [],
+                    "header_image": game.get("header_image", ""),
+                })
+        
+        df = pd.DataFrame(records)
+        df["appid"] = df["appid"].astype(str)
+        print(f"  Kaggle 记录数：{len(df)}")
+        return df
+
+    # ── 原有路径：SteamSpy + Store ──────────────────
     print("加载 SteamSpy 数据...")
     spy_records = []
     
@@ -330,21 +476,31 @@ def process_market_share(df: pd.DataFrame) -> list[dict]:
     # 计算百分比
     records = []
     for year, row in pivot.iterrows():
-        if row["total"] == 0:
+        total = int(row["total"])
+        if total == 0:
             continue
+        ni, na, nb, nf = int(row["Indie"]), int(row["AA"]), int(row["AAA"]), int(row["F2P"])
         records.append({
             "year":            int(year),
-            "indie":           round(row["Indie"] / row["total"] * 100, 1),
-            "aa":              round(row["AA"]    / row["total"] * 100, 1),
-            "aaa":             round(row["AAA"]   / row["total"] * 100, 1),
-            "f2p":             round(row["F2P"]   / row["total"] * 100, 1),
-            "total_releases":  int(row["total"]),
-            # 绝对数量（供工具提示展示）
-            "n_indie":         int(row["Indie"]),
-            "n_aa":            int(row["AA"]),
-            "n_aaa":           int(row["AAA"]),
-            "n_f2p":           int(row["F2P"]),
+            "indie":           round(float(ni / total * 100), 1),
+            "aa":              round(float(na / total * 100), 1),
+            "aaa":             round(float(nb / total * 100), 1),
+            "f2p":             round(float(nf / total * 100), 1),
+            # 兼容前端短字段名（data.js 内嵌数据用 n/ni/na/nb/nf）
+            "n":               total,
+            "ni":              ni,
+            "na":              na,
+            "nb":              nb,
+            "nf":              nf,
+            # 长字段名（给元数据/调试用）
+            "total_releases":  total,
+            "n_indie":         ni,
+            "n_aa":            na,
+            "n_aaa":           nb,
+            "n_f2p":           nf,
             "event":           _get_event(int(year)),
+            # 别名 ev，兼容内嵌数据格式
+            "ev":              _get_event(int(year)),
         })
     
     records.sort(key=lambda x: x["year"])
@@ -401,7 +557,7 @@ def cal_meta(df_main: pd.DataFrame, df_reviewed: pd.DataFrame) -> dict:
             "total_releases":    int(len(sub)),
             "total_ccu":         int(sub["ccu"].sum()),
             "avg_pos_rate":      round(float(sub_rev["pos_rate"].mean()), 1) if len(sub_rev) > 0 else None,
-            "top_ccu_game":      sub.loc[sub["ccu"].idxmax(), "name_spy"] if len(sub) > 0 and sub["ccu"].max() > 0 else None,
+            "top_ccu_game":      _get_name(sub.loc[sub["ccu"].idxmax()]) if len(sub) > 0 and sub["ccu"].max() > 0 else None,
             "top_ccu_value":     int(sub["ccu"].max()) if len(sub) > 0 else 0,
             "event":             _get_event(int(year)),
         })
@@ -501,7 +657,7 @@ def process_bubbles(df_reviewed: pd.DataFrame, top_n: int = 160) -> list[dict]:
         top_tags = sorted(tags_dict.items(), key=lambda x: -x[1])[:5]
         records.append({
             "appid":       str(row.get("appid", "")),
-            "name":        str(row.get("name", "") or row.get("name_spy", "") or row.get("name_store", "")),
+            "name":        _get_name(row),
             "type":        row["game_type"],
             "year":        int(row["year"]) if pd.notna(row.get("year")) else None,
             "pos_rate":    round(float(row["pos_rate"]), 1),
@@ -589,7 +745,7 @@ def process_decay(df_reviewed: pd.DataFrame) -> list[dict]:
             for _, row in sub.iterrows():
                 candidates.append({
                     "appid":    str(row.get("appid", "")),
-                    "name":     str(row.get("name", "") or row.get("name_spy", "") or row.get("name_store", "")),
+                    "name":     _get_name(row),
                     "type":     game_type,
                     "peak_ccu": int(row["ccu"]),
                     "year":     int(row["year"]) if pd.notna(row.get("year")) else None,
@@ -672,20 +828,20 @@ if __name__ == "__main__":
     print("\n[2/5] 清洗和构建主 DataFrame...")
     df_main, df_reviewed = build_main_df(df_raw)
     
-    # # 视图一
-    # print("\n[3/5] 处理市场份额数据...")
-    # market_data = process_market_share(df_main)
-    # save_json(market_data, OUT_DIR / "market_share.json")
+    # 视图一
+    print("\n[3/5] 处理市场份额数据...")
+    market_data = process_market_share(df_main)
+    save_json(market_data, OUT_DIR / "market_share.json")
     
-    # # 视图二
-    # print("\n[4/5] 处理气泡散点数据...")
-    # bubble_data = process_bubbles(df_reviewed)
-    # save_json(bubble_data, OUT_DIR / "bubbles.json")
+    # 视图二
+    print("\n[4/5] 处理气泡散点数据...")
+    bubble_data = process_bubbles(df_reviewed)
+    save_json(bubble_data, OUT_DIR / "bubbles.json")
     
-    # # 视图三
-    # print("\n[5/5] 处理生命周期衰减数据...")
-    # decay_data = process_decay(df_reviewed)
-    # save_json(decay_data, OUT_DIR / "decay.json")
+    # 视图三
+    print("\n[5/5] 处理生命周期衰减数据...")
+    decay_data = process_decay(df_reviewed)
+    save_json(decay_data, OUT_DIR / "decay.json")
     
     # 元数据
     meta = cal_meta(df_main, df_reviewed)

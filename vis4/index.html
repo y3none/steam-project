@@ -17,27 +17,33 @@
   <p class="hero-sub">独立游戏如何从零崛起，重塑全球最大 PC 游戏生态 · 2004–2024</p>
   <div class="stats-ribbon" id="stats-ribbon">
     <div class="stat-cell">
-      <div class="stat-num c-indie">50,000<sup style="font-size:16px">+</sup></div>
+      <div class="stat-num c-indie" data-target="50,000+">—</div>
       <div class="stat-label">STEAM 在售游戏总数（2024）</div>
       <div class="stat-trend">↑ 2004年约150款</div>
     </div>
     <div class="stat-cell">
-      <div class="stat-num c-indie">98.9%</div>
+      <div class="stat-num c-indie" data-target="98.9%">—</div>
       <div class="stat-label">发布数量中的独立游戏占比</div>
       <div class="stat-trend">↑ 2012年仅40%</div>
     </div>
     <div class="stat-cell">
-      <div class="stat-num c-aa">48%</div>
+      <div class="stat-num c-aa" data-target="48%">—</div>
       <div class="stat-label">独立游戏收入份额（2024 YTD）</div>
       <div class="stat-trend">↑ 2018年仅25% · VG Insights</div>
     </div>
     <div class="stat-cell">
-      <div class="stat-num" style="color:var(--text)">1.32亿</div>
+      <div class="stat-num" style="color:var(--text)" data-target="1.32亿">—</div>
       <div class="stat-label">STEAM 月活用户（2024）</div>
       <div class="stat-trend">峰值同时在线 3700万</div>
     </div>
   </div>
 </section>
+
+<!-- ═══ DATA SOURCE BADGE ═══ -->
+<div class="data-badge" id="data-source-badge" style="display:none;border-bottom:1px solid var(--border);">
+  <span class="badge-icon">⚠</span>
+  <span class="badge-text">使用内嵌示例数据 · 运行 03_preprocess.py 生成实时数据</span>
+</div>
 
 <!-- ═══ LEGEND ═══ -->
 <div class="legend-strip">
@@ -78,7 +84,7 @@
     </div>
     <div class="insight">
       <div class="insight-icon">//</div>
-      <div class="insight-text">
+      <div class="insight-text" id="insight-stream">
         <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏年发布量首次超越 AA+3A 之和；
         <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 4,000 <em>跳升至 7,000（+75%）</em>；
         <span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。
@@ -125,7 +131,7 @@
     </div>
     <div class="insight">
       <div class="insight-icon">//</div>
-      <div class="insight-text">
+      <div class="insight-text" id="insight-scatter">
         独立游戏平均好评率（约75%）已与3A大作（约74%）<em>几乎持平</em>——口碑差距在2013年曾超过15个百分点。
         右上"神作象限"（好评率>90% & CCU>100k）中，独立游戏数量已首次超越3A大作（2022年起）。
         <br><br>
@@ -163,7 +169,7 @@
     </div>
     <div class="insight">
       <div class="insight-icon">//</div>
-      <div class="insight-text">
+      <div class="insight-text" id="insight-decay">
         <strong>3A大作</strong>（红色系）：营销驱动的首发热潮在 3 个月内消退，峰值普遍降至 20% 以下，验证了"买了即弃"的消费模式；
         <em>独立游戏长青款</em>（绿色系）：口碑驱动的持续流量，《星露谷物语》发布 24 个月后仍保持峰值 35% 的日活；
         <strong>F2P游戏</strong>：内容更新维持曲线最为平坦，商业模式与留存高度绑定。

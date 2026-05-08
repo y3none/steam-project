@@ -94,13 +94,37 @@ async function loadJSON(path) {
   } catch { return null; }
 }
 
+// ── 内嵌 meta 兜底 ────────────────────────────────
+DATA.meta = {
+  total_games: 50000,
+  year_range: [2004, 2024],
+  type_counts: { Indie: 48000, AA: 800, AAA: 200, F2P: 1000 },
+  pos_rate_median: { Indie: 75.2, AA: 74.8, AAA: 73.6, F2P: 71.0 },
+  avg_ccu: { Indie: 312, AA: 8500, AAA: 42000, F2P: 18000 },
+  reviewed_games: 38000,
+};
+
 window.loadRealData = async function() {
-  const [market, bubbles, decay] = await Promise.all([
+  const [market, bubbles, decay, meta] = await Promise.all([
     loadJSON('../data/processed/market_share.json'),
     loadJSON('../data/processed/bubbles.json'),
     loadJSON('../data/processed/decay.json'),
+    loadJSON('../data/processed/meta.json'),
   ]);
-  if (market)  { DATA.market  = market;  console.log('[data] market_share.json loaded'); }
+  if (market) {
+    // 规范化字段名：兼容 03_preprocess.py 不同版本的输出
+    DATA.market = market.map(d => ({
+      ...d,
+      // 短字段名（前端图表使用）
+      n:   d.n  ?? d.total_releases ?? 0,
+      ni:  d.ni ?? d.n_indie ?? 0,
+      na:  d.na ?? d.n_aa ?? 0,
+      nb:  d.nb ?? d.n_aaa ?? 0,
+      nf:  d.nf ?? d.n_f2p ?? 0,
+      ev:  d.ev ?? d.event ?? null,
+    }));
+    console.log('[data] market_share.json loaded');
+  }
   if (bubbles) {
     DATA.bubbles = bubbles.map(d => ({
       name:  d.name,
@@ -131,5 +155,9 @@ window.loadRealData = async function() {
     const badge = document.getElementById("decay-badge");
     if (badge) badge.style.display = "none";
   }
-  return { market: !!market, bubbles: !!bubbles, decay: !!decay };
+  if (meta) {
+    DATA.meta = meta;
+    console.log('[data] meta.json loaded');
+  }
+  return { market: !!market, bubbles: !!bubbles, decay: !!decay, meta: !!meta };
 };
