@@ -85,13 +85,28 @@ DATA.decay = [
 
 // ════════════════════════════════════════════════
 
-// ── 尝试从预处理 JSON 覆盖内嵌数据 ──────────────────
+// ── API / 静态文件加载 ──────────────────────────────
+// 优先级：后端API → 静态JSON文件 → 内嵌数据
+
+// 后端API地址：优先同源（server.py 同时提供页面和API），回退到本地5000端口
+var API_BASE = (location.port === '5000' || location.port === '8000')
+  ? '/api'
+  : 'http://127.0.0.1:5000/api';
+
 async function loadJSON(path) {
   try {
-    const r = await fetch(path);
+    var r = await fetch(path);
     if (!r.ok) throw new Error(r.status);
     return await r.json();
-  } catch { return null; }
+  } catch(e) { return null; }
+}
+
+async function loadFromAPI(endpoint) {
+  try {
+    var r = await fetch(API_BASE + '/' + endpoint);
+    if (!r.ok) throw new Error(r.status);
+    return await r.json();
+  } catch(e) { return null; }
 }
 
 // ── 内嵌 meta 兜底 ────────────────────────────────
@@ -105,59 +120,194 @@ DATA.meta = {
 };
 
 window.loadRealData = async function() {
-  const [market, bubbles, decay, meta] = await Promise.all([
-    loadJSON('../data/processed/market_share.json'),
-    loadJSON('../data/processed/bubbles.json'),
-    loadJSON('../data/processed/decay.json'),
-    loadJSON('../data/processed/meta.json'),
-  ]);
+  var source = 'embedded';
+  var layer = '';
+  var market, bubbles, decay, meta;
+
+  // ── 第一步：从 /api/data 秒级加载已有数据（<100ms）──
+  try {
+    var resp = await fetch(API_BASE + '/data');
+    if (resp.ok) {
+      var all = await resp.json();
+      market  = all.market;
+      bubbles = all.bubbles;
+      decay   = all.decay;
+      meta    = all.meta;
+      source  = 'api';
+      layer   = all.phase || 'cached';
+      console.log('[data] ✓ 秒级加载: ' + (all.total_in_db||0) + ' 款游戏');
+    }
+  } catch(e) {
+    console.log('[data] API不可用: ' + e.message);
+  }
+
+  // ── 回退：静态 JSON 文件 ──
+  if (!market) {
+    var results = await Promise.all([
+      loadJSON('../data/processed/market_share.json'),
+      loadJSON('../data/processed/bubbles.json'),
+      loadJSON('../data/processed/decay.json'),
+      loadJSON('../data/processed/meta.json'),
+    ]);
+    market = results[0]; bubbles = results[1]; decay = results[2]; meta = results[3];
+    if (market || bubbles) source = 'file';
+  }
+
+  // ── 注入数据 ──
   if (market) {
-    // 规范化字段名：兼容 03_preprocess.py 不同版本的输出
-    DATA.market = market.map(d => ({
-      ...d,
-      // 短字段名（前端图表使用）
-      n:   d.n  ?? d.total_releases ?? 0,
-      ni:  d.ni ?? d.n_indie ?? 0,
-      na:  d.na ?? d.n_aa ?? 0,
-      nb:  d.nb ?? d.n_aaa ?? 0,
-      nf:  d.nf ?? d.n_f2p ?? 0,
-      ev:  d.ev ?? d.event ?? null,
-    }));
-    console.log('[data] market_share.json loaded');
+    DATA.market = market.map(function(d) {
+      return Object.assign({}, d, {
+        n:  d.n  != null ? d.n  : (d.total_releases || 0),
+        ni: d.ni != null ? d.ni : (d.n_indie || 0),
+        na: d.na != null ? d.na : (d.n_aa || 0),
+        nb: d.nb != null ? d.nb : (d.n_aaa || 0),
+        nf: d.nf != null ? d.nf : (d.n_f2p || 0),
+        ev: d.ev != null ? d.ev : (d.event || null),
+      });
+    });
+    console.log('[data] market loaded (' + source + ')');
   }
+
   if (bubbles) {
-    DATA.bubbles = bubbles.map(d => ({
-      name:  d.name,
-      type:  d.type,
-      pr:    d.pos_rate  ?? d.pr,
-      ccu:   d.peak_ccu  ?? d.ccu,
-      own:   d.owners_m  ?? d.own,
-      yr:    d.year      ?? d.yr,
-      price: d.price     ?? 0,
-      rc:    d.review_count ?? d.rc ?? 0,
-      dev:   d.developers ?? d.dev ?? [],
-      tags:  d.top_tags  ?? d.tags ?? [],
-      header_image: d.header_image ?? null,
-    }));
-    console.log('[data] bubbles.json loaded, ' + DATA.bubbles.length + ' games');
+    DATA.bubbles = bubbles.map(function(d) {
+      return {
+        name:  d.name,
+        type:  d.type,
+        pr:    d.pos_rate  != null ? d.pos_rate  : d.pr,
+        ccu:   d.peak_ccu  != null ? d.peak_ccu  : d.ccu,
+        own:   d.owners_m  != null ? d.owners_m  : d.own,
+        yr:    d.year      != null ? d.year      : d.yr,
+        price: d.price     != null ? d.price     : 0,
+        rc:    d.review_count != null ? d.review_count : (d.rc || 0),
+        dev:   d.developers || d.dev || [],
+        tags:  d.top_tags  || d.tags || [],
+        header_image: d.header_image || null,
+      };
+    });
+    console.log('[data] bubbles loaded (' + source + '), ' + DATA.bubbles.length + ' games');
   }
+
   if (decay) {
-    DATA.decay = decay.map(d => ({
-      name:  d.name,
-      type:  d.type,
-      color: d.color || C[d.type] || '#888',
-      peak:  d.peak_ccu ?? d.peak,
-      yr:    d.release_year ?? d.yr,
-      data:  d.normalized ?? d.data,
-    }));
-    console.log('[data] decay.json loaded');
-    // hide badge if real data
-    const badge = document.getElementById("decay-badge");
-    if (badge) badge.style.display = "none";
+    DATA.decay = decay.map(function(d) {
+      return {
+        name:  d.name,
+        type:  d.type,
+        color: d.color || C[d.type] || '#888',
+        peak:  d.peak_ccu != null ? d.peak_ccu : d.peak,
+        yr:    d.release_year != null ? d.release_year : d.yr,
+        data:  d.normalized || d.data,
+      };
+    });
+    console.log('[data] decay loaded (' + source + ')');
+    var badge = document.getElementById("decay-badge");
+    if (badge && !decay[0]._is_example) badge.style.display = "none";
   }
+
   if (meta) {
     DATA.meta = meta;
-    console.log('[data] meta.json loaded');
+    console.log('[data] meta loaded (' + source + ')');
   }
-  return { market: !!market, bubbles: !!bubbles, decay: !!decay, meta: !!meta };
+
+  return {
+    market: !!market, bubbles: !!bubbles, decay: !!decay, meta: !!meta,
+    source: source,
+    layer: layer,
+  };
+};
+
+// ── 后台实时爬取 → 自动热更新图表 ──────────────────
+window.backgroundRefresh = function() {
+  console.log('[data] 后台爬取 SteamSpy Top100...');
+  var badge = document.getElementById('data-source-badge');
+  if (badge) {
+    badge.innerHTML = '<span class="badge-icon" style="border-color:var(--aa);color:var(--aa)">⟳</span>' +
+      '<span class="badge-text" style="color:var(--aa)">正在获取最新数据...</span>';
+    badge.style.display = 'flex';
+  }
+
+  fetch(API_BASE + '/refresh')
+    .then(function(r) { return r.json(); })
+    .then(function(all) {
+      if (!all.market) return;
+      var lc = all.live_changes || {};
+      console.log('[data] ✓ 后台爬取完成: ' + (lc.total_updated||0) + ' 款数据已更新');
+
+      // 热更新 DATA
+      DATA.market = all.market.map(function(d) {
+        return Object.assign({}, d, {
+          n:  d.n != null ? d.n : (d.total_releases || 0),
+          ni: d.ni != null ? d.ni : (d.n_indie || 0),
+          na: d.na != null ? d.na : (d.n_aa || 0),
+          nb: d.nb != null ? d.nb : (d.n_aaa || 0),
+          nf: d.nf != null ? d.nf : (d.n_f2p || 0),
+          ev: d.ev != null ? d.ev : (d.event || null),
+        });
+      });
+      DATA.bubbles = all.bubbles.map(function(d) {
+        return {
+          name: d.name, type: d.type,
+          pr:   d.pos_rate != null ? d.pos_rate : d.pr,
+          ccu:  d.peak_ccu != null ? d.peak_ccu : d.ccu,
+          own:  d.owners_m != null ? d.owners_m : d.own,
+          yr:   d.year != null ? d.year : d.yr,
+          price: d.price != null ? d.price : 0,
+          rc:   d.review_count != null ? d.review_count : (d.rc || 0),
+          dev:  d.developers || d.dev || [],
+          tags: d.top_tags || d.tags || [],
+          header_image: d.header_image || null,
+        };
+      });
+      if (all.meta) DATA.meta = all.meta;
+
+      // 重绘图表
+      if (window._streamRedraw)  window._streamRedraw();
+      if (window._scatterRedraw) window._scatterRedraw();
+
+      // ── 构建实时变化 ticker ──
+      var parts = [];
+      var time_str = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+      // 优先展示有变化的数据
+      if (lc.ccu_rising && lc.ccu_rising.length > 0) {
+        var top = lc.ccu_rising[0];
+        parts.push(top.name + ' CCU ↑' + fmt.num(top.ccu_diff));
+      }
+      if (lc.ccu_falling && lc.ccu_falling.length > 0) {
+        var bot = lc.ccu_falling[0];
+        parts.push(bot.name + ' CCU ↓' + fmt.num(Math.abs(bot.ccu_diff)));
+      }
+      if (lc.new_reviews && lc.new_reviews.length > 0) {
+        var nr = lc.new_reviews[0];
+        parts.push(nr.name + ' +' + fmt.num(nr.pos_diff) + ' 评价');
+      }
+      if (lc.new_games && lc.new_games.length > 0) {
+        parts.push('新增 ' + lc.new_games.length + ' 款游戏');
+      }
+
+      // 无变化时，展示当前 CCU 排行
+      if (parts.length === 0 && lc.top_ccu_now && lc.top_ccu_now.length > 0) {
+        var topGames = lc.top_ccu_now.slice(0, 3).map(function(c) {
+          return c.name + ' ' + fmt.num(c.ccu);
+        });
+        parts.push('当前在线　' + topGames.join(' · '));
+      }
+
+      var ticker = parts.length > 0 ? parts.join('　｜　') : fmt.num(all.total_in_db) + ' 款游戏数据已同步';
+
+      // 更新 badge
+      if (badge) {
+        badge.innerHTML =
+          '<span class="badge-icon" style="border-color:var(--indie);color:var(--indie)">✓</span>' +
+          '<span class="badge-text" style="color:var(--indie)">' +
+            '后端API实时数据　LIVE ' + time_str + '　' + ticker +
+          '</span>';
+      }
+    })
+    .catch(function(e) {
+      console.log('[data] 后台爬取失败: ' + e.message);
+      if (badge) {
+        badge.innerHTML = '<span class="badge-icon" style="border-color:var(--text);color:var(--text)">–</span>' +
+          '<span class="badge-text">使用本地缓存数据 · ' + fmt.num(DATA.meta.total_games) + ' 款游戏</span>';
+      }
+    });
 };

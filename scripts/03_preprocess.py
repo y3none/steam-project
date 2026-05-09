@@ -394,8 +394,14 @@ def build_main_df(df_raw: pd.DataFrame) -> pd.DataFrame:
     
     # 解析年份
     df["year"] = (df["release_date"] if "release_date" in df.columns else pd.Series([None]*len(df))).apply(parse_release_year)
-    df = df[df["year"].between(2004, 2025, inclusive="left")]  # 过滤有效年份
-    df["year"] = df["year"].astype(int)
+    # 保留有效年份的游戏，无年份的游戏也保留（标记为 0，视图一会跳过）
+    df["year"] = df["year"].fillna(0).astype(int)
+    df_with_year = df[df["year"].between(2004, 2025, inclusive="left")]
+    # 如果按年份过滤后为空（如 SteamSpy 数据无日期），保留全部
+    if len(df_with_year) == 0 and len(df) > 0:
+        print("  警告：无有效发布日期，跳过年份过滤")
+    else:
+        df = df_with_year
 
     # CCU 清洗
     df["ccu"] = pd.to_numeric(df["ccu"] if "ccu" in df.columns else pd.Series([0]*len(df)), errors="coerce").fillna(0).astype(int)
@@ -439,7 +445,10 @@ def build_main_df(df_raw: pd.DataFrame) -> pd.DataFrame:
         df["price_usd"] = pd.to_numeric(df["price"] if "price" in df.columns else pd.Series([0]*len(df)), errors="coerce").fillna(0) / 100
     
     # 游戏类型分类
-    df["game_type"] = df.apply(lambda row: classify_game_type(row.to_dict()), axis=1)
+    if len(df) > 0:
+        df["game_type"] = df.apply(lambda row: classify_game_type(row.to_dict()), axis=1)
+    else:
+        df["game_type"] = pd.Series(dtype=str)
 
     # 过滤：只保留游戏类型（排除 DLC、工具、原声等）
     if "type" in df.columns:

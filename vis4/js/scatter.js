@@ -122,7 +122,7 @@ window.initScatter = function() {
     // Show/remove label and ring for previewed game
     g.selectAll(".preview-label,.preview-ring").remove();
     if(d){
-      const cx=xSc(d.pr), cy=ySc(Math.max(1,d.ccu)), r=rSc(d.own);
+      const cx=xSc(d.pr), cy=ySc(Math.max(1,d.ccu)), r=rFn(d);
       g.append("text").attr("class","preview-label")
         .attr("x",cx).attr("y",cy-r-7).attr("text-anchor","middle")
         .attr("fill","#fff").attr("font-size",10).attr("font-weight","700")
@@ -192,8 +192,9 @@ window.initScatter = function() {
     xSc=d3.scaleLinear().domain([40,100]).range([0,iW]);
     ySc=d3.scaleLog().domain([2,4800000]).range([iH,0]).clamp(true);
     const n=DATA.bubbles.length;
-    const maxR=n>200?16:n>100?22:38;
-    rSc=d3.scaleSqrt().domain([0,60]).range([3,maxR]);
+    const maxR=n>500?18:n>300?24:n>150?36:n>60?44:50;
+    rSc=d3.scalePow().exponent(0.35).domain([0, 80]).range([3, maxR]);
+    const rFn = d => d.own > 0.01 ? rSc(d.own) : 3;
 
     // Grid
     g.append("g").attr("class","grid").call(d3.axisLeft(ySc).ticks(5).tickSize(-iW).tickFormat(""));
@@ -232,7 +233,7 @@ window.initScatter = function() {
     g.selectAll(".bub-dim").data(hide.sort((a,b)=>b.own-a.own)).join("circle")
       .attr("class","bub-dim")
       .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(1,d.ccu)))
-      .attr("r",d=>rSc(d.own)).attr("fill",d=>C[d.type]||"#888")
+      .attr("r",d=>rFn(d)).attr("fill",d=>C[d.type]||"#888")
       .attr("opacity",0.04).attr("stroke","none");
 
     // Active bubbles
@@ -244,11 +245,11 @@ window.initScatter = function() {
         .attr("stroke",d=>d3.color(C[d.type]||"#888").darker(0.8))
         .attr("stroke-width",1).attr("opacity",0).style("cursor","pointer")
         .call(en=>en.transition().duration(600).ease(d3.easeCubicOut)
-          .attr("r",d=>selected===d?rSc(d.own)*1.15:rSc(d.own))
+          .attr("r",d=>selected===d?rFn(d)*1.15:rFn(d))
           .attr("opacity",bubbleOpacity)),
       update=>update.call(up=>up.transition().duration(400)
         .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(1,d.ccu)))
-        .attr("r",d=>selected===d?rSc(d.own)*1.15:rSc(d.own))
+        .attr("r",d=>selected===d?rFn(d)*1.15:rFn(d))
         .attr("opacity",bubbleOpacity)),
       exit=>exit.call(ex=>ex.transition().duration(300).attr("r",0).attr("opacity",0).remove())
     );
@@ -258,7 +259,7 @@ window.initScatter = function() {
       g.selectAll(".bub")
         .on("mousemove",function(ev,d){
           if(selected===d) return;
-          d3.select(this).transition().duration(100).attr("r",rSc(d.own)*1.12);
+          d3.select(this).transition().duration(100).attr("r",rFn(d)*1.12);
           TIP.show(`<strong>${d.name}</strong>
             <div class="tip-row"><span class="tip-k">类型</span><span class="tip-v" style="color:${C[d.type]}">${TL[d.type]}</span></div>
             <div class="tip-row"><span class="tip-k">发行年</span><span class="tip-v">${d.yr||"—"}</span></div>
@@ -269,7 +270,7 @@ window.initScatter = function() {
           `, ev);
         })
         .on("mouseleave",function(ev,d){
-          if(selected!==d){d3.select(this).transition().duration(100).attr("r",rSc(d.own));TIP.hide();}
+          if(selected!==d){d3.select(this).transition().duration(100).attr("r",rFn(d));TIP.hide();}
         })
         .on("click",function(ev,d){
           ev.stopPropagation();
@@ -282,7 +283,7 @@ window.initScatter = function() {
               .attr("r",dd=>dd===d?rSc(dd.own)*1.18:rSc(dd.own));
             // Show label only for selected
             g.selectAll(".sel-label,.sel-ring").remove();
-            const cx=xSc(d.pr),cy=ySc(Math.max(1,d.ccu)),r=rSc(d.own);
+            const cx=xSc(d.pr),cy=ySc(Math.max(1,d.ccu)),r=rFn(d);
             g.append("text").attr("class","sel-label")
               .attr("x",cx).attr("y",cy-r*1.18-7).attr("text-anchor","middle")
               .attr("fill","#fff").attr("font-size",10).attr("font-weight","700")
@@ -299,7 +300,7 @@ window.initScatter = function() {
     if(selected){
       const d=selected, inShow=show.find(x=>x.name===d.name);
       if(inShow){
-        const cx=xSc(d.pr),cy=ySc(Math.max(1,d.ccu)),r=rSc(d.own);
+        const cx=xSc(d.pr),cy=ySc(Math.max(1,d.ccu)),r=rFn(d);
         g.append("text").attr("class","sel-label")
           .attr("x",cx).attr("y",cy-r*1.15-7).attr("text-anchor","middle")
           .attr("fill","#fff").attr("font-size",10).attr("font-weight","700")
@@ -316,7 +317,7 @@ window.initScatter = function() {
       g.selectAll(".search-ring").data(matched,d=>d.name).join("circle")
         .attr("class","search-ring")
         .attr("cx",d=>xSc(d.pr)).attr("cy",d=>ySc(Math.max(1,d.ccu)))
-        .attr("r",d=>rSc(d.own)+4)
+        .attr("r",d=>rFn(d)+4)
         .attr("fill","none").attr("stroke","#fff").attr("stroke-width",1.5)
         .attr("stroke-dasharray","3,2").attr("opacity",0.5).style("pointer-events","none");
     }

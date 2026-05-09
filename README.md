@@ -39,6 +39,12 @@ steam_project/
 
 核心职责：确保数据干净、可信、够用，尽早拿到稳定数据。
 
+- [x] **Kaggle 数据接入适配**
+  - 新增 `00_import_kaggle.py` 转换器，支持 Kaggle Steam Dataset JSON 格式
+  - `03_preprocess.py` 的 `load_raw_data()` 自动检测 Kaggle 格式（`{appid: {game}}` 字典结构）
+  - 字段映射：`estimated_owners` → `owners`，`peak_ccu` → `ccu`，价格保持美元不除以100
+  - 兼容多种文件名：`games.json`、`kaggle_steam.json`、`steam_games.json`
+
 - [ ] **优先：补全四个数据来源并扩展数据至2025年**
   - 补全Kaggle Steam Dataset、Steam Store API和SteamCharts.com
   - 审查各数据，获取至最新年份
@@ -48,6 +54,18 @@ steam_project/
   - 结合 tags 中的 `"Free to Play"` 标签交叉验证
   - 遵循业内规则，修复部分3A大作错分类问题（black myth等）
   - 手动修正已知误分类的游戏（如限免期间的独立游戏）
+
+- [x] **修复 `_get_name` 兼容性问题**
+  - pandas Series 的 `.name` 属性返回行索引而非列值，导致游戏名显示为 appid
+  - 改用 `row[col] if col in row.index` 访问列值
+
+- [x] **修复 market_share.json 字段名兼容**
+  - 输出同时包含长字段名（`total_releases`/`n_indie`）和短字段名（`n`/`ni`/`na`/`nb`/`nf`/`ev`）
+  - 修复 numpy 类型无法 JSON 序列化的问题
+
+- [x] **修复年份过滤逻辑**
+  - SteamSpy 数据无 `release_date`，所有游戏被 `year.between()` 过滤为空 DataFrame
+  - 改为无年份游戏标记 year=0 保留，合并 Kaggle 数据后补上真实年份
 
 - [x] **优化气泡图采样策略**
   - 将 `process_bubbles` 改为分层采样：每个类型按高/中/低人气各取一批
@@ -70,6 +88,76 @@ steam_project/
   - 新增字段：各类型好评率中位数、平均 CCU、年度关键指标
   - 供前端 insight 区域和顶部统计卡片动态渲染使用
 
+- [x] **本地游戏数据库 game_db.json**
+  - 所有数据源（Kaggle / SteamSpy Top100 / 全量爬取）累积合并
+  - 以 appid 为 key，只增不减，持久化到 `data/raw/game_db.json`
+  - 重启后秒级恢复，不需要重新爬取
+  - merge 逻辑：新 appid 直接加入，已有 appid 更新实时字段（CCU/评价），保留历史字段（release_date）
+
+---
+
+### 后端服务（server.py）
+
+- [x] **Flask 后端 API 服务**
+  - `server.py` 同时提供页面静态文件服务和 API 端点
+  - 自动搜索前端目录（`vis/` → `frontend/` → 项目根目录）
+  - 无需分开启动 `python -m http.server`，一个命令搞定
+
+- [x] **三层渐进式数据加载**
+  - Layer 1：启动时从 `game_db.json` 秒级恢复历史数据
+  - Layer 2：合并本地 Kaggle 数据
+  - Layer 3：实时爬取 SteamSpy Top100 增量更新
+  - 每层完成后立即处理 → 更新 `data/processed/` → API 可用
+
+- [x] **实时 CCU 爬取（Steam 官方 API）**
+  - `/api/refresh` 调用 `GetNumberOfCurrentPlayers` 接口获取此刻在线人数
+  - 10 个并发线程查询 20 款热门游戏，约 1-2 秒返回
+  - 每次刷新 CCU 数值都在变化（玩家实时上线下线）
+
+- [ ] **实时变化追踪与 Ticker（待修复显示游戏的选取问题）**
+  - `merge_records` 对比新旧数据，记录 CCU 涨跌、新增评价数
+  - `/api/refresh` 返回 `live_changes`：CCU 涨幅/跌幅排行、当前在线排行
+  - 前端顶部 badge 显示实时 ticker（如 "CS2 CCU ↑3,847 | Dota 2 CCU ↓1,203"）
+
+- [x] **处理结果持久化**
+  - `process_and_save()` 同时写入 `data/processed/` 四个 JSON
+  - 即使不启动 server，前端也能从静态文件读取
+
+- [ ] **全量爬取端点（待修复）**
+  - `POST /api/crawl/start` 启动 SteamSpy 全量分页爬取（后台运行）
+  - 每爬 5 页保存一次 + 更新 processed + 更新 API 缓存
+
+---
+
+### 前端数据驱动改造
+
+- [x] **前端三层降级数据加载**
+  - 优先：`/api/data` 秒级返回内存缓存数据（<100ms）
+  - 其次：`data/processed/*.json` 静态文件
+  - 兜底：`data.js` 内嵌示例数据
+  - 字段规范化映射：兼容 `total_releases`/`n` 等不同字段名
+
+- [x] **后台异步刷新 + 图表热更新**
+  - 页面秒开渲染 → 后台异步调用 `/api/refresh` → 完成后自动 `_streamRedraw` / `_scatterRedraw`
+  - 用户感知：页面秒开，几秒后数据悄悄变得更新
+
+- [x] **顶部统计卡片数据联动**
+  - 四个 `.stat-num` 改为 `data-target` 属性驱动
+  - `updateHeroStats()` 从 `DATA.meta` / `DATA.market` 动态计算
+  - Counter 动画：cubic ease-out 数字滚动，支持逗号/百分号/中文后缀
+  - 四个数字瀑布式启动（间隔 180ms），IntersectionObserver 触发
+
+- [x] **动态化 Insight 文案**
+  - 三个视图的洞察文字从硬编码改为数据驱动（`updateInsights()`）
+  - 视图一：日均新游戏数、Steam Direct 前后发布量跳升百分比
+  - 视图二：Indie/AAA 中位好评率、"神作象限"游戏数量对比
+  - 视图三：AAA 三月留存率、最佳独立游戏 24 月留存率及游戏名
+
+- [x] **数据源指示器 Badge**
+  - 显示数据来源（后端API实时 / 静态文件 / 内嵌数据）
+  - API 模式下显示实时 ticker 和时间戳
+  - 爬取中显示 "正在获取最新数据..."
+
 ---
 
 ### 前端视图修复与交互完善
@@ -79,14 +167,21 @@ steam_project/
 - [x] **修复气泡图显示问题**
   - 将所有 `Math.max(4001, d.ccu)` 改为 `Math.max(11, d.ccu)`（共 4 处）
   - Y 轴 `domain` 下限对应调整为 `[10, 4800000]`
-  - 气泡半径比例尺根据数据量动态缩放（数据 > 200 条时 maxR 降至 16）
   - X 轴 `domain` 根据实际好评率范围自适应，不再硬编码 55
   - 加入游戏名称显示
+
+- [x] **修复气泡半径缩放**
+  - 改用 `scalePow(0.35)` 替代 `scaleSqrt`，避免极端值（Dota2 75M）压扁其他气泡
+  - `maxR` 根据数据量分档调大（150款时 maxR=36）
+  - 大游戏仍然最大，层次分明
 
 - [ ] **实现视图一 CCU 份额切换**
   - 读取数据端产出的 CCU 份额数据
   - 点击"在线人数"按钮时切换 Stream Graph 数据源
   - 当前该按钮点击无实际效果
+
+- [ ] **优化视图一河流图的视觉效果**
+  - 优化视觉效果
 
 - [x] **实现气泡图搜索功能**
   - UI 上已预留搜索框位置（右上角）
@@ -104,8 +199,14 @@ steam_project/
   - 点击气泡后在右侧详情面板顶部展示封面
   - 添加加载失败时的占位图处理
 
-- [ ] **接入后端实时数据**
-  - 前端读取后端实时获取的数据
+- [x] **接入后端实时数据**
+  - 前后端集成到一个 server.py 上
+  - 前端 `/api/data` 秒级加载 + `/api/refresh` 后台异步实时爬取
+  - SteamSpy 获取实时 CCU（每日快照）
+  - SteamStore 获取实时CCU变化，ticker 显示 CCU 涨跌
+
+- [ ] **增加展示实时数据的图表**
+  - 将后端能实时爬取数据的功能以可视化的形式展现
 
 - [ ] **优化移动端适配**
   - 散点图在窄屏下详情面板叠在底部体验差，改为弹出浮层或抽屉
@@ -208,7 +309,57 @@ python -m http.server 8080
 # 此时可视化会自动使用内嵌的备用数据，所有功能正常可用
 ```
 
----
+### 第四步：前后端耦合
+使用方式：
+```bash
+# 1. 安装依赖（一次性）
+pip install flask flask-cors pandas numpy tqdm
+
+# 2. 把 server.py 放到项目根目录，启动后端
+python server.py --port 5000
+```
+
+启动后会看到：
+```
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+[db] 从 game_db.json 恢复 122614 款游戏
+[kaggle] 读取 games.json...
+[db] 合并 [Kaggle]: +0 新增, ~122610 更新, 19676 条变化, 总计 122614
+  清洗后：97538 款游戏（含全量），53484 款有有效评价
+
+处理视图一：市场份额...
+  生成 21 年的市场份额数据
+
+处理视图二：气泡散点图...
+    Indie: 可选 12018 款，取样 40 款（高/中/低分层）
+    AA: 可选 2374 款，取样 40 款（高/中/低分层）
+    AAA: 可选 510 款，取样 40 款（高/中/低分层）
+    F2P: 可选 1416 款，取样 40 款（高/中/低分层）
+    被低估神作: 额外 25 款（好评>95%, owners<2M）
+  生成 185 个气泡数据点（目标 160，含神作补充）
+
+处理视图三：生命周期衰减曲线...
+  未找到手动衰减数据，生成推荐游戏清单...
+  推荐游戏清单已保存至：/Users/y3/Desktop/数据可视化/steam_project/data/raw/decay_candidates.json
+  请参考 decay_manual_template.json 补全数据，或直接运行可视化（将使用内嵌示例数据）
+
+处理元数据...
+  元数据：97538 款游戏，21 个年份
+[processed] 已更新 data/processed/ (4 files)
+[startup] ✓ 本地数据就绪: 97538 款, 1.4s
+[startup] 实时爬取 SteamSpy Top100...
+```
+
+浏览器打开 `http://127.0.0.1:5000` 即可  
+数据流变化：  
+之前：python 03_preprocess.py → 静态 JSON → 前端读文件  
+现在：前端 → fetch('/api/market') → server.py → 实时处理 → 返回 JSON  
+三层降级策略（data.js 里实现）：  
+优先：后端 API（server.py 运行时）→ 顶部显示绿色 ✓「后端API实时数据」
+其次：静态 JSON 文件（data/processed/*.json 存在时）→ 显示黄色 ⚡「静态文件数据」
+兜底：内嵌示例数据 → 显示 ⚠「使用内嵌示例数据」
+
 
 ## 视图功能说明
 

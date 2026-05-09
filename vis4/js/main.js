@@ -202,15 +202,23 @@ function updateInsights() {
 
   // ── Data source indicator ──
   var badge = document.getElementById('data-source-badge');
-  if (badge) {
-    var hasReal = DATA.meta.generated_at;
-    if (hasReal) {
+  if (badge && window._dataSource) {
+    var src = window._dataSource;
+    var layer = window._dataLayer || '';
+    if (src === 'api') {
+      var layerText = {
+        'top100': 'SteamSpy Top100 实时爬取',
+        'local+top100': '实时爬取 + 本地历史数据',
+        'full': 'SteamSpy 全量实时数据',
+      }[layer] || '后端API实时数据';
       badge.innerHTML = '<span class="badge-icon" style="border-color:var(--indie);color:var(--indie)">✓</span>' +
-        '<span class="badge-text" style="color:var(--indie)">已加载实时数据 · 生成于 ' +
-        new Date(DATA.meta.generated_at).toLocaleDateString('zh-CN') + ' · ' + fmt.num(DATA.meta.total_games) + ' 款游戏</span>';
+        '<span class="badge-text" style="color:var(--indie)">' + layerText + ' · ' + fmt.num(DATA.meta.total_games) + ' 款游戏</span>';
+    } else if (src === 'file') {
+      badge.innerHTML = '<span class="badge-icon" style="border-color:var(--aa);color:var(--aa)">⚡</span>' +
+        '<span class="badge-text" style="color:var(--aa)">静态文件数据 · ' + fmt.num(DATA.meta.total_games) + ' 款游戏</span>';
     } else {
       badge.innerHTML = '<span class="badge-icon">⚠</span>' +
-        '<span class="badge-text">使用内嵌示例数据 · 运行 03_preprocess.py 生成实时数据</span>';
+        '<span class="badge-text">内嵌示例数据 · 运行 python server.py 启动实时数据服务</span>';
     }
     badge.style.display = 'flex';
   }
@@ -219,12 +227,15 @@ function updateInsights() {
 // ── Main entry ──────────────────────────────────
 (async function main() {
   var result = await window.loadRealData();
-  var anyReal = Object.values(result).some(Boolean);
+  window._dataSource = result.source || 'embedded';
+  window._dataLayer = result.layer || '';
+
+  var anyReal = result.market || result.bubbles;
   if (anyReal) {
-    console.log('[main] Using real data from processed/');
+    console.log('[main] Data loaded from: ' + result.source);
   } else {
-    console.info('[main] No processed data found — using embedded fallback data.');
-    console.info('       Run scripts/03_preprocess.py to generate real data.');
+    console.info('[main] No real data — using embedded fallback.');
+    console.info('       Run: python server.py');
   }
 
   // Update hero stats from data BEFORE charts init
@@ -241,6 +252,11 @@ function updateInsights() {
 
   // Inject data-driven insights
   updateInsights();
+
+  // ── 后台实时爬取：页面已渲染，异步更新数据 ──
+  if (result.source === 'api' && window.backgroundRefresh) {
+    setTimeout(window.backgroundRefresh, 500);
+  }
 })();
 
 // ════════════════════════════════════════════════
