@@ -163,6 +163,11 @@ window.loadRealData = async function() {
         nb: d.nb != null ? d.nb : (d.n_aaa || 0),
         nf: d.nf != null ? d.nf : (d.n_f2p || 0),
         ev: d.ev != null ? d.ev : (d.event || null),
+        // CCU 份额字段
+        ci: d.ci != null ? d.ci : 0,
+        ca: d.ca != null ? d.ca : 0,
+        cb: d.cb != null ? d.cb : 0,
+        cf: d.cf != null ? d.cf : 0,
       });
     });
     console.log('[data] market loaded (' + source + ')');

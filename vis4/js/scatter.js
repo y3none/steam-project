@@ -145,8 +145,9 @@ window.initScatter = function() {
       document.querySelector('[data-sf="all"]').classList.add("active");
     }
     if(yearFilter && d.yr!==yearFilter){
-      yearFilter=null; EVT.emit("yearSelect",null);
-      const ind=document.getElementById("year-indicator"); if(ind) ind.style.display="none";
+      // User clicked a dimmed bubble outside year filter — clear the filter
+      setYearFilter(null);
+      EVT.emit("yearSelect", null);
     }
     selected = d;
     draw();
@@ -369,11 +370,71 @@ window.initScatter = function() {
   });
 
   // Cross-view year linking
-  EVT.on("yearSelect", yr=>{
-    yearFilter=yr; selected=null; hoverGame=null;
-    showDetailPanel(null); draw();
+  const yearSelect = document.getElementById("scatter-year-select");
+
+  function populateYearDropdown() {
+    // Collect unique years from bubbles data
+    const years = [...new Set(DATA.bubbles.map(d => d.yr).filter(y => y > 0))].sort((a, b) => b - a);
+    yearSelect.innerHTML = '<option value="">全部年份</option>';
+    years.forEach(yr => {
+      const opt = document.createElement("option");
+      opt.value = yr;
+      opt.textContent = yr + " 年";
+      yearSelect.appendChild(opt);
+    });
+  }
+
+  function setYearFilter(yr) {
+    yearFilter = yr;
+    selected = null; hoverGame = null;
+    showDetailPanel(null);
+    // Sync dropdown
+    yearSelect.value = yr || "";
+    // Sync year-indicator bar (stream graph's bottom bar)
+    const indicator = document.getElementById("year-indicator");
+    const yiYear = document.getElementById("yi-year");
+    if (indicator) {
+      if (yr) {
+        indicator.style.display = "flex";
+        yiYear.textContent = yr;
+      } else {
+        indicator.style.display = "none";
+      }
+    }
+    draw();
+  }
+
+  // Dropdown change → filter
+  let _selfEmit = false;
+  yearSelect.addEventListener("change", function() {
+    const yr = this.value ? parseInt(this.value) : null;
+    setYearFilter(yr);
+    // Notify stream graph (but flag so we don't react to our own event)
+    _selfEmit = true;
+    EVT.emit("yearSelect", yr);
+    _selfEmit = false;
   });
 
+  // Stream graph click → filter (only react to external events)
+  EVT.on("yearSelect", yr => {
+    if (_selfEmit) return;
+    setYearFilter(yr);
+  });
+
+  // Year indicator clear button also resets dropdown
+  const yiClearBtn = document.getElementById("yi-clear");
+  if (yiClearBtn) {
+    const newBtn = yiClearBtn.cloneNode(true);
+    yiClearBtn.parentNode.replaceChild(newBtn, yiClearBtn);
+    newBtn.addEventListener("click", () => {
+      setYearFilter(null);
+      _selfEmit = true;
+      EVT.emit("yearSelect", null);
+      _selfEmit = false;
+    });
+  }
+
+  populateYearDropdown();
   setupSearch();
   draw();
   window._scatterRedraw = draw;

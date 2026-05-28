@@ -43,15 +43,15 @@ STEAMSPY_URL = "https://steamspy.com/api.php"
 
 # ── 加载预处理模块 ──────────────────────────────────
 def load_preprocess_module():
-    for path in [BASE_DIR / "03_preprocess.py",
-                 BASE_DIR / "scripts" / "03_preprocess.py"]:
+    for path in [BASE_DIR / "05_preprocess.py",
+                 BASE_DIR / "scripts" / "05_preprocess.py"]:
         if path.exists():
             spec = importlib.util.spec_from_file_location("preprocess", str(path))
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             print(f"[init] 预处理模块: {path}")
             return mod
-    raise FileNotFoundError("找不到 03_preprocess.py")
+    raise FileNotFoundError("找不到 05_preprocess.py")
 
 preprocess = load_preprocess_module()
 
@@ -683,7 +683,7 @@ if __name__ == "__main__":
   数据流:
     game_db.json ← Kaggle + SteamSpy 累积
          ↓
-    03_preprocess.py 处理
+    05_preprocess.py 处理
          ↓
     data/processed/*.json ← 持久化
          ↓

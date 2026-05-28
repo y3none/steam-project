@@ -20,20 +20,23 @@ window.initStream = function() {
     svg = d3.select(wrap).append("svg").attr("viewBox",`0 0 ${W} ${H}`).attr("height",H);
     g   = svg.append("g").attr("transform",`translate(${MG.l},${MG.t})`);
 
-    xSc = d3.scaleLinear().domain([2004,2024]).range([0,iW]);
+    // CCU mode: X axis starts at 2012 (no public CCU data before that)
+    const xMin = mode === "ccu" ? 2012 : 2004;
+    xSc = d3.scaleLinear().domain([xMin, 2024]).range([0, iW]);
 
-    // Build data for current mode
+    // Build data for current mode, filter by xMin
     let stackData;
     if (mode === "ccu") {
-      // Use CCU share columns (ci, ca, cb, cf)
-      stackData = DATA.market.map(d => ({
-        year: d.year,
-        indie: d.ci ?? d.indie,
-        aa:    d.ca ?? d.aa,
-        aaa:   d.cb ?? d.aaa,
-        f2p:   d.cf ?? d.f2p,
-        _orig: d,
-      }));
+      stackData = DATA.market
+        .filter(d => d.year >= 2012)
+        .map(d => ({
+          year: d.year,
+          indie: d.ci ?? 0,
+          aa:    d.ca ?? 0,
+          aaa:   d.cb ?? 0,
+          f2p:   d.cf ?? 0,
+          _orig: d,
+        }));
     } else {
       stackData = DATA.market.map(d => ({
         year: d.year,
@@ -58,7 +61,7 @@ window.initStream = function() {
       .y0(d=>ySc(d[0])).y1(d=>ySc(d[1]))
       .curve(d3.curveCatmullRom.alpha(0.5));
 
-    // Glow filter
+    // Glow filter + gradients
     const defs = svg.append("defs");
     const flt = defs.append("filter").attr("id","glow-s");
     flt.append("feGaussianBlur").attr("stdDeviation","3").attr("result","blur");
@@ -66,12 +69,21 @@ window.initStream = function() {
     fMrg.append("feMergeNode").attr("in","blur");
     fMrg.append("feMergeNode").attr("in","SourceGraphic");
 
+    KEYS.forEach(k => {
+      const grad = defs.append("linearGradient").attr("id","sg-"+k).attr("x1","0").attr("y1","0").attr("x2","0").attr("y2","1");
+      grad.append("stop").attr("offset","0%").attr("stop-color",KC[k]).attr("stop-opacity",0.9);
+      grad.append("stop").attr("offset","100%").attr("stop-color",KC[k]).attr("stop-opacity",0.6);
+    });
+
     // Paths
     g.selectAll(".sp").data(series).join("path")
       .attr("class","sp")
-      .attr("fill", s=>KC[s.key])
-      .attr("fill-opacity",0.78)
+      .attr("fill", s=>"url(#sg-"+s.key+")")
+      .attr("fill-opacity",0.82)
       .attr("d", area)
+      .attr("stroke", s=>KC[s.key])
+      .attr("stroke-width", 0.3)
+      .attr("stroke-opacity", 0.2)
       .on("mousemove", function(ev,s){
         const yr = Math.round(xSc.invert(d3.pointer(ev)[0]));
         const idx = stackData.findIndex(r=>r.year===yr);
@@ -80,35 +92,75 @@ window.initStream = function() {
         const val = stackData[idx][s.key];
         g.selectAll(".sp").attr("fill-opacity", p=>p.key===s.key?1:0.18);
 
-        const modeLabel = mode==="ccu" ? "CCU份额" : "发布占比";
-        const countLabel = mode==="ccu" ? "CCU份额" : KL[s.key]+"发布量";
-        const countVal = mode==="ccu" ? fmt.pct(val) : fmt.num(d["n"+s.key[0]]) + " 款";
+        const modeLabel = mode==="ccu" ? "在线占比" : "发布占比";
 
-        TIP.show(`<strong>${yr} · ${KL[s.key]}</strong>
-          <div class="tip-row"><span class="tip-k">${modeLabel}</span><span class="tip-v" style="color:${KC[s.key]}">${val}%</span></div>
-          <div class="tip-row"><span class="tip-k">本年总发布</span><span class="tip-v">${fmt.num(d.n)} 款</span></div>
-          <div class="tip-row"><span class="tip-k">${countLabel}</span><span class="tip-v">${countVal}</span></div>
-          ${d.ev?`<div class="tip-event">◆ ${d.ev}</div>`:""}
-          <div style="margin-top:4px;font-size:9px;color:#6060a0">点击选中该年份，联动散点图 ↓</div>
-        `, ev);
+        let tipContent = `<strong>${yr} · ${KL[s.key]}</strong>
+          <div class="tip-row"><span class="tip-k">${modeLabel}</span><span class="tip-v" style="color:${KC[s.key]}">${val}%</span></div>`;
+
+        if (mode === "ccu") {
+          // CCU mode: show absolute CCU if available
+          const absKey = {"indie":"ci_abs","aa":"ca_abs","aaa":"cb_abs","f2p":"cf_abs"}[s.key];
+          const absVal = d[absKey];
+          if (absVal) {
+            tipContent += `<div class="tip-row"><span class="tip-k">月均在线</span><span class="tip-v">~${fmt.num(Math.round(absVal))}k</span></div>`;
+          }
+          tipContent += `<div style="margin-top:3px;font-size:8px;color:#6060a0">基于 SteamCharts 月均在线数据计算</div>`;
+        } else {
+          tipContent += `<div class="tip-row"><span class="tip-k">本年总发布</span><span class="tip-v">${fmt.num(d.n)} 款</span></div>
+          <div class="tip-row"><span class="tip-k">${KL[s.key]}发布量</span><span class="tip-v">${fmt.num(d["n"+s.key[0]])} 款</span></div>`;
+        }
+
+        tipContent += `${d.ev?`<div class="tip-event">◆ ${d.ev}</div>`:""}
+          <div style="margin-top:4px;font-size:9px;color:#6060a0">点击选中该年份，联动散点图 ↓</div>`;
+
+        TIP.show(tipContent, ev);
       })
-      .on("mouseleave",()=>{ g.selectAll(".sp").attr("fill-opacity",0.78); TIP.hide(); })
+      .on("mouseleave",()=>{ g.selectAll(".sp").attr("fill-opacity",0.82); TIP.hide(); })
       .on("click", function(ev){
         const yr = Math.round(xSc.invert(d3.pointer(ev)[0]));
-        if(yr < 2004 || yr > 2024) return;
+        if(yr < xMin || yr > 2024) return;
         selectYear(yr === selectedYear ? null : yr);
       });
 
     // X axis
     g.append("g").attr("class","axis").attr("transform",`translate(0,${iH})`)
-      .call(d3.axisBottom(xSc).tickFormat(d3.format("d")).ticks(10).tickSize(3));
+      .call(d3.axisBottom(xSc).tickFormat(d3.format("d")).ticks(mode==="ccu"?6:10).tickSize(3));
 
-    // Event lines
+    // Event lines (only show events within current x range)
     EVENTS.forEach(ev=>{
+      if (ev.yr < xMin) return;
       const x=xSc(ev.yr);
       g.append("line").attr("class","ev-line").attr("x1",x).attr("x2",x).attr("y1",0).attr("y2",iH);
       g.append("text").attr("class","ev-label").attr("x",x).attr("y",-6).attr("text-anchor","middle").text(ev.yr+" · "+ev.label);
     });
+
+    // CCU mode: prominent annotation for missing pre-2012 data
+    if (mode === "ccu") {
+      // Dimmed area on the left to visually indicate "no data zone"
+      const noDataW = 36;
+      g.append("rect")
+        .attr("x", -noDataW - 4).attr("y", 0)
+        .attr("width", noDataW).attr("height", iH)
+        .attr("fill", "rgba(255,255,255,0.03)")
+        .attr("stroke", "rgba(255,255,255,0.08)")
+        .attr("stroke-dasharray", "3,3");
+      g.append("text")
+        .attr("x", -noDataW/2 - 4).attr("y", iH / 2)
+        .attr("fill", "rgba(255,255,255,0.35)")
+        .attr("font-family", "'Space Mono',monospace")
+        .attr("font-size", 10)
+        .attr("font-weight", "bold")
+        .attr("writing-mode", "vertical-rl")
+        .attr("text-anchor", "middle")
+        .text("◀ 2012前无公开数据");
+      // Horizontal annotation at top
+      g.append("text")
+        .attr("x", 4).attr("y", iH - 6)
+        .attr("fill", "rgba(255,255,255,0.2)")
+        .attr("font-family", "'Space Mono',monospace")
+        .attr("font-size", 8)
+        .text("数据来源: SteamCharts.com 月均在线（2012.7起）");
+    }
 
     // Selected year highlight
     if (selectedYear) {
@@ -119,13 +171,14 @@ window.initStream = function() {
     }
 
     // Area labels
+    const labelYear = mode === "ccu" ? 2018 : 2013;
     series.forEach(s=>{
       const mid=Math.floor(s.length*0.55);
       const cy=(ySc(s[mid][0])+ySc(s[mid][1]))/2;
       const bw=Math.abs(ySc(s[mid][1])-ySc(s[mid][0]));
       if(bw<12) return;
       g.append("text")
-        .attr("x",xSc(2013)).attr("y",cy+4)
+        .attr("x",xSc(labelYear)).attr("y",cy+4)
         .attr("text-anchor","middle")
         .attr("fill","rgba(0,0,0,0.65)")
         .attr("font-family","'Space Mono',monospace")
@@ -138,8 +191,10 @@ window.initStream = function() {
     // Mode label
     g.append("text").attr("x",iW).attr("y",-6).attr("text-anchor","end")
       .attr("fill","rgba(255,255,255,0.15)").attr("font-family","'Space Mono',monospace").attr("font-size",9)
-      .text(mode==="ccu" ? "MODE: CCU SHARE" : "MODE: RELEASE COUNT");
+      .text(mode==="ccu" ? "MODE: AVG. ONLINE SHARE" : "MODE: RELEASE COUNT");
   }
+
+  let _selfEmit = false;
 
   function selectYear(yr) {
     selectedYear = yr;
@@ -149,16 +204,27 @@ window.initStream = function() {
     if (yr) {
       indicator.style.display = "flex";
       yiYear.textContent = yr;
-      EVT.emit("yearSelect", yr);
     } else {
       indicator.style.display = "none";
-      EVT.emit("yearSelect", null);
     }
+    // Draw stream FIRST, then notify scatter
     draw();
+    _selfEmit = true;
+    EVT.emit("yearSelect", yr);
+    _selfEmit = false;
   }
 
   // Clear button
   document.getElementById("yi-clear").addEventListener("click", () => selectYear(null));
+
+  // Listen for year changes from scatter (dropdown) — skip self-emitted events
+  EVT.on("yearSelect", yr => {
+    if (_selfEmit) return;
+    if (yr !== selectedYear) {
+      selectedYear = yr;
+      draw();
+    }
+  });
 
   // Controls: mode toggle
   document.querySelectorAll("[data-sm]").forEach(b=>{
