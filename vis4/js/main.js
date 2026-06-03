@@ -247,6 +247,7 @@ function updateInsights() {
   // Init charts
   initStream();
   initScatter();
+  initScrollNarrative();
   initDecay();
   initMethod();
 

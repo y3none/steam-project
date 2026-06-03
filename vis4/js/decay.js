@@ -2,7 +2,8 @@
 // ════════════════════════════════════════════════
 window.initDecay = function() {
   const MG={t:24,r:110,b:48,l:60};
-  let showRef=true, highlighted=null;
+  const NARRATIVE_TYPES = ["Indie", "AAA"];
+  let showRef=true, highlighted=null, narrativeCompare=false;
   let svg,g,xSc,ySc;
   let firstDraw = true;
 
@@ -13,6 +14,44 @@ window.initDecay = function() {
     Indie: { dash: null,    width: 2,   label: "独立游戏" },
     F2P:   { dash: "2,3",   width: 2.5, label: "F2P免费" },
   };
+
+  function lineOpacity(d, hoverName) {
+    if (hoverName) return d.name === hoverName ? 1 : 0.07;
+    if (highlighted) return d.name === highlighted ? 1 : 0.07;
+    if (narrativeCompare) return NARRATIVE_TYPES.includes(d.type) ? 1 : 0.06;
+    return 0.75;
+  }
+
+  function lineWidth(d, hoverName) {
+    if ((hoverName && d.name === hoverName) || (highlighted && d.name === highlighted)) return 3.5;
+    if (narrativeCompare && NARRATIVE_TYPES.includes(d.type)) return 2.8;
+    return (TYPE_STYLE[d.type] || {}).width || 2;
+  }
+
+  function isLabelActive(d, hoverName) {
+    if (hoverName) return d.name === hoverName;
+    if (highlighted) return d.name === highlighted;
+    if (narrativeCompare) return NARRATIVE_TYPES.includes(d.type);
+    return true;
+  }
+
+  function applyLineStyles(hoverName) {
+    if (!g) return;
+    g.selectAll(".dline").transition().duration(200)
+      .attr("opacity", function(d) { return lineOpacity(d, hoverName); })
+      .attr("stroke-width", function(d) { return lineWidth(d, hoverName); });
+
+    g.selectAll(".decay-inline-label").transition().duration(200)
+      .attr("opacity", function() {
+        var text = d3.select(this).text();
+        var match = DATA.decay.find(function(d) {
+          var t = d.name.length > 14 ? d.name.slice(0, 12) + "…" : d.name;
+          return t === text;
+        });
+        if (!match) return 0;
+        return isLabelActive(match, hoverName) ? (hoverName || highlighted ? 0.9 : 0.7) : 0;
+      });
+  }
 
   function draw() {
     const wrap=document.getElementById("decay-inner");
@@ -129,8 +168,25 @@ window.initDecay = function() {
       firstDraw = false;
     } else {
       paths
-        .attr("opacity",function(d){return highlighted?(d.name===highlighted?1:0.07):0.75;})
-        .attr("stroke-width",function(d){return highlighted&&d.name===highlighted?3.5:((TYPE_STYLE[d.type]||{}).width||2);});
+        .attr("opacity", function(d) { return lineOpacity(d, null); })
+        .attr("stroke-width", function(d) { return lineWidth(d, null); });
+    }
+
+    if (narrativeCompare) {
+      // g.append("text")
+      //   .attr("class", "decay-narrative-label")
+      //   .attr("x", xSc(3))
+      //   .attr("y", iH - 10)
+      //   .attr("text-anchor", "middle")
+      //   .attr("fill", C.AAA)
+      //   .text("3A · 营销断崖");
+      // g.append("text")
+      //   .attr("class", "decay-narrative-label")
+      //   .attr("x", xSc(18))
+      //   .attr("y", ySc(0.35) + 14)
+      //   .attr("text-anchor", "middle")
+      //   .attr("fill", C.Indie)
+      //   .text("Indie · 口碑长尾");
     }
 
     // Events on lines
@@ -170,7 +226,7 @@ window.initDecay = function() {
       }
       labelPositions.push(yPos);
 
-      var isActive = !highlighted || d.name === highlighted;
+      var isActive = isLabelActive(d, null);
       var labelText = d.name.length > 14 ? d.name.slice(0,12)+"…" : d.name;
 
       g.append("line")
@@ -203,7 +259,11 @@ window.initDecay = function() {
         var m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
         cursor.style("display",null).attr("x1",xSc(m)).attr("x2",xSc(m));
         dotsG.selectAll(".cdot").remove();
-        var show=highlighted?DATA.decay.filter(function(d){return d.name===highlighted;}):DATA.decay;
+        var show = highlighted
+          ? DATA.decay.filter(function(d) { return d.name === highlighted; })
+          : narrativeCompare
+            ? DATA.decay.filter(function(d) { return NARRATIVE_TYPES.includes(d.type); })
+            : DATA.decay;
         dotsG.selectAll(".cdot").data(show).join("circle").attr("class","cdot")
           .attr("cx",xSc(m)).attr("cy",function(d){return ySc(d.data[m]);}).attr("r",3.5)
           .attr("fill",function(d){return d.color;}).attr("stroke","#fff").attr("stroke-width",1).style("pointer-events","none");
@@ -222,33 +282,17 @@ window.initDecay = function() {
 
   function highlightLine(name, sticky) {
     if (sticky !== undefined) {
+      narrativeCompare = false;
       highlighted = sticky ? name : null;
+      firstDraw = false;
+      draw();
+      return;
     }
-    if (sticky) highlighted = name;
+    applyLineStyles(name);
 
-    g&&g.selectAll(".dline").transition().duration(200)
-      .attr("opacity",function(d){return name?(d.name===name?1:0.07):0.75;})
-      .attr("stroke-width",function(d){return name&&d.name===name?3.5:((TYPE_STYLE[d.type]||{}).width||2);});
-
-    // Update inline labels
-    g&&g.selectAll(".decay-inline-label").transition().duration(200)
-      .attr("opacity", function() {
-        var text = d3.select(this).text();
-        if (!name) return 0.7;
-        // Check if this label belongs to highlighted game
-        var match = DATA.decay.find(function(d) {
-          var t = d.name.length > 14 ? d.name.slice(0,12)+"…" : d.name;
-          return t === text;
-        });
-        return match && match.name === name ? 0.9 : 0;
-      });
-
-    document.querySelectorAll(".dl-item").forEach(function(el){
-      el.classList.toggle("active", el.dataset.name===name);
+    document.querySelectorAll(".dl-item").forEach(function(el) {
+      el.classList.toggle("active", el.dataset.name === name);
     });
-
-    // If sticky, redraw for full z-order fix
-    if (sticky !== undefined) { firstDraw = false; draw(); }
   }
 
   function buildLegend() {
@@ -270,6 +314,9 @@ window.initDecay = function() {
       // Type header
       var header = document.createElement("div");
       header.className = "dl-type-header";
+      if (narrativeCompare) {
+        header.classList.add(NARRATIVE_TYPES.includes(type) ? "dl-type-narrative" : "dl-type-dimmed");
+      }
       header.style.color = C[type] || "#888";
       header.innerHTML = '<span class="dl-type-line" style="border-color:' + (C[type]||"#888") + 
         (style.dash ? ';border-style:dashed' : '') + '"></span>' + style.label;
@@ -301,5 +348,14 @@ window.initDecay = function() {
 
   draw();
   window._decayRedraw = function() { firstDraw = false; draw(); };
+  window._decayApplyNarrative = function(opts) {
+    if (opts.compareIndieAAA) {
+      narrativeCompare = true;
+      highlighted = null;
+    }
+    if (opts.compareIndieAAA === false) narrativeCompare = false;
+    firstDraw = false;
+    draw();
+  };
 };
 // ════════════════════════════════════════════════

@@ -2,8 +2,10 @@
 // ════════════════════════════════════════════════
 window.initScatter = function() {
   const MG={t:20,r:24,b:48,l:66};
+  const GOD_PR = 90, GOD_CCU = 100000;
   let activeFilter="all", selected=null, yearFilter=null;
   let searchTerm="", hoverGame=null; // hoverGame: game hovered from dropdown
+  let highlightQuadrant = false;
   let svg,g,xSc,ySc,rSc,iW,iH;
 
   const searchInput   = document.getElementById("scatter-search");
@@ -141,6 +143,7 @@ window.initScatter = function() {
     // Switch filter if needed
     if(activeFilter!=="all" && d.type!==activeFilter){
       activeFilter="all";
+      // highlightQuadrant = false;
       document.querySelectorAll("[data-sf]").forEach(x=>x.classList.remove("active"));
       document.querySelector('[data-sf="all"]').classList.add("active");
     }
@@ -160,6 +163,28 @@ window.initScatter = function() {
     closeDropdown();
     TIP.hide();
     showDetailPanel(null);
+    // highlightQuadrant = false;
+    draw();
+  }
+
+  function isGodQuadrant(d) {
+    return d.pr > GOD_PR && d.ccu > GOD_CCU;
+  }
+
+  function syncFilterPills(type) {
+    document.querySelectorAll("[data-sf]").forEach(x => x.classList.remove("active"));
+    const btn = document.querySelector('[data-sf="' + type + '"]');
+    if (btn) btn.classList.add("active");
+  }
+
+  function setFilter(type, clearNarrative) {
+    // if (clearNarrative !== false) highlightQuadrant = false;
+    activeFilter = type;
+    syncFilterPills(type);
+    selected = null; hoverGame = null; searchTerm = "";
+    searchInput.value = "";
+    closeDropdown();
+    showDetailPanel(null);
     draw();
   }
 
@@ -176,6 +201,8 @@ window.initScatter = function() {
     if(selected) return d===selected?1:0.06;
     if(hoverGame) return d===hoverGame?1:0.12;
     if(searchTerm) return fuzzyMatch(d.name,searchTerm)?0.75:0.08;
+    if(highlightQuadrant && isGodQuadrant(d)) return 0.9;
+    // if(highlightQuadrant) return 0.35;
     return d.ccu>100000?0.85:0.65;
   }
 
@@ -216,10 +243,31 @@ window.initScatter = function() {
       .attr("font-family","'Space Mono',monospace").attr("font-size",10).attr("letter-spacing","1")
       .text("峰值在线人数（对数轴）");
 
-    // Quadrant label
-    g.append("text").attr("x",iW-4).attr("y",14).attr("text-anchor","end")
-      .attr("fill","rgba(29,233,182,0.12)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
-      .text("高口碑 · 高人气 →");
+    // Quadrant label / narrative highlight
+    if (highlightQuadrant) {
+      g.append("rect")
+        .attr("class", "god-quadrant")
+        .attr("x", xSc(GOD_PR))
+        .attr("y", ySc(4800000))
+        .attr("width", xSc(100) - xSc(GOD_PR))
+        .attr("height", ySc(GOD_CCU) - ySc(4800000))
+        .attr("pointer-events", "none");
+      g.append("text")
+        .attr("class", "god-quadrant-label")
+        .attr("x", xSc(100) - 8)
+        .attr("y", ySc(4800000) + 18)
+        .attr("text-anchor", "end")
+        .attr("fill", C.Indie)
+        .attr("font-family", "'Space Mono',monospace")
+        .attr("font-size", 11)
+        .attr("font-weight", "700")
+        .attr("pointer-events", "none")
+        .text("神作象限");
+    } else {
+      g.append("text").attr("x",iW-4).attr("y",14).attr("text-anchor","end")
+        .attr("fill","rgba(29,233,182,0.12)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
+        .text("高口碑 · 高人气 →");
+    }
 
     if(yearFilter){
       g.append("text").attr("x",4).attr("y",14)
@@ -244,7 +292,7 @@ window.initScatter = function() {
         .attr("r",0)
         .attr("fill",d=>C[d.type]||"#888")
         .attr("stroke",d=>d3.color(C[d.type]||"#888").darker(0.8))
-        .attr("stroke-width",1).attr("opacity",0).style("cursor","pointer")
+        .attr("stroke-width",d=>highlightQuadrant&&isGodQuadrant(d)?2:1).attr("opacity",0).style("cursor","pointer")
         .call(en=>en.transition().duration(600).ease(d3.easeCubicOut)
           .attr("r",d=>selected===d?rFn(d)*1.15:rFn(d))
           .attr("opacity",bubbleOpacity)),
@@ -361,11 +409,7 @@ window.initScatter = function() {
 
   document.querySelectorAll("[data-sf]").forEach(b=>{
     b.addEventListener("click",function(){
-      document.querySelectorAll("[data-sf]").forEach(x=>x.classList.remove("active"));
-      this.classList.add("active");
-      activeFilter=this.dataset.sf;
-      selected=null; hoverGame=null; searchTerm=""; searchInput.value="";
-      closeDropdown(); showDetailPanel(null); draw();
+      setFilter(this.dataset.sf);
     });
   });
 
@@ -386,6 +430,7 @@ window.initScatter = function() {
 
   function setYearFilter(yr) {
     yearFilter = yr;
+    // highlightQuadrant = false;
     selected = null; hoverGame = null;
     showDetailPanel(null);
     // Sync dropdown
@@ -438,5 +483,17 @@ window.initScatter = function() {
   setupSearch();
   draw();
   window._scatterRedraw = draw;
+  window._scatterApplyNarrative = function(opts) {
+    if (opts.filter) {
+      activeFilter = opts.filter;
+      syncFilterPills(opts.filter);
+      selected = null; hoverGame = null; searchTerm = "";
+      searchInput.value = "";
+      closeDropdown();
+      showDetailPanel(null);
+    }
+    if (opts.highlightQuadrant != null) highlightQuadrant = opts.highlightQuadrant;
+    draw();
+  };
 };
 // ════════════════════════════════════════════════
