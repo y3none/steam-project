@@ -134,7 +134,37 @@ window.initDecay = function() {
       return 0;
     });
 
-    // Lines with type-specific styling
+    // Background rect for crosshair (drawn BEFORE paths so paths are on top)
+    var cursor=g.append("line").attr("stroke","rgba(255,255,255,0.15)").attr("y1",0).attr("y2",iH).style("pointer-events","none").style("display","none");
+    var dotsG=g.append("g").style("pointer-events","none");
+    g.append("rect").attr("width",iW).attr("height",iH).attr("fill","transparent")
+      .on("mousemove",function(ev){
+        var mx=d3.pointer(ev)[0];
+        if(mx<0||mx>iW){cursor.style("display","none");return;}
+        var m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
+        cursor.style("display",null).attr("x1",xSc(m)).attr("x2",xSc(m));
+        var show=highlighted
+          ? DATA.decay.filter(function(d){return d.name===highlighted;})
+          : narrativeCompare
+            ? DATA.decay.filter(function(d){return NARRATIVE_TYPES.includes(d.type);})
+            : DATA.decay;
+        // Dots
+        dotsG.selectAll(".cdot").remove();
+        dotsG.selectAll(".cdot").data(show).join("circle").attr("class","cdot")
+          .attr("cx",xSc(m)).attr("cy",function(d){return ySc(d.data[m]);}).attr("r",3.5)
+          .attr("fill",function(d){return d.color;}).attr("stroke","#fff").attr("stroke-width",1);
+        // Unified tooltip with all curves
+        var tipHtml = '<div style="margin-bottom:4px;font-weight:700;color:var(--bright)">发布后 ' + m + ' 个月</div>';
+        show.forEach(function(d) {
+          tipHtml += '<div class="tip-row" style="margin:2px 0">' +
+            '<span class="tip-k" style="color:'+d.color+'">'+d.name+'</span>' +
+            '<span class="tip-v">'+fmt.pct(d.data[m]*100)+'</span></div>';
+        });
+        TIP.show(tipHtml, ev);
+      })
+      .on("mouseleave",function(){ cursor.style("display","none"); dotsG.selectAll(".cdot").remove(); TIP.hide(); });
+
+    // Lines with type-specific styling (drawn AFTER rect so they're on top)
     var paths = g.selectAll(".dline").data(sorted, function(d){return d.name;}).join("path")
       .attr("class","dline")
       .attr("stroke",function(d){return d.color;})
@@ -144,7 +174,7 @@ window.initDecay = function() {
         var s = TYPE_STYLE[d.type];
         return s ? s.dash : null;
       })
-      .style("cursor","pointer");
+      .style("pointer-events","none");
 
     if (firstDraw) {
       paths.each(function() {
@@ -189,25 +219,6 @@ window.initDecay = function() {
       //   .text("Indie · 口碑长尾");
     }
 
-    // Events on lines
-    paths
-      .on("mousemove",function(ev,d){
-        var mx=d3.pointer(ev)[0];
-        var m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
-        TIP.show('<strong>'+d.name+'</strong>'+
-          '<div class="tip-row"><span class="tip-k">发布后</span><span class="tip-v">'+m+' 个月</span></div>'+
-          '<div class="tip-row"><span class="tip-k">相对在线</span><span class="tip-v">'+fmt.pct(d.data[m]*100)+'</span></div>'+
-          '<div class="tip-row"><span class="tip-k">类型</span><span class="tip-v" style="color:'+d.color+'">'+TL[d.type]+'</span></div>'+
-          '<div class="tip-row"><span class="tip-k">峰值CCU</span><span class="tip-v">'+fmt.ccu(d.peak)+'</span></div>'
-        , ev);
-        if(!highlighted) highlightLine(d.name);
-      })
-      .on("mouseleave",function(){ TIP.hide(); if(!highlighted) highlightLine(null); })
-      .on("click", function(ev, d) {
-        ev.stopPropagation();
-        highlighted === d.name ? highlightLine(null, true) : highlightLine(d.name, true);
-      });
-
     // ── Inline end-of-line labels (near each curve, avoiding overlap) ──
     var labelPositions = [];
     sorted.forEach(function(d) {
@@ -247,35 +258,6 @@ window.initDecay = function() {
         .style("pointer-events","none")
         .text(labelText);
     });
-
-    // Cursor & dots
-    var cursor=g.append("line").attr("stroke","rgba(255,255,255,0.15)").attr("y1",0).attr("y2",iH).style("pointer-events","none").style("display","none");
-    var dotsG=g.append("g");
-
-    g.append("rect").attr("width",iW).attr("height",iH).attr("fill","transparent")
-      .on("mousemove",function(ev){
-        var mx=d3.pointer(ev)[0];
-        if(mx<0||mx>iW){cursor.style("display","none");return;}
-        var m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
-        cursor.style("display",null).attr("x1",xSc(m)).attr("x2",xSc(m));
-        dotsG.selectAll(".cdot").remove();
-        var show = highlighted
-          ? DATA.decay.filter(function(d) { return d.name === highlighted; })
-          : narrativeCompare
-            ? DATA.decay.filter(function(d) { return NARRATIVE_TYPES.includes(d.type); })
-            : DATA.decay;
-        dotsG.selectAll(".cdot").data(show).join("circle").attr("class","cdot")
-          .attr("cx",xSc(m)).attr("cy",function(d){return ySc(d.data[m]);}).attr("r",3.5)
-          .attr("fill",function(d){return d.color;}).attr("stroke","#fff").attr("stroke-width",1).style("pointer-events","none");
-        if(highlighted){
-          var d=DATA.decay.find(function(x){return x.name===highlighted;});
-          if(d) TIP.show('<strong>'+d.name+'</strong>'+
-            '<div class="tip-row"><span class="tip-k">发布后</span><span class="tip-v">'+m+' 个月</span></div>'+
-            '<div class="tip-row"><span class="tip-k">相对在线</span><span class="tip-v">'+fmt.pct(d.data[m]*100)+'</span></div>'
-          , ev);
-        }
-      })
-      .on("mouseleave",function(){ cursor.style("display","none"); dotsG.selectAll(".cdot").remove(); TIP.hide(); if(!highlighted) highlightLine(null); });
 
     buildLegend();
   }

@@ -11,6 +11,68 @@ const io = new IntersectionObserver(entries => {
 }, { threshold: 0.06 });
 document.querySelectorAll('.section').forEach(s => io.observe(s));
 
+// ── Insight typewriter effect ──────────────────────
+function typewriteInsight(el, speed) {
+  if (!el || el.dataset.typed) return;
+  el.dataset.typed = "1";
+  speed = speed || 18;
+
+  // Prefer data-driven HTML from updateInsights(), fallback to static innerHTML
+  const html = el.dataset.typewriterHtml || el.innerHTML;
+  el.innerHTML = "";
+  el.style.visibility = "visible";
+
+  // Parse HTML into a flat list of (char | tag) tokens
+  const tokens = [];
+  const re = /(<[^>]+>)|([^<])/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    if (m[1]) {
+      tokens.push({ tag: m[1] });
+    } else if (m[2]) {
+      tokens.push({ ch: m[2] });
+    }
+  }
+
+  let i = 0;
+  let buf = "";
+  function tick() {
+    if (i >= tokens.length) return;
+    const t = tokens[i];
+    if (t.tag) {
+      buf += t.tag;
+      i++;
+      // Emit tags instantly, don't delay
+      tick();
+      return;
+    }
+    buf += t.ch;
+    i++;
+    el.innerHTML = buf;
+    setTimeout(tick, speed);
+  }
+  tick();
+}
+
+// Observe the 3 insight texts (NOT sec-method)
+const typewriterTargets = [
+  "insight-stream",
+  "insight-scatter",
+  "insight-decay",
+];
+const typeIO = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      typewriteInsight(e.target, 18);
+      typeIO.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.3 });
+typewriterTargets.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) typeIO.observe(el);
+});
+
 // Debounced resize
 let rt;
 window.addEventListener("resize", () => {
@@ -136,7 +198,7 @@ function updateInsights() {
     var preCount = yr2016 ? fmt.num(yr2016.ni) : '4,000';
     var jumpPct = yr2016 && yr2017 ? Math.round((yr2017.ni - yr2016.ni) / yr2016.ni * 100) : 75;
 
-    insight1.innerHTML =
+    var html1 =
       '<span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏年发布量首次超越 AA+3A 之和；' +
       '<span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 ' + preCount +
       ' <em>跳升至 ' + directCount + '（+' + jumpPct + '%）</em>；' +
@@ -145,6 +207,7 @@ function updateInsights() {
       '<strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——' +
       lastYear.year + '年平均每天有 ' + dailyNew + ' 款新游戏上架，' +
       '单款游戏的中位曝光机会反而低于2014年。数量增长并不等于生态健康，这一矛盾贯穿独立游戏崛起的全过程。';
+    insight1.dataset.typewriterHtml = html1;
   }
 
   // ── Insight 2: Scatter (quality) ──
@@ -161,13 +224,14 @@ function updateInsights() {
         ? '独立游戏与3A大作并驾齐驱'
         : '3A大作仍略占优势';
 
-    insight2.innerHTML =
+    var html2 =
       '独立游戏中位好评率（<em>' + indiePR + '%</em>）已与3A大作（<em>' + aaaPR + '%</em>）<em>几乎持平</em>——口碑差距在2013年曾超过15个百分点。' +
       '右上"神作象限"（好评率>90% & CCU>100k）中，' + godCompare + '。' +
       '<br><br>' +
       '<strong>值得注意的模式：</strong>图中可见独立游戏的分布呈"倒L型"——多数集中在<em>高好评但低人气</em>区域，' +
       '说明独立游戏的质量天花板已经打破，但<em>市场注意力的分配仍然极度不均</em>。' +
       '少数"破圈"独立作品（如 Palworld、Valheim）的人气可比肩3A，但大多数优质独立作品仍面临"叫好不叫座"的困境。';
+    insight2.dataset.typewriterHtml = html2;
   }
 
   // ── Insight 3: Decay (retention) ──
@@ -189,7 +253,7 @@ function updateInsights() {
       aaaAvg3 = Math.round(sum / aaaDecays.length * 100);
     }
 
-    insight3.innerHTML =
+    var html3 =
       '<strong>3A大作</strong>（红色系）：营销驱动的首发热潮在 3 个月内消退，峰值普遍降至 <em>' + aaaAvg3 + '%</em> 以下，验证了"买了即弃"的消费模式；' +
       '<em>独立游戏长青款</em>（绿色系）：口碑驱动的持续流量，《' + bestName + '》发布 24 个月后仍保持峰值 <em>' + bestRetainPct + '%</em> 的日活；' +
       '<strong>F2P游戏</strong>：内容更新维持曲线最为平坦，商业模式与留存高度绑定。' +
@@ -198,6 +262,7 @@ function updateInsights() {
       '3A依赖首周销量爆发，回收高额开发成本，因此必须重营销轻社区；' +
       '独立游戏依赖口碑长尾，首月成绩可能平平，但12个月后的留存率反而决定了总收入。' +
       '这解释了为什么越来越多的独立工作室选择<em>Early Access</em>策略——它本质上是用时间换曝光，用社区反馈代替营销预算。';
+    insight3.dataset.typewriterHtml = html3;
   }
 
   // ── Data source indicator ──
@@ -258,6 +323,11 @@ function updateInsights() {
   if (result.source === 'api' && window.backgroundRefresh) {
     setTimeout(window.backgroundRefresh, 500);
   }
+
+  // 绑定刷新按钮
+  document.getElementById("refresh-btn")?.addEventListener("click", function() {
+    window.refreshData();
+  });
 })();
 
 // ════════════════════════════════════════════════
