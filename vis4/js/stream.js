@@ -75,6 +75,11 @@ window.initStream = function() {
       grad.append("stop").attr("offset","100%").attr("stop-color",KC[k]).attr("stop-opacity",0.6);
     });
 
+    // ClipPath for grow animation
+    const clip = defs.append("clipPath").attr("id","stream-reveal");
+    const clipRect = clip.append("rect")
+      .attr("x", 0).attr("y", 0).attr("width", 0).attr("height", H);
+
     // Paths
     g.selectAll(".sp").data(series).join("path")
       .attr("class","sp")
@@ -84,6 +89,7 @@ window.initStream = function() {
       .attr("stroke", s=>KC[s.key])
       .attr("stroke-width", 0.3)
       .attr("stroke-opacity", 0.2)
+      .attr("clip-path","url(#stream-reveal)")
       .on("mousemove", function(ev,s){
         const yr = Math.round(xSc.invert(d3.pointer(ev)[0]));
         const idx = stackData.findIndex(r=>r.year===yr);
@@ -192,6 +198,12 @@ window.initStream = function() {
     g.append("text").attr("x",iW).attr("y",-6).attr("text-anchor","end")
       .attr("fill","rgba(255,255,255,0.15)").attr("font-family","'Space Mono',monospace").attr("font-size",9)
       .text(mode==="ccu" ? "MODE: AVG. ONLINE SHARE" : "MODE: RELEASE COUNT");
+
+    // Grow animation: reveal from left to right
+    clipRect.transition()
+      .duration(1800)
+      .ease(d3.easeCubicInOut)
+      .attr("width", W);
   }
 
   let _selfEmit = false;
