@@ -10,6 +10,8 @@ window.initStream = function() {
   let svg,g,xSc,ySc;
   let mode = "count"; // "count" or "ccu"
   let selectedYear = null;
+  let isModeCountEntranceDone = false;
+  let isModeCCUEntranceDone = false;
 
   function draw() {
     const wrap = document.getElementById("stream-inner");
@@ -180,21 +182,26 @@ window.initStream = function() {
 
     // Area labels
     const labelYear = mode === "ccu" ? 2018 : 2013;
-    series.forEach(s=>{
-      const mid=Math.floor(s.length*0.55);
-      const cy=(ySc(s[mid][0])+ySc(s[mid][1]))/2;
-      const bw=Math.abs(ySc(s[mid][1])-ySc(s[mid][0]));
-      if(bw<12) return;
-      g.append("text")
-        .attr("x",xSc(labelYear)).attr("y",cy+4)
-        .attr("text-anchor","middle")
-        .attr("fill","rgba(0,0,0,0.65)")
-        .attr("font-family","'Space Mono',monospace")
-        .attr("font-size",Math.min(13,bw*0.38))
-        .attr("font-weight","700")
-        .attr("pointer-events","none")
-        .text(KL[s.key]);
-    });
+    const labelIdx = stackData.findIndex(r => r.year === labelYear);
+    if (labelIdx >= 0) {
+      series.forEach(s => {
+        const d = s[labelIdx];
+        const cy = (ySc(d[0]) + ySc(d[1])) / 2;
+        const bw = Math.abs(ySc(d[1]) - ySc(d[0]));
+        if (bw < 12) return;
+        g.append("text")
+          .attr("x", xSc(labelYear))
+          .attr("y", cy)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("fill", "rgba(0,0,0,0.65)")
+          .attr("font-family", "'Space Mono',monospace")
+          .attr("font-size", Math.min(13, bw * 0.38))
+          .attr("font-weight", "700")
+          .attr("pointer-events", "none")
+          .text(KL[s.key]);
+      });
+    }
 
     // Mode label
     g.append("text").attr("x",iW).attr("y",-6).attr("text-anchor","end")
@@ -202,10 +209,16 @@ window.initStream = function() {
       .text(mode==="ccu" ? "MODE: AVG. ONLINE SHARE" : "MODE: RELEASE COUNT");
 
     // Grow animation: reveal from left to right
-    clipRect.transition()
-      .duration(1800)
-      .ease(d3.easeCubicInOut)
-      .attr("width", W);
+    if ((!isModeCountEntranceDone && mode == "count") || (!isModeCCUEntranceDone && mode == "ccu")) {
+      clipRect.transition()
+          .duration(1800)
+          .ease(d3.easeCubicInOut)
+          .attr("width", W);
+        if (mode == "count") isModeCountEntranceDone = true;
+        if (mode == "ccu") isModeCCUEntranceDone = true;
+    } else {
+      clipRect.attr("width", W);
+    }
   }
 
   let _selfEmit = false;
@@ -246,6 +259,9 @@ window.initStream = function() {
       document.querySelectorAll("[data-sm]").forEach(x=>x.classList.remove("active"));
       this.classList.add("active");
       mode = this.dataset.sm;
+      // 如果需要每次切换模式时都播放入场动画，则取消注释以下两行
+      // if (mode == "count") isModeCountEntranceDone = false;
+      // if (mode == "ccu") isModeCCUEntranceDone = false;
       draw();
     });
   });
