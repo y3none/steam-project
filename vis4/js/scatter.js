@@ -3,30 +3,129 @@
 window.initScatter = function() {
   const MG={t:20,r:24,b:48,l:66};
   let activeFilter="all", selected=null, yearFilter=null;
-  let searchTerm="", hoverGame=null; // hoverGame: game hovered from dropdown
+  let activeTag=null;
+  let searchMode="name"; // "name" or "tag"
+  let searchTerm="", hoverGame=null;
   let svg,g,xSc,ySc,rSc,iW,iH;
 
   const searchInput   = document.getElementById("scatter-search");
   const searchResults = document.getElementById("search-results");
 
-  // ══ SEARCH SYSTEM ══════════════════════════════
+  // ══ TAG FILTER SYSTEM ══════════════════════════
+
+  function buildTagStats() {
+    const counts = {};
+    DATA.bubbles.forEach(d => {
+      (d.tags || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
+    });
+    return counts;
+  }
+
+  function updateTagUI() {
+    document.querySelectorAll("[data-tag]").forEach(b => {
+      b.classList.toggle("active", b.dataset.tag === (activeTag || ""));
+    });
+    document.querySelectorAll(".tag-dropdown-item").forEach(el => {
+      el.classList.toggle("active", el.dataset.tag === activeTag);
+    });
+  }
+
+  function setupTagFilter() {
+    const counts = buildTagStats();
+    const bar = document.getElementById("tag-filter-bar");
+    const dropdown = document.getElementById("tag-dropdown");
+    if (!bar || !dropdown) return;
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+    // Buttons: tags with count > 20
+    sorted.forEach(([tag, count]) => {
+      if (count <= 20) return;
+      const btn = document.createElement("button");
+      btn.className = "pill";
+      btn.dataset.tag = tag;
+      btn.textContent = tag;
+      btn.addEventListener("click", () => {
+        activeTag = activeTag === tag ? null : tag;
+        selected = null; hoverGame = null;
+        showDetailPanel(null);
+        updateTagUI();
+        draw();
+      });
+      bar.appendChild(btn);
+    });
+
+    // Dropdown: all tags
+    sorted.forEach(([tag, count]) => {
+      const el = document.createElement("div");
+      el.className = "tag-dropdown-item";
+      el.dataset.tag = tag;
+      el.innerHTML = `<span>${tag}</span><span class="tag-count">${count}</span>`;
+      el.addEventListener("click", () => {
+        activeTag = activeTag === tag ? null : tag;
+        selected = null; hoverGame = null;
+        showDetailPanel(null);
+        updateTagUI();
+        draw();
+        dropdown.classList.remove("open");
+      });
+      dropdown.appendChild(el);
+    });
+
+    // Click outside to close dropdown
+    document.addEventListener("click", e => {
+      if (!e.target.closest("#tag-dropdown-wrap")) dropdown.classList.remove("open");
+    });
+  }
+
+  // ══ SEARCH SYSTEM (unified: game name + tag search) ══════
 
   function setupSearch() {
     let debounce;
+
+    // Search mode toggle buttons
+    document.querySelectorAll("[data-search-mode]").forEach(b => {
+      b.addEventListener("click", function() {
+        document.querySelectorAll("[data-search-mode]").forEach(x => x.classList.remove("active"));
+        this.classList.add("active");
+        searchMode = this.dataset.searchMode;
+        searchInput.placeholder = searchMode === "tag" ? "搜索标签..." : "搜索游戏名...";
+        searchInput.value = "";
+        searchTerm = "";
+        activeTag = null;
+        updateTagUI();
+        closeDropdown();
+        draw();
+        searchInput.focus();
+      });
+    });
+
     searchInput.addEventListener("input", function(){
       clearTimeout(debounce);
       debounce = setTimeout(()=>{
         searchTerm = this.value.trim();
         selected = null; hoverGame = null;
         showDetailPanel(null);
-        if(searchTerm) showDropdown(); else closeDropdown();
+        if(searchMode === "tag") {
+          // Tag search mode: filter dropdown
+          showTagDropdown(searchTerm);
+        } else {
+          if(searchTerm) showDropdown(); else closeDropdown();
+        }
         draw();
       }, 150);
     });
-    searchInput.addEventListener("focus", ()=>{ if(searchTerm) showDropdown(); });
+    searchInput.addEventListener("focus", ()=>{
+      if(searchMode === "tag") {
+        showTagDropdown(searchTerm);
+      } else {
+        if(searchTerm) showDropdown();
+      }
+    });
     document.addEventListener("click", e=>{ if(!e.target.closest("#search-wrap")) closeDropdown(); });
 
     searchInput.addEventListener("keydown", e=>{
+      if(searchMode === "tag") return; // tag mode uses click only
       if(!searchResults.classList.contains("open")) return;
       const items = searchResults.querySelectorAll(".search-item[data-name]");
       const active = searchResults.querySelector(".search-item.kb-active");
@@ -37,7 +136,6 @@ window.initScatter = function() {
         e.preventDefault(); idx = Math.min(idx+1, items.length-1);
         items.forEach(el=>el.classList.remove("kb-active"));
         if(items[idx]){ items[idx].classList.add("kb-active"); items[idx].scrollIntoView({block:"nearest"}); }
-        // Highlight on keyboard nav too
         const name = items[idx]?.dataset.name;
         const d = name && DATA.bubbles.find(x=>x.name===name);
         previewGame(d||null);
@@ -53,6 +151,18 @@ window.initScatter = function() {
         if(active) active.click(); else if(items[0]) items[0].click();
       }
     });
+  }
+
+  function showTagDropdown(query) {
+    const dropdown = document.getElementById("tag-dropdown");
+    const searchResults = document.getElementById("search-results");
+    if (!dropdown) return;
+    const q = (query || "").toLowerCase();
+    dropdown.querySelectorAll(".tag-dropdown-item").forEach(el => {
+      el.style.display = el.dataset.tag.toLowerCase().includes(q) ? "" : "none";
+    });
+    dropdown.classList.add("open");
+    if (searchResults) searchResults.classList.remove("open");
   }
 
   function fuzzyMatch(name, query){
@@ -156,10 +266,12 @@ window.initScatter = function() {
 
   function resetAll(){
     selected=null; hoverGame=null; searchTerm="";
+    activeTag=null;
     searchInput.value="";
     closeDropdown();
     TIP.hide();
     showDetailPanel(null);
+    updateTagUI();
     draw();
   }
 
@@ -169,13 +281,14 @@ window.initScatter = function() {
     let data = DATA.bubbles;
     if(activeFilter!=="all") data=data.filter(d=>d.type===activeFilter);
     if(yearFilter) data=data.filter(d=>d.yr===yearFilter);
+    if(activeTag) data=data.filter(d=>(d.tags||[]).includes(activeTag));
     return data;
   }
 
   function bubbleOpacity(d){
     if(selected) return d===selected?1:0.06;
     if(hoverGame) return d===hoverGame?1:0.12;
-    if(searchTerm) return fuzzyMatch(d.name,searchTerm)?0.75:0.08;
+    if(searchTerm && searchMode==="name") return fuzzyMatch(d.name,searchTerm)?0.75:0.08;
     return d.ccu>100000?0.85:0.65;
   }
 
@@ -365,7 +478,17 @@ window.initScatter = function() {
       this.classList.add("active");
       activeFilter=this.dataset.sf;
       selected=null; hoverGame=null; searchTerm=""; searchInput.value="";
+      activeTag=null; yearFilter=null;
+      yearSelect.value = "";
+      updateTagUI();
+      // Reset year indicator
+      const indicator = document.getElementById("year-indicator");
+      if(indicator) indicator.style.display = "none";
       closeDropdown(); showDetailPanel(null); draw();
+      // Notify stream graph
+      _selfEmit = true;
+      EVT.emit("yearSelect", null);
+      _selfEmit = false;
     });
   });
 
@@ -436,6 +559,7 @@ window.initScatter = function() {
 
   populateYearDropdown();
   setupSearch();
+  setupTagFilter();
   draw();
   window._scatterRedraw = draw;
 };

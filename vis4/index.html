@@ -37,6 +37,13 @@
       <div class="stat-trend">峰值同时在线 3700万</div>
     </div>
   </div>
+  <div class="refresh-wrap">
+    <button class="refresh-btn" id="refresh-btn" title="从 SteamSpy 获取最新 CCU 数据">
+      <span class="refresh-icon" id="refresh-icon">↻</span>
+      <span class="refresh-text" id="refresh-text">刷新数据</span>
+    </button>
+    <span class="refresh-status" id="refresh-status"></span>
+  </div>
 </section>
 
 <!-- ═══ DATA SOURCE BADGE ═══ -->
@@ -51,7 +58,7 @@
   <div class="legend-item"><div class="legend-swatch" style="background:var(--aa)"></div>AA 中型厂商</div>
   <div class="legend-item"><div class="legend-swatch" style="background:var(--aaa)"></div>AAA 3A大作</div>
   <div class="legend-item"><div class="legend-swatch" style="background:var(--f2p)"></div>F2P 免费游玩</div>
-  <div class="legend-source">DATA: STEAMSPY API · STEAM STORE API · VG INSIGHTS 2024</div>
+  <div class="legend-source">DATA: STEAMSPY API · STEAM STORE API · VG INSIGHTS 2024 · <span id="last-update">加载中...</span></div>
 </div>
 
 <!-- ═══ MAIN ═══ -->
@@ -105,18 +112,30 @@
         <div class="section-desc">好评率 vs 峰值在线人数（对数轴） · 气泡半径 = 估算拥有人数 · <strong style="color:var(--text)">点击气泡</strong>查看详情</div>
       </div>
       <div class="section-controls">
-        <div class="search-box" id="search-wrap">
-          <input type="text" class="search-input" id="scatter-search" placeholder="搜索游戏名..." autocomplete="off" spellcheck="false">
-          <div class="search-results" id="search-results"></div>
+        <div class="scatter-controls-wrapper">
+          <div class="scatter-controls-left">
+            <div class="scatter-row">
+              <div class="search-box" id="search-wrap">
+                <input type="text" class="search-input" id="scatter-search" placeholder="搜索游戏名..." autocomplete="off" spellcheck="false">
+                <div class="search-results" id="search-results"></div>
+                <div class="tag-dropdown" id="tag-dropdown"></div>
+              </div>
+              <button class="pill active" data-search-mode="name">按游戏名</button>
+              <button class="pill" data-search-mode="tag">按标签</button>
+              <button class="pill" data-sf="Indie">INDIE</button>
+              <button class="pill" data-sf="AA">AA</button>
+              <button class="pill" data-sf="AAA">AAA</button>
+              <button class="pill" data-sf="F2P">F2P</button>
+              <select class="year-select" id="scatter-year-select">
+                <option value="">全部年份</option>
+              </select>
+            </div>
+            <div class="scatter-row" id="tag-filter-bar">
+              <!-- Dynamic tag buttons injected by scatter.js -->
+            </div>
+          </div>
+          <button class="pill pill-all active" data-sf="all">ALL</button>
         </div>
-        <button class="pill active" data-sf="all">ALL</button>
-        <button class="pill" data-sf="Indie">INDIE</button>
-        <button class="pill" data-sf="AA">AA</button>
-        <button class="pill" data-sf="AAA">AAA</button>
-        <button class="pill" data-sf="F2P">F2P</button>
-        <select class="year-select" id="scatter-year-select">
-          <option value="">全部年份</option>
-        </select>
       </div>
     </div>
     <div class="chart-box">

@@ -85,6 +85,15 @@ DATA.decay = [
 
 // ════════════════════════════════════════════════
 
+function showUpdateTime(isoStr) {
+  var el = document.getElementById("last-update");
+  if (!el) return;
+  if (!isoStr) { el.textContent = "—"; return; }
+  var d = new Date(isoStr);
+  var pad = function(n) { return String(n).padStart(2, "0"); };
+  el.textContent = "最近更新 " + d.getFullYear() + "/" + pad(d.getMonth()+1) + "/" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+
 // ── API / 静态文件加载 ──────────────────────────────
 // 优先级：后端API → 静态JSON文件 → 内嵌数据
 
@@ -210,6 +219,7 @@ window.loadRealData = async function() {
 
   if (meta) {
     DATA.meta = meta;
+    showUpdateTime(meta.generated_at);
     console.log('[data] meta loaded (' + source + ')');
   }
 
@@ -315,4 +325,96 @@ window.backgroundRefresh = function() {
           '<span class="badge-text">使用本地缓存数据 · ' + fmt.num(DATA.meta.total_games) + ' 款游戏</span>';
       }
     });
+};
+
+// ── 按钮触发的快速刷新 ──────────────────────────────
+window.refreshData = async function() {
+  var btn = document.getElementById("refresh-btn");
+  var status = document.getElementById("refresh-status");
+  btn.classList.add("loading");
+  btn.disabled = true;
+  status.textContent = "正在获取最新数据...";
+
+  try {
+    // 优先走后端 API
+    var resp = await fetch(API_BASE + '/refresh');
+    if (resp.ok) {
+      var all = await resp.json();
+      // 热更新（复用 backgroundRefresh 的逻辑）
+      if (all.market) {
+        DATA.market = all.market.map(function(d) {
+          return Object.assign({}, d, {
+            n: d.n != null ? d.n : (d.total_releases || 0),
+            ni: d.ni != null ? d.ni : (d.n_indie || 0),
+            na: d.na != null ? d.na : (d.n_aa || 0),
+            nb: d.nb != null ? d.nb : (d.n_aaa || 0),
+            nf: d.nf != null ? d.nf : (d.n_f2p || 0),
+            ev: d.ev != null ? d.ev : (d.event || null),
+          });
+        });
+      }
+      if (all.bubbles) {
+        DATA.bubbles = all.bubbles.map(function(d) {
+          return {
+            name: d.name, type: d.type,
+            pr: d.pos_rate != null ? d.pos_rate : d.pr,
+            ccu: d.peak_ccu != null ? d.peak_ccu : d.ccu,
+            own: d.owners_m != null ? d.owners_m : d.own,
+            yr: d.year != null ? d.year : d.yr,
+            price: d.price != null ? d.price : 0,
+            rc: d.review_count != null ? d.review_count : (d.rc || 0),
+            dev: d.developers || d.dev || [],
+            tags: d.top_tags || d.tags || [],
+            header_image: d.header_image || null,
+          };
+        });
+      }
+      if (all.meta) DATA.meta = all.meta;
+
+      showUpdateTime(new Date().toISOString());
+      if (window._streamRedraw)  window._streamRedraw();
+      if (window._scatterRedraw) window._scatterRedraw();
+
+      var total = all.total_in_db || DATA.bubbles.length;
+      status.textContent = "已更新 " + total + " 款游戏数据";
+      return;
+    }
+  } catch(e) {
+    console.log("[refresh] API 不可用: " + e.message);
+  }
+
+  // 回退：重载静态 JSON
+  try {
+    var results = await Promise.all([
+      loadJSON('../data/processed/market_share.json'),
+      loadJSON('../data/processed/bubbles.json'),
+      loadJSON('../data/processed/decay.json'),
+      loadJSON('../data/processed/meta.json'),
+    ]);
+    if (results[1]) {
+      DATA.bubbles = results[1].map(function(d) {
+        return {
+          name: d.name, type: d.type,
+          pr: d.pos_rate != null ? d.pos_rate : d.pr,
+          ccu: d.peak_ccu != null ? d.peak_ccu : d.ccu,
+          own: d.owners_m != null ? d.owners_m : d.own,
+          yr: d.year != null ? d.year : d.yr,
+          price: d.price != null ? d.price : 0,
+          rc: d.review_count != null ? d.review_count : (d.rc || 0),
+          dev: d.developers || d.dev || [],
+          tags: d.top_tags || d.tags || [],
+          header_image: d.header_image || null,
+        };
+      });
+    }
+    if (results[3]) {
+      DATA.meta = results[3];
+      showUpdateTime(results[3].generated_at);
+    }
+    if (window._streamRedraw)  window._streamRedraw();
+    if (window._scatterRedraw) window._scatterRedraw();
+    status.textContent = "已从本地文件刷新";
+  } catch(e2) {
+    status.textContent = "刷新失败";
+  }
 };
