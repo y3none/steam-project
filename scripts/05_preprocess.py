@@ -315,6 +315,8 @@ def load_raw_data() -> pd.DataFrame:
                     "developers":   game.get("developers", []) or [],
                     "publishers":   game.get("publishers", []) or [],
                     "header_image": game.get("header_image", ""),
+                    "median_playtime": int(game.get("median_playtime_forever", 0) or 0),
+                    "avg_playtime":    int(game.get("average_playtime_forever", 0) or 0),
                 })
         
         df = pd.DataFrame(records)
@@ -857,6 +859,131 @@ def save_json(data, path: Path):
     print(f"  → 已保存 {path.name}（{size_kb:.1f} KB）")
 
 
+def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
+    """
+    计算各类型游戏的聚合留存趋势——按"游戏年龄"（发布后年数）分组。
+    
+    主指标：中位游戏时长（median_playtime_forever）
+      该指标直接反映"玩家实际在这款游戏上花了多少时间"，
+      不受 owners 累积或 peak_ccu 冻结的影响。
+      
+    预期模式：
+      - Indie 长尾款：老游戏的中位时长 > 新游戏（社区持续活跃，玩家累积时长）
+      - AAA 单机：无论新老，中位时长都在 20-40 小时（通关即弃）
+      - F2P：中位时长随年龄增长最快（日活模式，玩家每天登录）
+    
+    辅助指标：参与度比率（peak_ccu / owners）
+    """
+    print("  处理类型聚合留存趋势...")
+    
+    current_year = int(df["year"].max()) if len(df) > 0 and df["year"].max() > 0 else 2024
+    max_age = 10
+    
+    type_list = ["Indie", "AA", "AAA", "F2P"]
+    type_colors = {"Indie": "#1de9b6", "AA": "#ffd54f", "AAA": "#ff5252", "F2P": "#69f0ae"}
+    
+    # 确定游戏时长列
+    pt_col = None
+    for col in ["median_playtime", "median_playtime_forever", "avg_playtime", "average_playtime_forever"]:
+        if col in df.columns:
+            nonzero = pd.to_numeric(df[col], errors="coerce").fillna(0)
+            if nonzero.sum() > 0:
+                pt_col = col
+                break
+    
+    if pt_col:
+        df = df.copy()
+        df["_playtime"] = pd.to_numeric(df[pt_col], errors="coerce").fillna(0)
+        has_pt_count = (df["_playtime"] > 0).sum()
+        print(f"    ✓ 使用 {pt_col}，{has_pt_count} 款游戏有时长数据")
+    else:
+        print("    ⚠ 无游戏时长数据")
+        df = df.copy()
+        df["_playtime"] = 0
+    
+    records = []
+    
+    for gtype in type_list:
+        sub = df[(df["game_type"] == gtype) & (df["year"] > 0)].copy()
+        if len(sub) < 10:
+            continue
+        
+        sub["age"] = current_year - sub["year"]
+        
+        playtime_curve = []
+        engagement_curve = []
+        sample_sizes = []
+        
+        for age in range(0, max_age + 1):
+            cohort = sub[sub["age"] == age]
+            n = len(cohort)
+            
+            if n < 3:
+                playtime_curve.append(playtime_curve[-1] if playtime_curve else 0)
+                engagement_curve.append(engagement_curve[-1] if engagement_curve else 0)
+                sample_sizes.append(0)
+                continue
+            
+            # 中位游戏时长 — 只看有玩家的游戏（playtime > 0）
+            played = cohort[cohort["_playtime"] > 0]
+            if len(played) > 0:
+                med_pt = float(played["_playtime"].median())
+            else:
+                med_pt = 0
+            playtime_curve.append(round(med_pt, 1))
+            
+            # 参与度比率
+            active = cohort[(cohort["owners_m"] > 0) & (cohort["ccu"] > 0)]
+            if len(active) > 0:
+                ratios = active["ccu"] / (active["owners_m"] * 1e6) * 100
+                eng = float(ratios.median())
+            else:
+                eng = 0
+            engagement_curve.append(round(eng, 4))
+            sample_sizes.append(n)
+        
+        if len(playtime_curve) < 3:
+            continue
+        
+        # 归一化
+        pt_base = playtime_curve[0] if playtime_curve[0] > 0 else max(max(playtime_curve), 1)
+        pt_normalized = [round(v / pt_base, 4) if pt_base > 0 else 0 for v in playtime_curve]
+        
+        eng_base = engagement_curve[0] if engagement_curve[0] > 0 else max(max(engagement_curve), 0.001)
+        eng_normalized = [round(v / eng_base, 4) if eng_base > 0 else 0 for v in engagement_curve]
+        
+        # 选择主曲线：有 playtime 数据用 playtime，否则用 engagement
+        use_playtime = playtime_curve[0] > 0
+        
+        total_games = len(sub)
+        
+        records.append({
+            "type": gtype,
+            "color": type_colors.get(gtype, "#888"),
+            "total_games": total_games,
+            "primary": "playtime" if use_playtime else "engagement",
+            "playtime_normalized": pt_normalized,
+            "playtime_absolute": playtime_curve,
+            "engagement_normalized": eng_normalized,
+            "engagement_absolute": engagement_curve,
+            "sample_sizes": sample_sizes,
+            "max_age": len(playtime_curve),
+            "has_playtime": bool(use_playtime),
+        })
+        
+        if use_playtime and len(playtime_curve) > 5:
+            pt0 = playtime_curve[0]
+            pt5 = playtime_curve[5]
+            pt0_str = f"{pt0/60:.0f}h" if pt0 >= 60 else f"{pt0:.0f}min"
+            pt5_str = f"{pt5/60:.0f}h" if pt5 >= 60 else f"{pt5:.0f}min"
+            print(f"    {gtype}: {total_games} 款, 新游戏中位时长 {pt0_str}, 5年老游戏 {pt5_str} ({pt_normalized[5]:.0%})")
+        elif len(engagement_curve) > 5:
+            print(f"    {gtype}: {total_games} 款, 5年参与度保留 {eng_normalized[5]:.0%}")
+    
+    print(f"  生成 {len(records)} 条类型聚合留存曲线")
+    return records
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("Steam 可视化项目 — 数据预处理")
@@ -884,6 +1011,11 @@ if __name__ == "__main__":
     decay_data = process_decay(df_reviewed)
     save_json(decay_data, OUT_DIR / "decay.json")
     
+    # 视图三扩展：类型聚合存活率
+    print("\n[bonus] 处理类型聚合存活趋势...")
+    aggregate_data = process_decay_aggregate(df_main)
+    save_json(aggregate_data, OUT_DIR / "decay_aggregate.json")
+    
     # 元数据
     meta = cal_meta(df_main, df_reviewed)
     save_json(meta, OUT_DIR / "meta.json")
@@ -891,5 +1023,5 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("✓ 预处理完成！")
     print(f"  输出目录：{OUT_DIR}")
-    print("  请运行 vis/index.html 查看可视化效果。")
+    print("  请运行 vis4/index.html 查看可视化效果。")
     print("=" * 60)

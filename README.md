@@ -88,7 +88,7 @@ steam_project/
   - 从 SteamCharts.com 爬取各类型代表性游戏（~100款）的月度 Avg. Players
   - 按年聚合：年度在线占比 = 某类型所有游戏月均在线之和 / 全部之和 × 100%
   - 输出 `data/processed/ccu_share.json`，含 `ci/ca/cb/cf` 字段
-  - `03_preprocess.py` 自动合并 `ccu_share.json` 到 `market_share.json`
+  - `05_preprocess.py` 自动合并 `ccu_share.json` 到 `market_share.json`
   - 明确方法论：使用月均在线（非峰值）计算占比，避免时间错位问题
 
 - [x] **扩展 meta.json 统计摘要**
@@ -101,6 +101,13 @@ steam_project/
   - 重启后秒级恢复，不需要重新爬取
   - merge 逻辑：新 appid 直接加入，已有 appid 更新实时字段（CCU/评价），保留历史字段（release_date）
 
+- [x] **视图三聚合留存数据生成**
+  - `05_preprocess.py` 新增 `process_decay_aggregate()` 函数，输出 `decay_aggregate.json`
+  - 算法：合成队列法（Synthetic Cohort）——12万款游戏按类型 + 游戏年龄（age=0,1,...,10）逐年分组，每组取 `median_playtime > 0` 的游戏的中位时长，归一化后连成曲线
+  - 主指标：相对中位游戏时长（`playtime_normalized`），>1.0× = 长尾效应
+  - 辅助指标：参与度比率（`engagement_normalized`，peak_ccu ÷ owners），playtime 不可用时自动降级
+  - 修复 Kaggle 直接加载路径遗漏 `median_playtime_forever` / `average_playtime_forever` 字段
+  - 修复 numpy `bool_` 无法 JSON 序列化的问题
 ---
 
 ### 后端服务（server.py）
@@ -133,6 +140,9 @@ steam_project/
 - [ ] **全量爬取端点（待修复）**
   - `POST /api/crawl/start` 启动 SteamSpy 全量分页爬取（后台运行）
   - 每爬 5 页保存一次 + 更新 processed + 更新 API 缓存
+
+- [x] **聚合衰减数据 API 端点**
+  - 新增 `GET /api/decay_aggregate`，优先从 `decay_aggregate.json` 读取，无文件时实时计算
 
 ---
 
@@ -225,6 +235,14 @@ steam_project/
   - 河流图点击年份 ↔ 散点图下拉选择器 双向同步
   - 修复首次选择年份时散点不显示的 bug（`_selfEmit` 防护避免 EVT 事件双重 draw 竞态）
   - 河流图 `selectYear` 改为先 `draw()` 再 `emit`，避免跨组件渲染冲突
+
+- [x] **视图三新增「类型聚合」切换模式**
+  - 顶部新增「单款游戏 | 类型聚合」切换按钮
+  - 聚合模式展示 4 条类型曲线（Indie/AA/AAA/F2P）+ 半透明面积填充
+  - 曲线末端标注保留百分比，图例显示样本量和留存趋势（长尾/衰减/稳定）
+  - Tooltip 展示相对时长倍数、绝对中位时长、样本量、方法论说明
+  - 前端通过 `primary` 字段自动选择 playtime 或 engagement 作为主指标
+  - 散点图「查看生命周期曲线」联动兼容：自动从聚合模式切回单款模式再高亮
 
 - [ ] **增加展示实时数据的图表**
   - 将后端能实时爬取数据的功能以可视化的形式展现
