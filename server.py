@@ -534,6 +534,27 @@ def api_decay():
         return jsonify({"error": "数据加载中", "status": store.status}), 503
     return jsonify(store.decay)
 
+@app.route("/api/decay_aggregate")
+def api_decay_aggregate():
+    """聚合衰减曲线：各类型按发布年龄的存活率"""
+    agg_path = OUT_DIR / "decay_aggregate.json"
+    if agg_path.exists():
+        with open(agg_path, encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    # Fallback: compute on the fly if store has data
+    if store.status["loaded"] and db.count > 0:
+        try:
+            import pandas as pd
+            records = db.get_all_records()
+            df = pd.DataFrame(records)
+            df["appid"] = df["appid"].astype(str)
+            df_main, _ = preprocess.build_main_df(df)
+            agg = preprocess.process_decay_aggregate(df_main)
+            return jsonify(agg)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify([])
+
 @app.route("/api/meta")
 def api_meta():
     if not store.status["loaded"]:
@@ -683,7 +704,7 @@ if __name__ == "__main__":
   数据流:
     game_db.json ← Kaggle + SteamSpy 累积
          ↓
-    05_preprocess.py 处理
+    03_preprocess.py 处理
          ↓
     data/processed/*.json ← 持久化
          ↓

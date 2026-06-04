@@ -456,6 +456,13 @@ window.initScatter = function() {
     const imgHtml=imgUrl
       ?`<img class="detail-header-img" src="${imgUrl}" alt="${d.name}" onerror="this.onerror=null;this.src='${defaultImg}'">`
       :`<img class="detail-header-img" src="${defaultImg}" alt="default">`;
+
+    // Check if this game exists in decay data
+    const hasDecay = DATA.decay.some(x => x.name === d.name);
+    const decayBtnHtml = hasDecay
+      ? `<button class="detail-decay-btn" id="btn-jump-decay">📉 查看生命周期曲线 ↓</button>`
+      : '';
+
     p.innerHTML=`
       ${imgHtml}
       <div class="detail-game-name">${d.name}</div>
@@ -467,7 +474,22 @@ window.initScatter = function() {
       <div class="detail-row"><span class="detail-key">评价总数</span><span class="detail-val">${fmt.num(d.rc)}</span></div>
       <div class="detail-row"><span class="detail-key">开发商</span><span class="detail-val" style="font-size:10px">${(d.dev&&d.dev[0])||"—"}</span></div>
       <div class="detail-tags">${(d.tags||[]).map(t=>`<span class="detail-tag">${t}</span>`).join("")}</div>
+      ${decayBtnHtml}
     `;
+
+    // Bind decay jump button
+    const jumpBtn = document.getElementById("btn-jump-decay");
+    if (jumpBtn) {
+      jumpBtn.addEventListener("click", function() {
+        // Emit event for decay.js to highlight this game
+        EVT.emit("decayHighlight", d.name);
+        // Scroll to decay section
+        const decaySection = document.getElementById("decay-inner") || document.querySelector('[data-view="decay"]');
+        if (decaySection) {
+          decaySection.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }
   }
 
   // ══ FILTER BUTTONS ═════════════════════════════

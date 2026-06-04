@@ -9,3 +9,6 @@ games.json
 data/raw
 __pycache__
 backup
+文档/
+data_备份/
+server_tmp.py
