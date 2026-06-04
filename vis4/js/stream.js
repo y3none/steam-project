@@ -182,21 +182,26 @@ window.initStream = function() {
 
     // Area labels
     const labelYear = mode === "ccu" ? 2018 : 2013;
-    series.forEach(s=>{
-      const mid=Math.floor(s.length*0.55);
-      const cy=(ySc(s[mid][0])+ySc(s[mid][1]))/2;
-      const bw=Math.abs(ySc(s[mid][1])-ySc(s[mid][0]));
-      if(bw<12) return;
-      g.append("text")
-        .attr("x",xSc(labelYear)).attr("y",cy+4)
-        .attr("text-anchor","middle")
-        .attr("fill","rgba(0,0,0,0.65)")
-        .attr("font-family","'Space Mono',monospace")
-        .attr("font-size",Math.min(13,bw*0.38))
-        .attr("font-weight","700")
-        .attr("pointer-events","none")
-        .text(KL[s.key]);
-    });
+    const labelIdx = stackData.findIndex(r => r.year === labelYear);
+    if (labelIdx >= 0) {
+      series.forEach(s => {
+        const d = s[labelIdx];
+        const cy = (ySc(d[0]) + ySc(d[1])) / 2;
+        const bw = Math.abs(ySc(d[1]) - ySc(d[0]));
+        if (bw < 12) return;
+        g.append("text")
+          .attr("x", xSc(labelYear))
+          .attr("y", cy)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("fill", "rgba(0,0,0,0.65)")
+          .attr("font-family", "'Space Mono',monospace")
+          .attr("font-size", Math.min(13, bw * 0.38))
+          .attr("font-weight", "700")
+          .attr("pointer-events", "none")
+          .text(KL[s.key]);
+      });
+    }
 
     // Mode label
     g.append("text").attr("x",iW).attr("y",-6).attr("text-anchor","end")
