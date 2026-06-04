@@ -3,7 +3,8 @@
 // ════════════════════════════════════════════════
 window.initDecay = function() {
   const MG={t:28,r:110,b:52,l:60};
-  let showRef=true, highlighted=null, decayMode="individual";
+  const NARRATIVE_TYPES = ["Indie", "AAA"];
+  let showRef=true, highlighted=null, narrativeCompare=false, decayMode="individual";
   let svg,g,xSc,ySc;
   let firstDraw = true;
 
@@ -13,6 +14,52 @@ window.initDecay = function() {
     Indie: { dash: null,  width: 2,   label: "独立游戏" },
     F2P:   { dash: "2,3", width: 2.5, label: "F2P免费" },
   };
+
+  function lineOpacity(d, hoverName) {
+    if (hoverName) return d.name === hoverName ? 1 : 0.07;
+    if (highlighted) return d.name === highlighted ? 1 : 0.07;
+    if (narrativeCompare) return NARRATIVE_TYPES.includes(d.type) ? 1 : 0.06;
+    return 0.75;
+  }
+
+  function lineWidth(d, hoverName) {
+    if ((hoverName && d.name === hoverName) || (highlighted && d.name === highlighted)) return 3.5;
+    if (narrativeCompare && NARRATIVE_TYPES.includes(d.type)) return 2.8;
+    return (TYPE_STYLE[d.type] || {}).width || 2;
+  }
+
+  function isLabelActive(d, hoverName) {
+    if (hoverName) return d.name === hoverName;
+    if (highlighted) return d.name === highlighted;
+    if (narrativeCompare) return NARRATIVE_TYPES.includes(d.type);
+    return true;
+  }
+
+  function applyLineStyles(hoverName) {
+    if (!g) return;
+    g.selectAll(".dline").transition().duration(200)
+      .attr("opacity", function(d) { return lineOpacity(d, hoverName); })
+      .attr("stroke-width", function(d) { return lineWidth(d, hoverName); });
+
+    g.selectAll(".decay-inline-label").transition().duration(200)
+      .attr("opacity", function() {
+        var text = d3.select(this).text();
+        var match = DATA.decay.find(function(d) {
+          var t = d.name.length > 14 ? d.name.slice(0, 12) + "…" : d.name;
+          return t === text;
+        });
+        if (!match) return 0;
+        return isLabelActive(match, hoverName) ? (hoverName || highlighted ? 0.9 : 0.7) : 0;
+      });
+  }
+
+  function switchToIndividualMode() {
+    if (decayMode === "individual") return;
+    decayMode = "individual";
+    document.querySelectorAll("[data-dm]").forEach(function(x) { x.classList.remove("active"); });
+    var indBtn = document.querySelector('[data-dm="individual"]');
+    if (indBtn) indBtn.classList.add("active");
+  }
 
   // ══════════════════════════════════════════════
   //  INDIVIDUAL MODE — single game curves
@@ -85,7 +132,11 @@ window.initDecay = function() {
         if(mx<0||mx>iW){cursor.style("display","none");return;}
         var m=Math.max(0,Math.min(24,Math.round(xSc.invert(mx))));
         cursor.style("display",null).attr("x1",xSc(m)).attr("x2",xSc(m));
-        var show=highlighted?DATA.decay.filter(function(d){return d.name===highlighted;}):DATA.decay;
+        var show=highlighted
+          ? DATA.decay.filter(function(d){return d.name===highlighted;})
+          : narrativeCompare
+            ? DATA.decay.filter(function(d){return NARRATIVE_TYPES.includes(d.type);})
+            : DATA.decay;
         dotsG.selectAll(".cdot").remove();
         dotsG.selectAll(".cdot").data(show).join("circle").attr("class","cdot")
           .attr("cx",xSc(m)).attr("cy",function(d){return ySc(d.data[m]);}).attr("r",3.5)
@@ -106,8 +157,8 @@ window.initDecay = function() {
       .attr("class","dline").attr("stroke",function(d){return d.color;}).attr("fill","none")
       .attr("d",function(d){return line(d.data);})
       .attr("stroke-dasharray", function(d){ var s=TYPE_STYLE[d.type]; return s?s.dash:null; })
-      .attr("opacity",function(d){return highlighted?(d.name===highlighted?1:0.07):0.75;})
-      .attr("stroke-width",function(d){return highlighted&&d.name===highlighted?3.5:((TYPE_STYLE[d.type]||{}).width||2);})
+      .attr("opacity",function(d){return lineOpacity(d, null);})
+      .attr("stroke-width",function(d){return lineWidth(d, null);})
       .style("pointer-events","none");
 
     if (firstDraw) {
@@ -119,6 +170,10 @@ window.initDecay = function() {
           .on("end", function(){ var d=d3.select(this).datum(); var s=TYPE_STYLE[d.type]; d3.select(this).attr("stroke-dasharray",s?s.dash:null); });
       });
       firstDraw = false;
+    } else {
+      paths
+        .attr("opacity", function(d) { return lineOpacity(d, null); })
+        .attr("stroke-width", function(d) { return lineWidth(d, null); });
     }
 
     // ── Inline end-of-line labels ──
@@ -131,33 +186,44 @@ window.initDecay = function() {
         if (Math.abs(yPos-labelPositions[j])<11) yPos = labelPositions[j]+(yPos>labelPositions[j]?11:-11);
       }
       labelPositions.push(yPos);
-      var isActive = !highlighted || d.name===highlighted;
-      var labelText = d.name.length>14 ? d.name.slice(0,12)+"…" : d.name;
+      var isActive = isLabelActive(d, null);
+      var labelText = d.name.length > 14 ? d.name.slice(0,12)+"…" : d.name;
 
-      g.append("line").attr("x1",xSc(24)).attr("x2",xSc(24)+6).attr("y1",ySc(lastVal)).attr("y2",yPos)
-        .attr("stroke",d.color).attr("stroke-width",0.5).attr("opacity",isActive?0.4:0);
-      g.append("text").attr("class","decay-inline-label").attr("x",xSc(24)+8).attr("y",yPos+3)
-        .attr("fill",d.color).attr("font-family","'Space Mono',monospace").attr("font-size",9)
-        .attr("opacity",isActive?0.7:0).style("pointer-events","none").text(labelText);
+      g.append("line")
+        .attr("x1", xSc(24)).attr("x2", xSc(24)+6)
+        .attr("y1", ySc(lastVal)).attr("y2", yPos)
+        .attr("stroke", d.color)
+        .attr("stroke-width", 0.5)
+        .attr("opacity", isActive ? 0.4 : 0);
+
+      g.append("text")
+        .attr("class", "decay-inline-label")
+        .attr("x", xSc(24) + 8)
+        .attr("y", yPos + 3)
+        .attr("fill", d.color)
+        .attr("font-family","'Space Mono',monospace")
+        .attr("font-size", 9)
+        .attr("opacity", isActive ? 0.7 : 0)
+        .style("pointer-events","none")
+        .text(labelText);
     });
 
     buildLegendIndividual();
   }
 
   function highlightLine(name, sticky) {
-    if (sticky !== undefined) highlighted = sticky ? name : null;
-    g&&g.selectAll(".dline").transition().duration(200)
-      .attr("opacity",function(d){return name?(d.name===name?1:0.07):0.75;})
-      .attr("stroke-width",function(d){return name&&d.name===name?3.5:((TYPE_STYLE[d.type]||{}).width||2);});
-    g&&g.selectAll(".decay-inline-label").transition().duration(200)
-      .attr("opacity",function(){
-        if(!name) return 0.7;
-        var text=d3.select(this).text();
-        var match=DATA.decay.find(function(d){ var t=d.name.length>14?d.name.slice(0,12)+"…":d.name; return t===text; });
-        return match&&match.name===name?0.9:0;
-      });
-    document.querySelectorAll(".dl-item").forEach(function(el){ el.classList.toggle("active",el.dataset.name===name); });
-    if (sticky !== undefined) { firstDraw=false; drawIndividual(); }
+    if (sticky !== undefined) {
+      narrativeCompare = false;
+      highlighted = sticky ? name : null;
+      firstDraw = false;
+      draw();
+      return;
+    }
+    applyLineStyles(name);
+
+    document.querySelectorAll(".dl-item").forEach(function(el) {
+      el.classList.toggle("active", el.dataset.name === name);
+    });
   }
 
   function buildLegendIndividual() {
@@ -166,11 +232,18 @@ window.initDecay = function() {
     var groups={};
     DATA.decay.forEach(function(d){ if(!groups[d.type]) groups[d.type]=[]; groups[d.type].push(d); });
 
-    typeOrder.forEach(function(type){
-      if(!groups[type]||groups[type].length===0) return;
-      var style=TYPE_STYLE[type]||{};
-      var header=document.createElement("div"); header.className="dl-type-header"; header.style.color=C[type]||"#888";
-      header.innerHTML='<span class="dl-type-line" style="border-color:'+(C[type]||"#888")+(style.dash?';border-style:dashed':'')+'"></span>'+style.label;
+    typeOrder.forEach(function(type) {
+      if (!groups[type] || groups[type].length === 0) return;
+      var style = TYPE_STYLE[type] || {};
+
+      var header = document.createElement("div");
+      header.className = "dl-type-header";
+      if (narrativeCompare) {
+        header.classList.add(NARRATIVE_TYPES.includes(type) ? "dl-type-narrative" : "dl-type-dimmed");
+      }
+      header.style.color = C[type] || "#888";
+      header.innerHTML = '<span class="dl-type-line" style="border-color:' + (C[type]||"#888") +
+        (style.dash ? ';border-style:dashed' : '') + '"></span>' + style.label;
       leg.appendChild(header);
       groups[type].forEach(function(d){
         var el=document.createElement("div"); el.className="dl-item"+(highlighted===d.name?" active":""); el.dataset.name=d.name;
@@ -386,17 +459,23 @@ window.initDecay = function() {
   });
 
   draw();
-  window._decayRedraw = function() { firstDraw=false; draw(); };
+  window._decayRedraw = function() { firstDraw = false; draw(); };
+
+  window._decayApplyNarrative = function(opts) {
+    if (opts.compareIndieAAA) {
+      narrativeCompare = true;
+      highlighted = null;
+      switchToIndividualMode();
+    }
+    if (opts.compareIndieAAA === false) narrativeCompare = false;
+    firstDraw = false;
+    draw();
+  };
 
   // Cross-view linkage: scatter → decay
   EVT.on("decayHighlight", function(name) {
     if (!name) { highlightLine(null, true); return; }
-    if (decayMode !== "individual") {
-      decayMode = "individual";
-      document.querySelectorAll("[data-dm]").forEach(function(x){x.classList.remove("active");});
-      var indBtn = document.querySelector('[data-dm="individual"]');
-      if (indBtn) indBtn.classList.add("active");
-    }
+    switchToIndividualMode();
     var match = DATA.decay.find(function(d){ return d.name===name; });
     if (match) highlightLine(match.name, true);
   });

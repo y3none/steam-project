@@ -137,7 +137,9 @@ window.initStream = function() {
       if (ev.yr < xMin) return;
       const x=xSc(ev.yr);
       g.append("line").attr("class","ev-line").attr("x1",x).attr("x2",x).attr("y1",0).attr("y2",iH);
-      g.append("text").attr("class","ev-label").attr("x",x).attr("y",-6).attr("text-anchor","middle").text(ev.yr+" · "+ev.label);
+      g.append("circle").attr("class","ev-marker")
+        .attr("cx", x).attr("cy", 0).attr("r", 4);
+      g.append("text").attr("class","ev-label").attr("x",x).attr("y",-8).attr("text-anchor","middle").text(ev.yr+" · "+ev.label);
     });
 
     // CCU mode: prominent annotation for missing pre-2012 data

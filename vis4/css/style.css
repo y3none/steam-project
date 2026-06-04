@@ -693,8 +693,26 @@ svg { width: 100%; display: block; overflow: visible; }
 .tip-event { margin-top: 6px; font-size: 10px; color: var(--indie); font-family: var(--mono); }
 
 /* ── TIMELINE EVENTS ── */
-.ev-line { stroke: var(--border2); stroke-width: 1; stroke-dasharray: 3,3; }
-.ev-label { fill: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.5px; }
+.ev-line {
+  stroke: rgba(248, 236, 0, 0.55);
+  stroke-width: 2;
+  stroke-dasharray: 4, 4;
+  pointer-events: none;
+}
+.ev-marker {
+  fill: var(--indie);
+  stroke: #fff;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+.ev-label {
+  fill: var(--indie);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  pointer-events: none;
+}
 
 /* ── YEAR CLICK HIGHLIGHT ── */
 .yr-highlight { stroke: var(--indie); stroke-width: 1.5; fill: rgba(29,233,182,0.06); cursor: pointer; }
@@ -721,6 +739,36 @@ svg { width: 100%; display: block; overflow: visible; }
   transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1);
 }
 .section.visible { opacity: 1; transform: none; }
+
+/* ── NARRATIVE: god quadrant highlight (scatter SVG) ── */
+.god-quadrant {
+  fill: rgba(29, 233, 182, 0.08);
+  stroke: var(--indie);
+  stroke-width: 1.5;
+  stroke-dasharray: 6, 4;
+  animation: god-quadrant-pulse 2.5s ease-in-out infinite;
+}
+@keyframes god-quadrant-pulse {
+  0%, 100% { stroke-opacity: 0.35; }
+  50% { stroke-opacity: 1; }
+}
+.god-quadrant-label { opacity: 0.85; }
+
+.insight-text.narrative-reveal {
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.dl-type-narrative {
+  opacity: 1;
+  text-shadow: 0 0 12px currentColor;
+}
+.dl-type-dimmed { opacity: 0.35; }
+.decay-narrative-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  pointer-events: none;
+}
 
 /* ── METHODOLOGY SECTION ── */
 .method-grid {
