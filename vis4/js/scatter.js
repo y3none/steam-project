@@ -626,6 +626,18 @@ window.initScatter = function() {
   populateYearDropdown();
   setupSearch();
   setupTagFilter();
+
+  // ── If section is already in viewport, start with narrative state (prevent flash) ──
+  var secEl = document.getElementById('sec-scatter');
+  if (secEl) {
+    var rect = secEl.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      activeFilter = 'Indie';
+      syncFilterPills('Indie');
+      highlightQuadrant = true;
+    }
+  }
+
   draw();
   window._scatterRedraw = draw;
   window._scatterApplyNarrative = function(opts) {

@@ -43,13 +43,18 @@ window.initDecay = function() {
 
     g.selectAll(".decay-inline-label").transition().duration(200)
       .attr("opacity", function() {
-        var text = d3.select(this).text();
-        var match = DATA.decay.find(function(d) {
-          var t = d.name.length > 14 ? d.name.slice(0, 12) + "…" : d.name;
-          return t === text;
-        });
+        var name = d3.select(this).attr("data-name");
+        var match = DATA.decay.find(function(d) { return d.name === name; });
         if (!match) return 0;
         return isLabelActive(match, hoverName) ? (hoverName || highlighted ? 0.9 : 0.7) : 0;
+      });
+
+    g.selectAll(".decay-connector").transition().duration(200)
+      .attr("opacity", function() {
+        var name = d3.select(this).attr("data-name");
+        var match = DATA.decay.find(function(d) { return d.name === name; });
+        if (!match) return 0;
+        return isLabelActive(match, hoverName) ? (hoverName || highlighted ? 0.5 : 0.35) : 0;
       });
   }
 
@@ -176,36 +181,74 @@ window.initDecay = function() {
         .attr("stroke-width", function(d) { return lineWidth(d, null); });
     }
 
-    // ── Inline end-of-line labels ──
-    var labelPositions = [];
+    // ── Inline end-of-line labels (collision-free) ──
+    var MIN_GAP = 12;
+    var labels = [];
     sorted.forEach(function(d) {
       var lastVal = d.data[24] != null ? d.data[24] : d.data[d.data.length-1];
       if (lastVal == null) return;
-      var yPos = ySc(lastVal);
-      for (var j=0; j<labelPositions.length; j++) {
-        if (Math.abs(yPos-labelPositions[j])<11) yPos = labelPositions[j]+(yPos>labelPositions[j]?11:-11);
+      labels.push({ d: d, naturalY: ySc(lastVal), adjustedY: ySc(lastVal) });
+    });
+
+    // Sort by natural Y position (top → bottom, smallest Y first)
+    labels.sort(function(a, b) { return a.naturalY - b.naturalY; });
+
+    // Pass 1: sweep top→bottom, push down any overlaps
+    for (var i = 1; i < labels.length; i++) {
+      var prev = labels[i - 1].adjustedY;
+      if (labels[i].adjustedY - prev < MIN_GAP) {
+        labels[i].adjustedY = prev + MIN_GAP;
       }
-      labelPositions.push(yPos);
+    }
+
+    // Pass 2: if bottom label overflows chart, push everything up
+    var maxY = iH + 6;
+    if (labels.length && labels[labels.length - 1].adjustedY > maxY) {
+      var overflow = labels[labels.length - 1].adjustedY - maxY;
+      for (var i = labels.length - 1; i >= 0; i--) {
+        labels[i].adjustedY -= overflow;
+        if (i < labels.length - 1 && labels[i + 1].adjustedY - labels[i].adjustedY < MIN_GAP) {
+          labels[i].adjustedY = labels[i + 1].adjustedY - MIN_GAP;
+        }
+      }
+    }
+
+    // Clamp within chart area
+    labels.forEach(function(l) {
+      l.adjustedY = Math.max(4, Math.min(iH + 6, l.adjustedY));
+    });
+
+    // Draw connector lines + labels
+    labels.forEach(function(l) {
+      var d = l.d;
       var isActive = isLabelActive(d, null);
-      var labelText = d.name.length > 14 ? d.name.slice(0,12)+"…" : d.name;
+      var labelText = d.name.length > 14 ? d.name.slice(0, 12) + "…" : d.name;
+      var needsConnector = Math.abs(l.adjustedY - l.naturalY) > 2;
 
-      g.append("line")
-        .attr("x1", xSc(24)).attr("x2", xSc(24)+6)
-        .attr("y1", ySc(lastVal)).attr("y2", yPos)
-        .attr("stroke", d.color)
-        .attr("stroke-width", 0.5)
-        .attr("opacity", isActive ? 0.4 : 0);
+      if (needsConnector) {
+        g.append("path").attr("class", "decay-connector")
+          .attr("d", "M" + xSc(24) + "," + l.naturalY +
+                " C" + (xSc(24) + 12) + "," + l.naturalY +
+                " " + (xSc(24) + 12) + "," + l.adjustedY +
+                " " + (xSc(24) + 20) + "," + l.adjustedY)
+          .attr("fill", "none")
+          .attr("stroke", d.color).attr("stroke-width", 0.6)
+          .attr("opacity", isActive ? 0.35 : 0)
+          .attr("data-name", d.name);
+      } else {
+        g.append("line").attr("class", "decay-connector")
+          .attr("x1", xSc(24)).attr("x2", xSc(24) + 6)
+          .attr("y1", l.naturalY).attr("y2", l.adjustedY)
+          .attr("stroke", d.color).attr("stroke-width", 0.5)
+          .attr("opacity", isActive ? 0.4 : 0)
+          .attr("data-name", d.name);
+      }
 
-      g.append("text")
-        .attr("class", "decay-inline-label")
-        .attr("x", xSc(24) + 8)
-        .attr("y", yPos + 3)
-        .attr("fill", d.color)
-        .attr("font-family","'Space Mono',monospace")
-        .attr("font-size", 9)
-        .attr("opacity", isActive ? 0.7 : 0)
-        .style("pointer-events","none")
-        .text(labelText);
+      g.append("text").attr("class", "decay-inline-label")
+        .attr("x", xSc(24) + (needsConnector ? 22 : 8)).attr("y", l.adjustedY + 3)
+        .attr("fill", d.color).attr("font-family", "'Space Mono',monospace").attr("font-size", 9)
+        .attr("opacity", isActive ? 0.7 : 0).style("pointer-events", "none")
+        .attr("data-name", d.name).text(labelText);
     });
 
     buildLegendIndividual();
