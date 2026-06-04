@@ -5,6 +5,11 @@
 选取各类型代表性游戏，将月度在线数据对齐为"发布后第N个月"，
 归一化后输出 decay_manual.json，供视图三直接使用。
 
+修复项：
+  - 使用 05_preprocess.py 的 classify_game_type 统一分类
+  - 过滤持续增长型游戏（CS2、Dota 2 等长线运营）
+  - 仅保留有 ≥12 个月真实数据的游戏
+
 前置步骤：
   1. 确保 data/raw/steamcharts_raw.json 存在（先运行 03_fetch_steamcharts.py）
   2. 确保游戏数据中有 release_date（Kaggle 数据有，SteamSpy 没有）
@@ -20,6 +25,7 @@ import json
 import sys
 from pathlib import Path
 from datetime import datetime
+from importlib.machinery import SourceFileLoader
 
 BASE_DIR = Path(__file__).parent.parent
 RAW_DIR = BASE_DIR / "data" / "raw"
@@ -65,6 +71,9 @@ TYPE_COLORS = {
     "F2P":   ["#69f0ae", "#b9f6ca", "#a5d6a7", "#81c784"],
 }
 
+# ══ 最低真实数据月数 ══
+MIN_REAL_MONTHS = 12
+
 
 def parse_month_str(s):
     """'January 2024' → (2024, 1) ; 'Last 30 Days' → current"""
@@ -98,7 +107,6 @@ def load_release_dates():
             aid = str(r.get("appid", ""))
             rd = r.get("release_date", "")
             if aid and rd and aid not in dates:
-                # 尝试解析 "Feb 26, 2016" 格式
                 for fmt in ["%b %d, %Y", "%B %d, %Y", "%Y-%m-%d"]:
                     try:
                         dt = datetime.strptime(rd, fmt)
@@ -129,10 +137,39 @@ def load_release_dates():
     return dates
 
 
+def load_classifier():
+    """
+    尝试从 05_preprocess.py 导入 classify_game_type，
+    保证衰减图的分类与气泡图一致。
+    """
+    for p in [BASE_DIR / "05_preprocess.py",
+              BASE_DIR / "scripts" / "05_preprocess.py"]:
+        if p.exists():
+            try:
+                mod = SourceFileLoader("pp", str(p)).load_module()
+                print(f"  ✓ 从 {p.name} 加载分类规则")
+                return mod.classify_game_type
+            except Exception as e:
+                print(f"  ⚠ 加载 {p.name} 失败: {e}")
+    return None
+
+
+def load_game_db_records():
+    """加载 game_db.json，构建 appid → record 映射（供分类器使用）"""
+    db_path = RAW_DIR / "game_db.json"
+    if not db_path.exists():
+        return {}
+    with open(db_path, encoding="utf-8") as f:
+        records = json.load(f)
+    return {str(r.get("appid", "")): r for r in records if r.get("appid")}
+
+
 def generate_decay_curve(monthly_data, release_ym, max_months=25):
     """
     将月度在线数据转为归一化衰减曲线。
-    返回长度 max_months 的列表 [1.0, 0.85, 0.72, ...]
+    返回 (curve, real_count):
+      curve: 长度 max_months 的列表 [1.0, 0.85, 0.72, ...]
+      real_count: 有真实数据的月份数
     """
     # 建立 month_offset → avg 映射
     offset_map = {}
@@ -145,24 +182,43 @@ def generate_decay_curve(monthly_data, release_ym, max_months=25):
             offset_map[offset] = m["avg"]
     
     if not offset_map:
-        return None
+        return None, 0
+    
+    real_count = len(offset_map)
     
     # 归一化：以第0或第1个月为基准
     base = offset_map.get(0) or offset_map.get(1) or max(offset_map.values())
     if base <= 0:
-        return None
+        return None, 0
     
     curve = []
     for i in range(max_months):
         if i in offset_map:
-            curve.append(round(min(offset_map[i] / base, 2.0), 4))
+            curve.append(round(offset_map[i] / base, 4))
         elif curve:
             # 插值：用前一个值的衰减估计
             curve.append(round(curve[-1] * 0.95, 4))
         else:
             curve.append(1.0)
     
-    return curve
+    return curve, real_count
+
+
+def is_growth_game(curve):
+    """
+    检测不适合放在衰减图中的曲线：
+    1. 持续增长型：月3~月24 的均值 > 0.8（CS2、Dota 2）
+    2. 异常尖峰型：任意月份 > 1.5（CoD 跨代叠加、Factorio EA→正式版回流）
+    """
+    # 尖峰检测：跳过首月（固定 1.0），月1之后出现 >1.5 的值
+    if any(v > 1.5 for v in curve[1:]):
+        return True
+    # 持续增长检测
+    tail = curve[3:25]
+    if not tail:
+        return False
+    avg = sum(tail) / len(tail)
+    return avg > 0.8
 
 
 def main():
@@ -183,17 +239,40 @@ def main():
     release_dates = load_release_dates()
     print(f"已加载发布日期: {len(release_dates)} 款")
     
+    # 加载分类器（与 05_preprocess.py 保持一致）
+    classify = load_classifier()
+    db_records = load_game_db_records()
+    print(f"已加载 game_db 记录: {len(db_records)} 款")
+    
     # 生成衰减曲线
     decay_records = []
-    color_idx = {"AAA": 0, "AA": 0, "Indie": 0, "F2P": 0}
+    skipped_growth = []
+    skipped_short = []
     
     for appid, entry in cache.items():
         name = entry.get("name", "")
-        gtype = entry.get("type", "Indie")
         monthly = entry.get("monthly", [])
         
         if not monthly or len(monthly) < 6:
             continue
+        
+        # ── 统一分类：优先用 05_preprocess 的 classify_game_type ──
+        if classify and appid in db_records:
+            gtype = classify(db_records[appid])
+        elif classify:
+            # 用 steamcharts 缓存中的信息构建一个最小 record
+            gtype = classify({
+                "name": name,
+                "is_free": entry.get("is_free", False),
+                "price_usd": entry.get("price", 0),
+                "owners_m": entry.get("owners_m", 0),
+                "tags": entry.get("tags", {}),
+                "developers": entry.get("developers", []),
+                "publishers": entry.get("publishers", []),
+                "genres": entry.get("genres", []),
+            })
+        else:
+            gtype = entry.get("type", "Indie")
         
         # 获取发布日期
         rd_str = release_dates.get(appid)
@@ -207,38 +286,55 @@ def main():
             continue
         
         # 生成曲线
-        curve = generate_decay_curve(monthly, release_ym, 25)
+        curve, real_count = generate_decay_curve(monthly, release_ym, 25)
         if not curve:
+            continue
+        
+        # ── 过滤：真实数据月数不足 ──
+        if real_count < MIN_REAL_MONTHS:
+            skipped_short.append(f"{name} ({real_count}个月)")
+            continue
+        
+        # ── 过滤：持续增长型游戏 ──
+        if is_growth_game(curve):
+            skipped_growth.append(name)
             continue
         
         # 获取峰值 CCU
         peak_ccu = max((m.get("peak", 0) for m in monthly), default=0)
         
-        # 分配颜色
-        colors = TYPE_COLORS.get(gtype, ["#888"])
-        ci = color_idx.get(gtype, 0) % len(colors)
-        color = colors[ci]
-        color_idx[gtype] = ci + 1
-        
         decay_records.append({
             "name": name,
             "type": gtype,
-            "color": color,
             "peak_ccu": peak_ccu,
             "release_year": release_ym[0],
             "normalized": curve,
         })
     
-    # 每类型最多取 4 款（优先有完整数据的）
+    # 报告过滤结果
+    if skipped_growth:
+        print(f"\n  跳过增长/异常尖峰游戏: {', '.join(skipped_growth)}")
+    if skipped_short:
+        print(f"  跳过数据不足（<{MIN_REAL_MONTHS}个月）: {', '.join(skipped_short)}")
+    
+    # 每类型最多取 4 款，按峰值 CCU 排序
+    color_idx = {"AAA": 0, "AA": 0, "Indie": 0, "F2P": 0}
     final = []
     for gtype in ["AAA", "AA", "Indie", "F2P"]:
         type_games = [d for d in decay_records if d["type"] == gtype]
-        # 按峰值 CCU 排序，取 top
         type_games.sort(key=lambda d: -d["peak_ccu"])
-        selected = type_games[:4]
+        selected = type_games[:3]
+        
+        # 分配颜色
+        for d in selected:
+            colors = TYPE_COLORS.get(gtype, ["#888"])
+            ci = color_idx.get(gtype, 0) % len(colors)
+            d["color"] = colors[ci]
+            color_idx[gtype] = ci + 1
+        
         final.extend(selected)
         if selected:
-            names = ", ".join(d["name"][:20] for d in selected)
+            names = ", ".join(f'{d["name"][:20]}' for d in selected)
             print(f"  {gtype}: {len(selected)} 款 — {names}")
     
     if not final:

@@ -532,6 +532,8 @@ window.initScatter = function() {
   function setYearFilter(yr) {
     yearFilter = yr;
     selected = null; hoverGame = null;
+    searchTerm = ""; searchInput.value = "";
+    closeDropdown();
     showDetailPanel(null);
     // Sync dropdown
     yearSelect.value = yr || "";

@@ -756,16 +756,24 @@ def process_decay(df_reviewed: pd.DataFrame) -> list[dict]:
         
         records = []
         for game in raw:
-            monthly = game["monthly_ccu"]
-            if not monthly:
+            # 兼容两种格式：
+            #   06_generate_decay.py 输出 "normalized" (已归一化) + "peak_ccu"
+            #   手动录入格式使用 "monthly_ccu" (原始CCU值，需归一化)
+            if "normalized" in game and game["normalized"]:
+                normalized = game["normalized"][:25]
+                peak = game.get("peak_ccu", 0)
+            elif "monthly_ccu" in game and game["monthly_ccu"]:
+                monthly = game["monthly_ccu"]
+                peak = monthly[0]
+                if peak <= 0:
+                    continue
+                normalized = [round(v / peak, 4) for v in monthly[:25]]
+            else:
                 continue
-            peak = monthly[0]
-            if peak <= 0:
-                continue
-            normalized = [round(v / peak, 4) for v in monthly[:25]]
+            
             # 补齐至25个月
             while len(normalized) < 25:
-                normalized.append(normalized[-1] * 0.97)
+                normalized.append(round(normalized[-1] * 0.97, 4))
             
             records.append({
                 "name":         game["name"],
