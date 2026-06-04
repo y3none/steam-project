@@ -10,6 +10,8 @@ window.initStream = function() {
   let svg,g,xSc,ySc;
   let mode = "count"; // "count" or "ccu"
   let selectedYear = null;
+  let isModeCountEntranceDone = false;
+  let isModeCCUEntranceDone = false;
 
   function draw() {
     const wrap = document.getElementById("stream-inner");
@@ -202,10 +204,16 @@ window.initStream = function() {
       .text(mode==="ccu" ? "MODE: AVG. ONLINE SHARE" : "MODE: RELEASE COUNT");
 
     // Grow animation: reveal from left to right
-    clipRect.transition()
-      .duration(1800)
-      .ease(d3.easeCubicInOut)
-      .attr("width", W);
+    if ((!isModeCountEntranceDone && mode == "count") || (!isModeCCUEntranceDone && mode == "ccu")) {
+      clipRect.transition()
+          .duration(1800)
+          .ease(d3.easeCubicInOut)
+          .attr("width", W);
+        if (mode == "count") isModeCountEntranceDone = true;
+        if (mode == "ccu") isModeCCUEntranceDone = true;
+    } else {
+      clipRect.attr("width", W);
+    }
   }
 
   let _selfEmit = false;
@@ -246,6 +254,9 @@ window.initStream = function() {
       document.querySelectorAll("[data-sm]").forEach(x=>x.classList.remove("active"));
       this.classList.add("active");
       mode = this.dataset.sm;
+      // 如果需要每次切换模式时都播放入场动画，则取消注释以下两行
+      // if (mode == "count") isModeCountEntranceDone = false;
+      // if (mode == "ccu") isModeCCUEntranceDone = false;
       draw();
     });
   });
