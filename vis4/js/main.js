@@ -159,26 +159,30 @@ function updateHeroStats() {
   var cells = document.querySelectorAll('#stats-ribbon .stat-cell');
   if (cells.length < 4) return;
 
-  // Cell 0: total games
+  var latestYr = lastYear ? lastYear.year : 2024;
+
+  // Cell 0: total games (from meta)
   var totalGames = m.total_games || (lastYear ? lastYear.n : 50000);
   var totalStr = fmt.num(totalGames) + '+';
   cells[0].querySelector('.stat-num').setAttribute('data-target', totalStr);
+  cells[0].querySelector('.stat-label').textContent = 'STEAM 在售游戏总数（' + latestYr + '）';
   if (firstYear) {
     cells[0].querySelector('.stat-trend').textContent = '↑ ' + firstYear.year + '年约' + firstYear.n + '款';
   }
 
-  // Cell 1: indie release share
+  // Cell 1: indie release share (computed from market data)
   var indieShare = lastYear ? lastYear.indie : 98.9;
   cells[1].querySelector('.stat-num').setAttribute('data-target', indieShare + '%');
+  cells[1].querySelector('.stat-label').textContent = '发布数量中的独立游戏占比（' + latestYr + '）';
   var yr2012 = market.find(function(d) { return d.year === 2012; });
   if (yr2012) {
     cells[1].querySelector('.stat-trend').textContent = '↑ 2012年仅' + yr2012.indie + '%';
   }
 
-  // Cell 2: indie revenue share (external VG Insights figure)
+  // Cell 2: indie revenue share (external VG Insights figure — can't compute)
   cells[2].querySelector('.stat-num').setAttribute('data-target', '48%');
 
-  // Cell 3: MAU (external Valve figure)
+  // Cell 3: MAU (external Valve figure — can't compute)
   cells[3].querySelector('.stat-num').setAttribute('data-target', '1.32亿');
 }
 

@@ -4,12 +4,16 @@ window.initMethod = function() {
   const wrap = document.getElementById("method-inner");
   if (!wrap) return;
 
+  var totalLabel = (DATA.meta && DATA.meta.total_games)
+    ? fmt.num(DATA.meta.total_games) + '+'
+    : '120,000+';
+
   wrap.innerHTML = `
     <div class="method-grid">
       <div class="method-cell">
         <div class="method-cell-title">四源数据融合</div>
         <div class="method-cell-body">
-          <strong>① Kaggle Steam Dataset</strong> — 主数据源，120,000+ 游戏，含发布日期、评价、owners、标签<br>
+          <strong>① Kaggle Steam Dataset</strong> — 主数据源，${totalLabel} 游戏，含发布日期、评价、owners、标签<br>
           <strong>② SteamSpy API</strong> — 补充标签权重、近期游戏时长，Top100 实时爬取 + 全量分页采集<br>
           <strong>③ Steam Store API</strong> — 校验分类标签、开发商/发行商、Metacritic 评分<br>
           <strong>④ SteamCharts.com</strong> — 2012年至今逐月 Avg. Players，用于视图一在线占比和视图三衰减曲线<br>
@@ -67,8 +71,12 @@ function drawPipeline() {
   const W = wrap.clientWidth || 700;
   const H = 90;
 
+  var gameCount = (DATA.meta && DATA.meta.total_games)
+    ? Math.round(DATA.meta.total_games / 1000) + 'k+ games'
+    : '120k+ games';
+
   const steps = [
-    { label: "Kaggle\nDataset",     sub: "120k+ games",  color: "#1de9b6" },
+    { label: "Kaggle\nDataset",     sub: gameCount,        color: "#1de9b6" },
     { label: "SteamSpy\nAPI",       sub: "实时 Top100",   color: "#1de9b6" },
     { label: "SteamCharts",         sub: "月均在线 CCU",   color: "#1de9b6" },
     { label: "Steam API",           sub: "实时 CCU",       color: "#69f0ae" },

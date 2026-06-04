@@ -18,7 +18,7 @@
   <div class="stats-ribbon" id="stats-ribbon">
     <div class="stat-cell">
       <div class="stat-num c-indie" data-target="50,000+">—</div>
-      <div class="stat-label">STEAM 在售游戏总数（2024）</div>
+      <div class="stat-label">STEAM 在售游戏总数</div>
       <div class="stat-trend">↑ 2004年约150款</div>
     </div>
     <div class="stat-cell">
@@ -28,12 +28,12 @@
     </div>
     <div class="stat-cell">
       <div class="stat-num c-aa" data-target="48%">—</div>
-      <div class="stat-label">独立游戏收入份额（2024 YTD）</div>
-      <div class="stat-trend">↑ 2018年仅25% · VG Insights</div>
+      <div class="stat-label">独立游戏收入份额 · VG Insights</div>
+      <div class="stat-trend">↑ 2018年仅25%</div>
     </div>
     <div class="stat-cell">
       <div class="stat-num" style="color:var(--text)" data-target="1.32亿">—</div>
-      <div class="stat-label">STEAM 月活用户（2024）</div>
+      <div class="stat-label">STEAM 月活用户</div>
       <div class="stat-trend">峰值同时在线 3700万</div>
     </div>
   </div>
@@ -196,7 +196,7 @@
       <div class="insight-icon">//</div>
       <div class="insight-text" id="insight-decay">
         <strong>3A大作</strong>（红色系）：营销驱动的首发热潮在 3 个月内消退，峰值普遍降至 20% 以下，验证了"买了即弃"的消费模式；
-        <em>独立游戏长青款</em>（绿色系）：口碑驱动的持续流量，《星露谷物语》发布 24 个月后仍保持峰值 35% 的日活；
+        <em>独立游戏长青款</em>（绿色系）：口碑驱动的持续流量，部分佳作发布 24 个月后仍保持可观的日活留存；
         <strong>F2P游戏</strong>：内容更新维持曲线最为平坦，商业模式与留存高度绑定。
         <br><br>
         <strong>核心发现：</strong>留存曲线的形状差异揭示了两种根本不同的<em>商业模式</em>：
@@ -226,8 +226,8 @@
       <div class="insight-icon">//</div>
       <div class="insight-text">
         <strong>数据局限性：</strong>① SteamSpy 的 owners 字段为估算区间（如"200,000–500,000"），本项目取中值，实际误差可达 ±40%；
-        ② 游戏分类采用规则引擎（发行商名单 + 标签 + 价格 + 拥有量），未使用机器学习，边界案例（如《黑神话》按本项目规则归为AA）可能与大众认知不一致；
-        ③ 视图三的衰减曲线为参数化模型而非逐月实测数据，<em>趋势可信但精确数值仅供参考</em>。
+        ② 游戏分类采用规则引擎（发行商名单 + 标签 + 价格 + 拥有量）+ 60 余款手动覆盖（按业界共识），边界案例可能与个人认知不一致；
+        ③ 视图三衰减曲线来源于 SteamCharts 逐月实测 CCU，缺失月份以 ×0.95 衰减插值补齐，<em>整体趋势可信但个别月份为估计值</em>。
       </div>
     </div>
   </section>
