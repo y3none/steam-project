@@ -7,6 +7,7 @@ window.initDecay = function() {
   let showRef=true, highlighted=null, narrativeCompare=false, decayMode="individual";
   let svg,g,xSc,ySc;
   let firstDraw = true;
+  let _iW = 0, _iH = 0, sweepRAF = null; // 几何缓存 + 时间游标扫描的 rAF 句柄
 
   const TYPE_STYLE = {
     AAA:   { dash: null,  width: 2.5, label: "3A大作" },
@@ -74,6 +75,7 @@ window.initDecay = function() {
     wrap.innerHTML="";
     const W=wrap.clientWidth, H=Math.max(280,Math.min(360,W*0.4));
     const iW=W-MG.l-MG.r, iH=H-MG.t-MG.b;
+    _iW = iW; _iH = iH; // 缓存供时间游标扫描使用
 
     svg=d3.select(wrap).append("svg").attr("viewBox","0 0 "+W+" "+H).attr("height",H);
     g=svg.append("g").attr("transform","translate("+MG.l+","+MG.t+")");
@@ -455,11 +457,73 @@ window.initDecay = function() {
   //  MODE SWITCHING & CONTROLS
   // ══════════════════════════════════════════════
   function draw() {
+    cancelSweep(); // 任何重绘都先终止进行中的时间游标扫描
     if (decayMode === "aggregate") {
       drawAggregate();
     } else {
       drawIndividual();
     }
+  }
+
+  // ══════════════════════════════════════════════
+  //  TIME-CURSOR SWEEP — 时间游标扫描（个体+对比视图）
+  //  一条竖线从第0月扫到第24月，沿途用环标出独立/3A 的平均留存，
+  //  中间竖条 = 两者差距，随扫描实时拉开
+  // ══════════════════════════════════════════════
+  function cancelSweep() {
+    if (sweepRAF) { cancelAnimationFrame(sweepRAF); sweepRAF = null; }
+    if (g) g.selectAll(".sweep-layer").remove();
+  }
+
+  function runSweep(durMs) {
+    if (!g) return;
+    cancelSweep();
+    durMs = durMs || 4500;
+
+    const indie = DATA.decay.filter(function(d){ return d.type === "Indie"; });
+    const aaa   = DATA.decay.filter(function(d){ return d.type === "AAA"; });
+    function avgAt(arr, mF) {
+      if (!arr.length) return null;
+      var lo = Math.floor(mF), hi = Math.min(24, Math.ceil(mF)), t = mF - lo, s = 0, n = 0;
+      arr.forEach(function(d){
+        var a = d.data[lo], b = d.data[hi];
+        if (a != null && b != null) { s += a + (b - a) * t; n++; }
+      });
+      return n ? s / n : null;
+    }
+
+    var layer = g.append("g").attr("class", "sweep-layer").style("pointer-events", "none");
+    var cur = layer.append("line").attr("y1", 0).attr("y2", _iH)
+      .attr("stroke", "#fff").attr("stroke-opacity", 0.5).attr("stroke-width", 1);
+    var gapBar = layer.append("line").attr("stroke", C.Indie).attr("stroke-width", 6)
+      .attr("stroke-linecap", "round").attr("opacity", 0.3);
+    var ringI = layer.append("circle").attr("r", 5).attr("fill", "none").attr("stroke", C.Indie).attr("stroke-width", 2);
+    var ringA = layer.append("circle").attr("r", 5).attr("fill", "none").attr("stroke", C.AAA).attr("stroke-width", 2);
+    var box = layer.append("g");
+    box.append("rect").attr("x", 6).attr("y", 4).attr("width", 268).attr("height", 20).attr("rx", 3)
+      .attr("fill", "rgba(8,8,14,0.9)").attr("stroke", "var(--border2)").attr("stroke-width", 1);
+    var boxTxt = box.append("text").attr("x", 14).attr("y", 18)
+      .attr("font-family", "'Space Mono',monospace").attr("font-size", 10).attr("fill", "#fff");
+
+    var start = performance.now();
+    function frame(now) {
+      var p = Math.min((now - start) / durMs, 1);
+      var mF = p * 24, m = Math.round(mF), x = xSc(mF);
+      cur.attr("x1", x).attr("x2", x);
+      var iv = avgAt(indie, mF), av = avgAt(aaa, mF);
+      if (iv != null && av != null) {
+        var yi = ySc(iv), ya = ySc(av);
+        gapBar.attr("x1", x).attr("x2", x).attr("y1", yi).attr("y2", ya);
+        ringI.attr("cx", x).attr("cy", yi);
+        ringA.attr("cx", x).attr("cy", ya);
+        var gap = Math.round((iv - av) * 100);
+        boxTxt.text("第 " + m + " 月    独立均 " + Math.round(iv * 100) + "%    3A均 "
+          + Math.round(av * 100) + "%    差 " + (gap >= 0 ? "+" : "") + gap + "%");
+      }
+      if (p < 1) sweepRAF = requestAnimationFrame(frame);
+      else sweepRAF = null; // 结束后保留终态（差距最大处）
+    }
+    sweepRAF = requestAnimationFrame(frame);
   }
 
   // Load aggregate data
@@ -513,6 +577,15 @@ window.initDecay = function() {
     if (opts.compareIndieAAA === false) narrativeCompare = false;
     firstDraw = false;
     draw();
+  };
+
+  // 时间游标扫描：确保处于 个体+对比 视图后，从第0月扫到第24月
+  window._decaySweep = function(durMs) {
+    narrativeCompare = true;
+    switchToIndividualMode();
+    firstDraw = false;
+    draw();            // 重绘到个体+对比，刷新 g / xSc / ySc / 几何
+    runSweep(durMs || 4500);
   };
 
   // Cross-view linkage: scatter → decay

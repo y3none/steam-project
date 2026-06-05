@@ -19,6 +19,14 @@ function typewriteInsight(el, speed) {
 
   // Prefer data-driven HTML from updateInsights(), fallback to static innerHTML
   const html = el.dataset.typewriterHtml || el.innerHTML;
+
+  // 尊重系统“减少动态效果”偏好：直接整段渲染，不做逐字动画
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.innerHTML = html;
+    el.style.visibility = "visible";
+    return;
+  }
+
   el.innerHTML = "";
   el.style.visibility = "visible";
 
@@ -220,17 +228,25 @@ function updateInsights() {
     var indiePR = m.pos_rate_median.Indie != null ? m.pos_rate_median.Indie : 75;
     var aaaPR   = m.pos_rate_median.AAA != null ? m.pos_rate_median.AAA : 74;
 
-    var godIndie = DATA.bubbles.filter(function(d) { return d.type === 'Indie' && d.pr > 90 && d.ccu > 100000; }).length;
-    var godAAA   = DATA.bubbles.filter(function(d) { return d.type === 'AAA' && d.pr > 90 && d.ccu > 100000; }).length;
-    var godCompare = godIndie > godAAA
-      ? '独立游戏数量已超越3A大作'
-      : godIndie === godAAA
-        ? '独立游戏与3A大作并驾齐驱'
-        : '3A大作仍略占优势';
+    // 神作象限 CCU 阈值数据驱动（与 scatter / synthesis 同源）
+    var godCcu = (typeof godCcuThreshold === 'function') ? godCcuThreshold() : 100000;
+    var godIndie = DATA.bubbles.filter(function(d) { return d.type === 'Indie' && d.pr > 90 && d.ccu > godCcu; }).length;
+    var godAAA   = DATA.bubbles.filter(function(d) { return d.type === 'AAA'   && d.pr > 90 && d.ccu > godCcu; }).length;
+
+    // 顶尖好评率（前5均值）看天花板
+    var ceilI = (typeof topKPosRate === 'function' && topKPosRate('Indie', 5)) || indiePR;
+    var ceilA = (typeof topKPosRate === 'function' && topKPosRate('AAA', 5))   || aaaPR;
+
+    // 中位方向自适应：不写死“持平”
+    var medianSentence = indiePR >= aaaPR
+      ? '独立游戏中位好评率（<em>' + indiePR + '%</em>）已追平甚至反超3A大作（<em>' + aaaPR + '%</em>）。'
+      : '独立游戏顶尖作品好评率（前5均值 <em>' + ceilI + '%</em>）已与3A（<em>' + ceilA + '%</em>）并肩；' +
+        '但<em>整体</em>中位（独立 <em>' + indiePR + '%</em> vs 3A <em>' + aaaPR + '%</em>）仍被海量长尾拉低——天花板追平，差距在地板。';
+
+    var godSentence = '右上"神作象限"（好评率>90% & 在线>' + fmt.ccu(godCcu) + '）中，独立 <em>' + godIndie + '</em> 款 vs 3A <em>' + godAAA + '</em> 款。';
 
     var html2 =
-      '独立游戏中位好评率（<em>' + indiePR + '%</em>）已与3A大作（<em>' + aaaPR + '%</em>）<em>几乎持平</em>——口碑差距在2013年曾超过15个百分点。' +
-      '右上"神作象限"（好评率>90% & CCU>100k）中，' + godCompare + '。' +
+      medianSentence + godSentence +
       '<br><br>' +
       '<strong>值得注意的模式：</strong>图中可见独立游戏的分布呈"倒L型"——多数集中在<em>高好评但低人气</em>区域，' +
       '说明独立游戏的质量天花板已经打破，但<em>市场注意力的分配仍然极度不均</em>。' +
@@ -319,6 +335,8 @@ function updateInsights() {
   initScrollNarrative();
   initDecay();
   initMethod();
+  initSynthesis();
+  initTour();
 
   // Inject data-driven insights
   updateInsights();

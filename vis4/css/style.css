@@ -178,7 +178,9 @@ body::before {
 .main { padding: 40px 60px 80px; display: flex; flex-direction: column; gap: 48px; }
 
 /* ── SECTION ── */
-.section { position: relative; }
+/* scroll-margin-top：滚动定位时为顶部吸顶图例条(.legend-strip ~50px)留出空隙，
+   避免导览/锚点跳转时把 section 标题盖在吸顶条下面 */
+.section { position: relative; scroll-margin-top: 72px; }
 
 .section-header {
   display: grid;
@@ -952,3 +954,300 @@ svg { width: 100%; display: block; overflow: visible; }
   color: #888;
   font-family: "Space Mono", monospace;
 }
+/* ═══════════════════════════════════════════════════════
+   VIEW 5 · SYNTHESIS（结论视图）
+═══════════════════════════════════════════════════════ */
+.syn-thesis {
+  padding: 22px 26px;
+  background: linear-gradient(135deg, rgba(29,233,182,0.06), rgba(29,233,182,0.01));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--indie);
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+.syn-thesis-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--indie);
+  margin-bottom: 8px;
+}
+.syn-thesis-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text);
+  font-weight: 300;
+}
+.syn-thesis-text em { color: var(--indie); font-style: normal; font-weight: 500; }
+
+.syn-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.syn-cause {
+  flex: 1 1 200px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 3px;
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.syn-cause-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.syn-cause-title {
+  font-size: 14px;
+  color: var(--bright);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.syn-cause-num {
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+}
+.syn-cause-unit {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.syn-cause-body {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-top: auto;
+}
+.syn-cause-body strong { color: var(--text); font-weight: 500; }
+
+.syn-op {
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 22px;
+  color: var(--border2);
+  flex: 0 0 auto;
+  padding: 0 2px;
+}
+.syn-op-eq { color: var(--indie); }
+
+.syn-effect {
+  flex: 1 1 160px;
+  background: linear-gradient(160deg, rgba(29,233,182,0.12), rgba(29,233,182,0.02));
+  border: 1px solid var(--indie);
+  border-radius: 3px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.syn-effect-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--indie);
+}
+.syn-effect-num {
+  font-family: var(--mono);
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--indie);
+  text-shadow: var(--glow-indie);
+  line-height: 1.05;
+  margin: 4px 0;
+}
+.syn-effect-unit { font-size: 11px; color: var(--text); line-height: 1.5; }
+.syn-effect-unit span { color: var(--muted); font-size: 9px; }
+
+.syn-tension {
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: rgba(255, 213, 79, 0.04);
+  border-left: 3px solid rgba(255, 213, 79, 0.4);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+  display: flex;
+  gap: 12px;
+}
+.syn-tension strong { color: var(--aa); font-weight: 500; }
+.syn-tension em { color: var(--aa); font-style: normal; }
+.syn-tension-icon { color: var(--aa); font-size: 16px; flex: 0 0 auto; }
+
+@media (max-width: 880px) {
+  .syn-flow { flex-direction: column; }
+  .syn-op { transform: rotate(90deg); align-self: center; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   GUIDED TOUR · 自动导览
+═══════════════════════════════════════════════════════ */
+#tour-launch {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  background: var(--indie);
+  color: #000;
+  border: none;
+  border-radius: 40px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(29,233,182,0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+#tour-launch:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(29,233,182,0.5); }
+#tour-launch .tl-icon { font-size: 11px; }
+body.tour-active #tour-launch { display: none; }
+
+#tour-bar {
+  position: fixed;
+  left: 50%;
+  bottom: -200px;
+  transform: translateX(-50%);
+  z-index: 950;
+  width: min(720px, calc(100vw - 32px));
+  background: rgba(10,10,18,0.96);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+  overflow: hidden;
+  opacity: 0;
+  transition: bottom 0.45s cubic-bezier(.22,1,.36,1), opacity 0.3s ease;
+}
+#tour-bar.show { bottom: 22px; opacity: 1; }
+
+.tour-progress { display: flex; gap: 5px; padding: 10px 16px 0; }
+.tour-dot {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border2);
+  cursor: pointer;
+  overflow: hidden;
+}
+.tour-dot.current { box-shadow: 0 0 0 1px rgba(29,233,182,0.35); }
+.tour-dot-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--indie);
+  border-radius: 2px;
+}
+
+.tour-body { padding: 12px 16px 6px; }
+.tour-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--indie);
+  margin-bottom: 6px;
+}
+.tour-step { color: var(--muted); }
+.tour-title { font-size: 16px; font-weight: 500; color: var(--bright); margin-bottom: 5px; }
+.tour-text { font-size: 12.5px; line-height: 1.65; color: var(--text); min-height: 42px; }
+
+.tour-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 14px;
+}
+.tour-ctrl {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+.tour-ctrl:hover:not(:disabled) { border-color: var(--indie); color: var(--indie); }
+.tour-ctrl:disabled { opacity: 0.3; cursor: not-allowed; }
+.tour-play { background: var(--indie); color: #000; border-color: var(--indie); }
+.tour-play:hover { color: #000 !important; }
+.tour-exit { margin-left: auto; }
+.tour-exit:hover { border-color: var(--aaa); color: var(--aaa); }
+
+/* ═══════════════════════════════════════════════════════
+   LINK HINTS · 跨视图联动脉冲
+═══════════════════════════════════════════════════════ */
+.chart-box { position: relative; }
+@keyframes link-pulse-kf {
+  0%   { box-shadow: 0 0 0 0 rgba(29,233,182,0.0), inset 0 0 0 1px rgba(29,233,182,0.0); }
+  25%  { box-shadow: 0 0 26px 2px rgba(29,233,182,0.45), inset 0 0 0 2px rgba(29,233,182,0.6); }
+  100% { box-shadow: 0 0 0 0 rgba(29,233,182,0.0), inset 0 0 0 1px rgba(29,233,182,0.0); }
+}
+.chart-box.link-pulse { animation: link-pulse-kf 1.6s ease-out; }
+.link-chip {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 20;
+  padding: 5px 11px;
+  background: rgba(29,233,182,0.14);
+  border: 1px solid var(--indie);
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--indie);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.link-chip.show { opacity: 1; transform: translateY(0); }
+
+/* ═══════════════════════════════════════════════════════
+   REDUCED MOTION · 尊重系统“减少动态效果”
+═══════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .chart-box.link-pulse { animation: none; box-shadow: inset 0 0 0 2px rgba(29,233,182,0.6); }
+}
+
+/* ── 结论视图入场动画（默认完全可见；加 .syn-played 时错峰浮现，可重复触发） ── */
+@keyframes syn-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+#synthesis-inner.syn-played .syn-thesis,
+#synthesis-inner.syn-played .syn-flow > *,
+#synthesis-inner.syn-played .syn-tension {
+  animation: syn-rise 0.6s cubic-bezier(.22,1,.36,1) both;
+}
+#synthesis-inner.syn-played .syn-thesis { animation-delay: 0s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(1) { animation-delay: 0.18s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(2) { animation-delay: 0.30s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(3) { animation-delay: 0.42s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(4) { animation-delay: 0.54s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(5) { animation-delay: 0.66s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(6) { animation-delay: 0.78s; }
+#synthesis-inner.syn-played .syn-flow > *:nth-child(7) { animation-delay: 0.90s; }
+#synthesis-inner.syn-played .syn-tension { animation-delay: 1.15s; }

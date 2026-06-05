@@ -268,5 +268,7 @@ window.initStream = function() {
 
   draw();
   window._streamRedraw = draw;
+  // 供导览模式（tour.js）以编程方式选中/清除年份，复用既有联动链
+  window._streamSelectYear = selectYear;
 };
 // ════════════════════════════════════════════════

@@ -2,7 +2,9 @@
 // ════════════════════════════════════════════════
 window.initScatter = function() {
   const MG={t:20,r:24,b:48,l:66};
-  const GOD_PR = 90, GOD_CCU = 100000;
+  // 神作象限：好评率绝对线 GOD_PR(=90) 复用 colors.js 全局常量；
+  // CCU 阈值数据驱动，在每次 draw() 开头按真实数据刷新
+  let GOD_CCU = 100000;
   let activeFilter="all", selected=null, yearFilter=null;
   let activeTag=null;
   let searchMode="name";
@@ -326,6 +328,8 @@ window.initScatter = function() {
   // ══ DRAW ═══════════════════════════════════════
 
   function draw(){
+    // 神作象限 CCU 阈值：按当前数据刷新（示例数据→10万；真实数据→自适应）
+    GOD_CCU = (typeof godCcuThreshold === "function") ? godCcuThreshold() : 100000;
     const wrap=document.getElementById("scatter-inner");
     wrap.innerHTML="";
     const W=wrap.clientWidth, H=Math.max(500,Math.min(700,W*0.55));
@@ -379,7 +383,7 @@ window.initScatter = function() {
         .attr("font-size", 11)
         .attr("font-weight", "700")
         .attr("pointer-events", "none")
-        .text("神作象限");
+        .text("神作象限 · 好评>90% & 在线>" + fmt.ccu(GOD_CCU));
     } else {
       g.append("text").attr("x",iW-4).attr("y",14).attr("text-anchor","end")
         .attr("fill","rgba(29,233,182,0.12)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
@@ -626,18 +630,6 @@ window.initScatter = function() {
   populateYearDropdown();
   setupSearch();
   setupTagFilter();
-
-  // ── If section is already in viewport, start with narrative state (prevent flash) ──
-  var secEl = document.getElementById('sec-scatter');
-  if (secEl) {
-    var rect = secEl.getBoundingClientRect();
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      activeFilter = 'Indie';
-      syncFilterPills('Indie');
-      highlightQuadrant = true;
-    }
-  }
-
   draw();
   window._scatterRedraw = draw;
   window._scatterApplyNarrative = function(opts) {

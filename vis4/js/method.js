@@ -45,10 +45,21 @@ window.initMethod = function() {
         <div class="method-cell-title">可视化编码与交互</div>
         <div class="method-cell-body">
           <strong>视图一</strong>：Stream Graph（<code>stackOffsetWiggle</code>），可切换发布占比/在线占比（月均在线数据）<br>
-          <strong>视图二</strong>：气泡散点，X → 好评率，Y → CCU（对数轴），半径 → owners（<code>scalePow(0.35)</code>）<br>
+          <strong>视图二</strong>：气泡散点，X → 好评率，Y → 峰值在线 CCU（对数轴），半径 → owners（<code>scalePow(0.35)</code>）<br>
           <strong>视图三</strong>：衰减折线，归一化 CCU（首月=100%），24个月跨度，关键时间节点标注<br>
-          <strong>跨视图联动</strong>：河流图点击年份 ↔ 散点图年份下拉（双向同步），散点图 → 衰减曲线下钻<br>
+          <strong>视图五 · 结论</strong>：三因一果汇聚（数量 × 顶尖口碑 × 长尾留存 → 收入），数字由 <code>DATA</code> 实时计算<br>
+          <strong>跨视图联动</strong>：河流图点击年份 ↔ 散点图年份下拉（双向同步），散点图 → 衰减曲线下钻；联动触发时接收方视图<em>脉冲高亮 + 来源 chip</em><br>
+          <strong>自动导览</strong>：一键按叙事顺序播放五段，复用各视图 narrative 接口，供演示/答辩；尊重系统“减少动态效果”偏好<br>
           <strong>实时数据</strong>：页面秒开 → 后台异步爬取 Steam API → 图表热更新 + CCU 涨跌 Ticker
+        </div>
+      </div>
+      <div class="method-cell" style="grid-column:1 / -1">
+        <div class="method-cell-title">关键指标口径（验收重点 · 数据驱动而非写死结论）</div>
+        <div class="method-cell-body">
+          <strong>CCU 语义</strong>：散点/衰减中的 <code>ccu</code> 为<strong>近期峰值在线</strong>（SteamSpy，约昨日峰值），并非历史最高在线——它随时间波动、量纲远低于历史峰值，这是下方阈值设计的前提。<br>
+          <strong>“神作象限”（数据驱动阈值）</strong>：定义为 好评率 ≥ 90% <strong>且</strong> 峰值在线 ≥【全体“叫好”(好评≥90%)游戏 CCU 的中位数】。不采用固定绝对阈值（如 10 万），因为 CCU 与好评率在真实数据中<em>负相关</em>——高在线区被 CS2/Dota2 等高人气、好评<90% 的常驻游戏占据，固定阈值会使象限恒为空。以“叫好游戏自身人气中位”为线，可自适应量纲、不受 megahit 极值干扰，并直接回答“叫好的游戏里谁更出圈”。象限标签实时显示当前阈值。<br>
+          <strong>质量结论口径</strong>：以<strong>前 5 名好评率均值</strong>衡量各类型“天花板”，以<strong>中位好评率</strong>衡量整体。结论为<em>天花板追平</em>（顶尖独立 ≈ 3A）、<em>中位仍低</em>（独立中位被海量长尾拉低）。文案随数据方向自适应，不写死“持平/追平”。<br>
+          <strong>留存口径</strong>：各曲线以首月在线 = 100% 归一化，跨度 24 个月，消除绝对体量差异、只比较留存“形状”。
         </div>
       </div>
     </div>
@@ -57,7 +68,8 @@ window.initMethod = function() {
       SteamSpy 数据自 2018 年后误差约 ±20%（Valve 隐藏了精确 owners 数据）；
       Kaggle price 为当前售价而非首发价，影响基于价格的分类准确度；
       CCU 在线占比数据仅覆盖 2012 年至今（SteamCharts 起始年份），2012 年前无公开 CCU 历史数据；
-      分类规则对边缘游戏（如大厂发行的小型实验项目）可能存在争议。
+      分类规则对边缘游戏（如大厂发行的小型实验项目）可能存在争议；
+      独立游戏整体中位好评率低于 3A，是数万款长尾游戏拉低中位的真实<em>长尾效应</em>（亦即“发现性危机”的量化体现），并非分类偏差——本作品对此如实呈现而不回避。
     </div>
     <div class="method-pipeline" id="method-pipeline"></div>
   `;
@@ -82,7 +94,7 @@ function drawPipeline() {
     { label: "Steam API",           sub: "实时 CCU",       color: "#69f0ae" },
     { label: "清洗 · 分类\n融合",    sub: "05_preprocess",  color: "#ffd54f" },
     { label: "JSON\n输出",           sub: "4 files",        color: "#ffd54f" },
-    { label: "D3.js v7\n可视化",     sub: "3 views + 联动", color: "#ff5252" },
+    { label: "D3.js v7\n可视化",     sub: "5 视图 + 联动", color: "#ff5252" },
   ];
 
   const svg = d3.select(wrap).append("svg")

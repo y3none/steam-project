@@ -30,4 +30,56 @@ const EVT = {
   on(name, fn)  { (this._handlers[name]||(this._handlers[name]=[])).push(fn); },
   emit(name, d) { (this._handlers[name]||[]).forEach(fn=>fn(d)); },
 };
+
+// ── 稳健统计工具（供散点/结论/洞察共享） ──────────────
+// 排序数组的分位数（线性插值）
+function quantileSorted(sorted, q) {
+  if (!sorted.length) return 0;
+  if (sorted.length === 1) return sorted[0];
+  const pos = (sorted.length - 1) * q;
+  const base = Math.floor(pos), rest = pos - base;
+  return sorted[base + 1] !== undefined
+    ? sorted[base] + rest * (sorted[base + 1] - sorted[base])
+    : sorted[base];
+}
+
+// 某类型好评率“天花板”：评价数足够多的游戏里，好评率前 k 名的均值。
+// 关键：必须设最低评价数门槛——否则“天花板”会被一批只有十几条评价、
+//   恰好全好评(=100%)的冷门小游戏拼出来，严重高估且不具代表性。
+//   门槛逐级放宽 [1000, 100, 0] 兜底，保证总能取到稳健样本。
+function topKPosRate(type, k) {
+  k = k || 5;
+  const pool = (typeof DATA !== "undefined" ? (DATA.bubbles || []) : [])
+    .filter(d => d.type === type && d.pr != null);
+  const meanTop = arr => arr.length
+    ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length * 10) / 10 : null;
+  for (const floor of [1000, 100, 0]) {
+    const prs = pool.filter(d => (d.rc || 0) >= floor)
+                    .map(d => d.pr).sort((a, b) => b - a).slice(0, k);
+    if (prs.length >= Math.min(k, 3)) return meanTop(prs);
+  }
+  return meanTop(pool.map(d => d.pr).sort((a, b) => b - a).slice(0, k));
+}
+
+// “神作象限”好评率绝对线：90% 始终是可解释的“叫好”门槛
+const GOD_PR = 90;
+
+// “神作象限”CCU 阈值：数据驱动，且规避“质量↔人气负相关”陷阱。
+//   真实数据里高 CCU 区被高人气低好评的常驻游戏占据，叫好游戏挤在低 CCU 区，
+//   因此按“全体 CCU 分位”设线会让象限恒为空。改为：
+//   取【好评率≥90% 的游戏】自身 CCU 的中位数作为人气线——
+//   即“叫好的游戏里，人气居前的那一半”进入象限，按类型自然分布。
+//   · 永远非空（约一半叫好游戏入选）  · 自适应量纲  · 不受 megahit 极值干扰
+//   基于全体气泡计算，不随筛选变化，象限框位置稳定。
+function godCcuThreshold() {
+  const all = (typeof DATA !== "undefined" ? (DATA.bubbles || []) : []);
+  const accl = all.filter(d => d.pr != null && d.pr >= GOD_PR && d.ccu > 0)
+                  .map(d => d.ccu).sort((a, b) => a - b);
+  if (accl.length >= 4) {
+    return Math.max(2000, Math.min(100000, Math.round(quantileSorted(accl, 0.5))));
+  }
+  // 退化兜底：叫好样本太少时，用全体 CCU 高分位
+  const c = all.map(d => d.ccu).filter(v => v > 0).sort((a, b) => a - b);
+  return c.length ? Math.max(2000, Math.min(100000, Math.round(quantileSorted(c, 0.9)))) : 100000;
+}
 // ════════════════════════════════════════════════
