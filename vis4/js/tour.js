@@ -69,12 +69,25 @@ window.initTour = function() {
       },
     },
     {
-      sel: "#sec-synthesis", chapter: "FINALE", title: "三因一果",
+      sel: "#sec-synthesis", chapter: "05 · 结论", title: "三因一果",
       text: "数量爆炸 × 顶尖口碑追平 × 长尾留存 = 独立游戏拿下近半 Steam 收入。但数量的另一面是“发现性危机”——崛起的是整体，多数开发者仍困在长尾。这就是我们想留下的问题。",
       dur: 11000,
       action() { /* 结论视图为静态内容，仅滚动到位 */ },
       // 动态：三张因卡依次浮现 + 大数字滚动计数
       anim(A) { A.synth(); },
+    },
+    {
+      sel: "#sec-genre", chapter: "尾声 · 给从业者", title: "那，该做一款什么游戏？",
+      text: "我们把结论交回开发者手里：按玩法品类铺开供给与需求，左上角是需求高、对手少的蓝海。切到「独立」——地图重算成你这个段位的真实机会。这才是这套系统的落点：不止说明过去，更指向该做什么。",
+      dur: 9500,
+      action() { window._genreSetScope && window._genreSetScope("Indie"); },
+      // 动态：先看全貌，再聚焦到“独立”段位
+      anim(A) {
+        if (window._genreSetScope) {
+          A.later(function(){ window._genreSetScope("All"); }, 200);
+          A.later(function(){ window._genreSetScope("Indie"); }, 1800);
+        }
+      },
     },
   ];
 

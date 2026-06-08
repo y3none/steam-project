@@ -5,9 +5,10 @@
 用于计算年度 CCU 份额（供视图一"在线人数"切换使用）。
 
 策略：
-  1. 从 game_db.json / Kaggle 数据中选取各类型 CCU 最高的游戏
-  2. 爬取每款游戏的 SteamCharts 页面，解析月度数据表格
-  3. 按年+类型聚合 → 输出 ccu_share.json
+  1. 始终纳入 ~50 款人工策展的代表作（四类型 × 不同年代，含首发爆冲后崩盘的反例）
+  2. 再从 game_db.json / Kaggle 数据中按类型补充 CCU 最高的游戏
+  3. 爬取每款游戏的 SteamCharts 页面，解析月度数据表格
+  4. 按年+类型聚合 → 输出 ccu_share.json；月度缓存供视图三个体衰减曲线使用
 
 用法：
   python 03_fetch_steamcharts.py
@@ -83,34 +84,78 @@ def load_game_db():
 
 def select_top_games(records, n_per_type=25):
     """
-    选取各类型 CCU 最高的游戏。
-    手动指定一些必须包含的代表性游戏。
+    选取代表性游戏。策展集（MUST_INCLUDE）始终纳入，再用分类器从全库按类型补充 top-CCU。
     """
-    # 已知必须包含的代表性游戏 (appid, name, type)
-    MUST_INCLUDE = {
-        "730":     "AAA",   # CS2/CS:GO
-        "570":     "F2P",   # Dota 2
-        "578080":  "F2P",   # PUBG
-        "271590":  "AAA",   # GTA V
-        "1172470": "AAA",   # Apex Legends → actually F2P
-        "440":     "F2P",   # TF2
-        "292030":  "AAA",   # Witcher 3
-        "1245620": "AAA",   # Elden Ring
-        "2358720": "AAA",   # Black Myth
-        "1086940": "AAA",   # BG3
-        "413150":  "Indie", # Stardew Valley
-        "105600":  "Indie", # Terraria
-        "892970":  "Indie", # Valheim
-        "1623730": "Indie", # Palworld
-        "548430":  "Indie", # Deep Rock Galactic
-        "252490":  "AA",    # Rust
-        "346110":  "AA",    # ARK
-        "1174180": "F2P",   # Red Dead Redemption 2
-        "1085660": "Indie", # Destiny 2 → actually F2P
-        "230410":  "AA",    # Warframe
-    }
+    # 手动策展的代表性游戏：(appid, 名称, 类型)
+    # 覆盖四类型 × 不同发行年代；刻意纳入"首发爆冲后崩盘"的例子（Among Us / Lethal Company /
+    # New World / Lost Ark / Helldivers 2 / Valheim / Palworld），使个体模式不只剩常青幸存者，
+    # 主动回应"精选幸存者"的质疑。
+    # 分类依据：发行商规模 + 拥有量规模（非价格）；F2P 指免费 live-service。
+    # appid 为 Steam 稳定 ID；标 ⚠ 的为较新作，建议上线前抽查一次。
+    MUST_INCLUDE = [
+        # ── AAA 单机大作（营销驱动，首发冲高后回落）──
+        ("271590",  "Grand Theft Auto V",            "AAA"),   # 2015
+        ("292030",  "The Witcher 3",                 "AAA"),   # 2015
+        ("1245620", "Elden Ring",                    "AAA"),   # 2022
+        ("1091500", "Cyberpunk 2077",                "AAA"),   # 2020
+        ("1174180", "Red Dead Redemption 2",         "AAA"),   # 2019 ← 修正：原误标 F2P（R 星付费 3A）
+        ("990080",  "Hogwarts Legacy",               "AAA"),   # 2023
+        ("489830",  "Skyrim Special Edition",        "AAA"),   # 2016
+        ("379720",  "DOOM (2016)",                   "AAA"),   # 2016
+        ("1593500", "God of War (2018)",             "AAA"),   # 2022 PC
+        ("1817070", "Marvel's Spider-Man Remastered","AAA"),   # 2022 PC ⚠
+        ("1888930", "The Last of Us Part I",         "AAA"),   # 2023 PC ⚠
+        ("2050650", "Resident Evil 4 (2023)",        "AAA"),   # 2023 ⚠
+        ("1086940", "Baldur's Gate 3",               "AAA"),   # 2023（AAA/AA 可议）
+        ("2358720", "Black Myth: Wukong",            "AAA"),   # 2024（与分类器手动覆盖保持一致）
+        ("730",     "Counter-Strike 2",              "AAA"),   # 2012（注：现为免费 live-service，类型可议）
 
-    # 先尝试用分类
+        # ── F2P 免费 live-service（曲线最平/常驻）──
+        ("570",     "Dota 2",                        "F2P"),   # 2013
+        ("440",     "Team Fortress 2",               "F2P"),   # 2007
+        ("578080",  "PUBG: BATTLEGROUNDS",           "F2P"),   # 2017（2022 转免费）
+        ("1172470", "Apex Legends",                  "F2P"),   # 2020 PC ← 修正：原误标 AAA
+        ("1085660", "Destiny 2",                     "F2P"),   # 2019 PC ← 修正：原误标 Indie
+        ("230410",  "Warframe",                      "F2P"),   # 2013 ← 修正：原误标 AA
+        ("238960",  "Path of Exile",                 "F2P"),   # 2013
+        ("386360",  "SMITE",                         "F2P"),   # 2015
+        ("1599340", "Lost Ark",                      "F2P"),   # 2022（首发冲高后崩）
+        ("2767030", "Marvel Rivals",                 "F2P"),   # 2024 ⚠
+
+        # ── AA 中型（含首发爆冲后回落的例子）──
+        ("252490",  "Rust",                          "AA"),    # 2018
+        ("346110",  "ARK: Survival Evolved",         "AA"),    # 2017
+        ("553850",  "Helldivers 2",                  "AA"),    # 2024（首发爆冲后回落）
+        ("322330",  "Don't Starve Together",         "AA"),    # 2016
+        ("264710",  "Subnautica",                    "AA"),    # 2018
+        ("261550",  "Mount & Blade II: Bannerlord",  "AA"),    # 2020
+        ("739630",  "Phasmophobia",                  "AA"),    # 2020（首发爆冲）
+        ("1063730", "New World",                     "AA"),    # 2021（首发爆冲后崩）
+        ("588650",  "Dead Cells",                    "AA"),    # 2018
+        ("632360",  "Risk of Rain 2",                "AA"),    # 2020
+
+        # ── Indie 独立（既有常青款，也有爆冲后回落款）──
+        ("413150",  "Stardew Valley",                "Indie"), # 2016 常青
+        ("105600",  "Terraria",                      "Indie"), # 2011 常青
+        ("892970",  "Valheim",                       "Indie"), # 2021 爆冲后回落
+        ("1623730", "Palworld",                      "Indie"), # 2024 爆冲后回落
+        ("548430",  "Deep Rock Galactic",            "Indie"), # 2020
+        ("367520",  "Hollow Knight",                 "Indie"), # 2017
+        ("1145360", "Hades",                         "Indie"), # 2020
+        ("646570",  "Slay the Spire",                "Indie"), # 2019
+        ("504230",  "Celeste",                       "Indie"), # 2018
+        ("250900",  "The Binding of Isaac: Rebirth", "Indie"), # 2014
+        ("1794680", "Vampire Survivors",             "Indie"), # 2022
+        ("945360",  "Among Us",                      "Indie"), # 2018→2020 病毒式爆冲后回落
+        ("1966720", "Lethal Company",                "Indie"), # 2023 爆冲后回落 ⚠
+        ("1426210", "It Takes Two",                  "Indie"), # 2021（Hazelight，AA 可议）
+    ]
+
+    # 1) 策展集始终纳入（不依赖 game_db 是否收录该游戏）
+    selected = [{"appid": a, "name": nm, "type": t, "ccu": 0} for (a, nm, t) in MUST_INCLUDE]
+    must_ids = {a for (a, _, _) in MUST_INCLUDE}
+
+    # 2) 用分类器从全库按类型补充 top-CCU（丰富视图一的在线份额）
     from importlib.machinery import SourceFileLoader
     classify = None
     for p in [BASE_DIR / "05_preprocess.py", BASE_DIR / "scripts" / "05_preprocess.py"]:
@@ -119,42 +164,36 @@ def select_top_games(records, n_per_type=25):
                 mod = SourceFileLoader("pp", str(p)).load_module()
                 classify = mod.classify_game_type
                 break
-            except:
+            except Exception:
                 pass
 
-    # 按类型分组，取 top CCU
     by_type = {"Indie": [], "AA": [], "AAA": [], "F2P": []}
     for r in records:
         appid = str(r.get("appid", ""))
+        if not appid or appid in must_ids:
+            continue
         ccu = int(r.get("ccu") or r.get("peak_ccu") or 0)
-
-        if appid in MUST_INCLUDE:
-            gtype = MUST_INCLUDE[appid]
-        elif classify:
-            try:
-                gtype = classify(r)
-            except:
-                gtype = "Indie"
-        else:
+        if ccu <= 0:
+            continue
+        try:
+            gtype = classify(r) if classify else "Indie"
+        except Exception:
             gtype = "Indie"
-
         if gtype in by_type:
             by_type[gtype].append({"appid": appid, "name": r.get("name", ""), "ccu": ccu, "type": gtype})
 
-    selected = []
     for gtype, games in by_type.items():
         games.sort(key=lambda g: -g["ccu"])
         selected.extend(games[:n_per_type])
 
-    # Deduplicate
-    seen = set()
-    deduped = []
+    # 去重（策展集优先保留）
+    seen, deduped = set(), []
     for g in selected:
-        if g["appid"] not in seen:
+        if g["appid"] and g["appid"] not in seen:
             seen.add(g["appid"])
             deduped.append(g)
 
-    print(f"选取 {len(deduped)} 款代表性游戏:")
+    print(f"选取 {len(deduped)} 款代表性游戏（其中策展集 {len(must_ids)} 款必含）:")
     for gtype in ["AAA", "AA", "Indie", "F2P"]:
         count = sum(1 for g in deduped if g["type"] == gtype)
         print(f"  {gtype}: {count} 款")

@@ -261,6 +261,8 @@ def steamspy_to_records(games_dict):
             "negative":     int(g.get("negative", 0) or 0),
             "owners":       g.get("owners", "0 .. 0"),
             "ccu":          int(g.get("ccu", 0) or 0),
+            "avg_2weeks":   (int(g.get("average_2weeks") or 0)
+                             if g.get("average_2weeks") not in (None, "") else None),
             "tags":         tags if isinstance(tags, dict) else {},
             "genres":       genres,
             "developers":   [g["developer"]] if g.get("developer") else [],
@@ -304,6 +306,8 @@ def load_kaggle_files():
                         "owners":       (g.get("estimated_owners", "0 - 0") or "0 - 0")
                                          .replace(" - ", " .. "),
                         "ccu":          int(g.get("peak_ccu", 0) or 0),
+                        "avg_2weeks":   (int(g.get("average_2weeks") or 0)
+                                         if g.get("average_2weeks") not in (None, "") else None),
                         "tags":         tags,
                         "genres":       genres,
                         "developers":   g.get("developers", []) or [],
@@ -554,6 +558,15 @@ def api_decay_aggregate():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     return jsonify([])
+
+@app.route("/api/genre_opportunity")
+def api_genre_opportunity():
+    """品类机会地图：各 tag 的供给/需求/趋势聚合（由 07_genre_opportunity.py 预生成）"""
+    path = OUT_DIR / "genre_opportunity.json"
+    if path.exists():
+        with open(path, encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    return jsonify({"genres": []})
 
 @app.route("/api/meta")
 def api_meta():

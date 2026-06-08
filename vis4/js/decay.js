@@ -5,6 +5,7 @@ window.initDecay = function() {
   const MG={t:28,r:110,b:52,l:60};
   const NARRATIVE_TYPES = ["Indie", "AAA"];
   let showRef=true, highlighted=null, narrativeCompare=false, decayMode="individual";
+  let aggMetric="depth"; // 聚合模式子视图：depth=参与深度 / survival=存活率
   let svg,g,xSc,ySc;
   let firstDraw = true;
   let _iW = 0, _iH = 0, sweepRAF = null; // 几何缓存 + 时间游标扫描的 rAF 句柄
@@ -316,6 +317,23 @@ window.initDecay = function() {
       return;
     }
 
+    // 子视图切换：参与深度 / 存活率（仅当后端给出存活率数据时显示）
+    var survAvail = aggData.some(function(d){ return d.survival_available; });
+    if (survAvail) {
+      var bar=document.createElement("div");
+      bar.style.cssText="display:flex;gap:6px;margin:0 0 8px 4px";
+      bar.innerHTML='<button class="pill'+(aggMetric==="depth"?" active":"")+'" data-agg="depth">参与深度</button>'+
+        '<button class="pill'+(aggMetric==="survival"?" active red":"")+'" data-agg="survival">存活率</button>';
+      wrap.appendChild(bar);
+      bar.querySelectorAll("[data-agg]").forEach(function(b){
+        b.addEventListener("click",function(){ aggMetric=this.dataset.agg; draw(); });
+      });
+    } else if (aggMetric==="survival") {
+      aggMetric="depth";
+    }
+
+    if (aggMetric==="survival" && survAvail) { drawSurvival(aggData); return; }
+
     svg=d3.select(wrap).append("svg").attr("viewBox","0 0 "+W+" "+H).attr("height",H);
     g=svg.append("g").attr("transform","translate("+MGA.l+","+MGA.t+")");
 
@@ -419,8 +437,8 @@ window.initDecay = function() {
 
     // Interpretation annotation
     g.append("text").attr("x",4).attr("y",14)
-      .attr("fill","rgba(255,255,255,0.2)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
-      .text("基于 "+fmt.num(aggData.reduce(function(s,d){return s+d.total_games;},0))+" 款游戏 · 指标: "+(usePrimary==="playtime"?"中位游戏时长":"CCU/拥有者比率"));
+      .attr("fill","rgba(255,255,255,0.28)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
+      .text("总体视角 · 仅活跃游戏（已排除死游戏）· 指标: "+(usePrimary==="playtime"?"中位游戏时长":"在线比率 CCU÷拥有者")+" · "+fmt.num(aggData.reduce(function(s,d){return s+d.total_games;},0))+" 款");
 
     buildLegendAggregate(aggData, curveKey, usePrimary);
   }
@@ -430,8 +448,8 @@ window.initDecay = function() {
 
     var note=document.createElement("div");
     note.className="dl-type-header";
-    note.style.color="rgba(255,255,255,0.3)";
-    note.innerHTML='指标：'+(usePrimary==="playtime"?"中位游戏时长随游戏年龄变化":"参与度比率（CCU ÷ 拥有者）按游戏年龄变化");
+    note.style.color="rgba(255,255,255,0.4)";
+    note.innerHTML='总体视角（与上方个体视角不同量）：'+(usePrimary==="playtime"?"按发布年数分组的中位游戏时长":"按发布年数分组的在线比率（CCU÷拥有者）")+' · 仅统计仍活跃的游戏';
     leg.appendChild(note);
 
     aggData.forEach(function(d){
@@ -452,12 +470,132 @@ window.initDecay = function() {
     });
   }
 
+  // 存活率视角：把"幸存者偏差"本身画出来——各类型仍活跃游戏的占比随年龄变化
+  function drawSurvival(aggData) {
+    var wrap=document.getElementById("decay-inner");
+    var W=wrap.clientWidth, H=Math.max(280,Math.min(360,W*0.4));
+    var MGA={t:28,r:66,b:52,l:56};
+    var iW=W-MGA.l-MGA.r, iH=H-MGA.t-MGA.b;
+
+    setDecayDesc("survival");
+
+    svg=d3.select(wrap).append("svg").attr("viewBox","0 0 "+W+" "+H).attr("height",H);
+    g=svg.append("g").attr("transform","translate("+MGA.l+","+MGA.t+")");
+
+    var maxAge=Math.min(d3.max(aggData,function(d){return d.max_age||10;})||10,10);
+    var xSc=d3.scaleLinear().domain([0,maxAge]).range([0,iW]);
+    var ySc=d3.scaleLinear().domain([0,1]).range([iH,0]);
+
+    g.append("g").attr("class","grid").call(d3.axisLeft(ySc).ticks(5).tickSize(-iW).tickFormat(""));
+    g.append("g").attr("class","grid").attr("transform","translate(0,"+iH+")").call(d3.axisBottom(xSc).ticks(maxAge).tickSize(-iH).tickFormat(""));
+    g.append("g").attr("class","axis").attr("transform","translate(0,"+iH+")").call(d3.axisBottom(xSc).ticks(maxAge).tickFormat(function(d){return d===0?"发布年":d+"年";}));
+    g.append("g").attr("class","axis").call(d3.axisLeft(ySc).ticks(5).tickFormat(d3.format(".0%")));
+
+    g.append("text").attr("x",iW/2).attr("y",iH+42).attr("text-anchor","middle").attr("fill","#6060a0").attr("font-family","'Space Mono',monospace").attr("font-size",10).text("游戏年龄（发布后年数）");
+    g.append("text").attr("transform","rotate(-90)").attr("x",-iH/2).attr("y",-42).attr("text-anchor","middle").attr("fill","#6060a0").attr("font-family","'Space Mono',monospace").attr("font-size",10).text("存活率（近期仍活跃）");
+
+    var line=d3.line().x(function(_,i){return xSc(i);}).y(function(v){return ySc(v);}).defined(function(v){return v!=null;}).curve(d3.curveCatmullRom.alpha(0.5));
+
+    aggData.forEach(function(d){
+      if(!d.survival_available||!d.survival_curve) return;
+      var style=TYPE_STYLE[d.type]||{};
+      var maxIdx=Math.min(d.survival_curve.length-1,maxAge);
+      var seg=d.survival_curve.slice(0,maxIdx+1);
+      var path=g.append("path").attr("d",line(seg))
+        .attr("stroke",d.color).attr("fill","none").attr("stroke-width",(style.width||2)+0.5)
+        .attr("stroke-linecap","round").style("cursor","pointer");
+      var L=path.node().getTotalLength();
+      path.attr("stroke-dasharray",L).attr("stroke-dashoffset",L)
+        .transition().duration(1300).ease(d3.easeCubicInOut).attr("stroke-dashoffset",0)
+        .on("end",function(){ d3.select(this).attr("stroke-dasharray",style.dash||null); });
+
+      var lastVal=seg[maxIdx];
+      g.append("text").attr("x",xSc(maxIdx)+6).attr("y",ySc(lastVal)+4)
+        .attr("fill",d.color).attr("font-family","'Space Mono',monospace").attr("font-size",10).attr("font-weight","bold")
+        .text(style.label+" "+Math.round(lastVal*100)+"%");
+
+      path.on("mousemove",function(ev){
+        var mx=d3.pointer(ev)[0];
+        var age=Math.max(0,Math.min(maxIdx,Math.round(xSc.invert(mx))));
+        var val=d.survival_curve[age]||0;
+        var alive=d.survival_alive?d.survival_alive[age]:0;
+        var known=d.survival_known?d.survival_known[age]:0;
+        TIP.show('<strong>'+style.label+'（发布后'+age+'年）</strong>'+
+          '<div class="tip-row"><span class="tip-k">存活率</span><span class="tip-v" style="color:'+d.color+'">'+Math.round(val*100)+'%</span></div>'+
+          '<div class="tip-row"><span class="tip-k">近两周仍活跃</span><span class="tip-v">'+fmt.num(alive)+' / '+fmt.num(known)+' 款</span></div>'+
+          '<div style="margin-top:3px;font-size:8px;color:#6060a0">存活='+survBasis(aggData)+' · 仅统计有该数据的游戏</div>'
+        ,ev);
+      }).on("mouseleave",function(){ TIP.hide(); });
+    });
+
+    g.append("text").attr("x",4).attr("y",14)
+      .attr("fill","rgba(255,255,255,0.3)").attr("font-family","'Space Mono',monospace").attr("font-size",10)
+      .text("存活率 = 近期仍活跃的游戏占比 · 曲线越低=越多同龄游戏已无人在线");
+
+    buildLegendSurvival(aggData);
+  }
+
+  function buildLegendSurvival(aggData) {
+    var leg=document.getElementById("decay-legend"); leg.innerHTML="";
+    var note=document.createElement("div");
+    note.className="dl-type-header"; note.style.color="rgba(255,255,255,0.4)";
+    note.innerHTML='存活率视角：各类型「近期仍活跃 ÷ 有活跃数据」的游戏占比随发布年数变化 —— 直接揭示「长尾」主要是少数幸存者，而非整类游戏的普遍属性。';
+    leg.appendChild(note);
+    aggData.forEach(function(d){
+      if(!d.survival_available||!d.survival_curve) return;
+      var style=TYPE_STYLE[d.type]||{};
+      var idx=Math.min(d.survival_curve.length-1,5);
+      var v=d.survival_curve[idx];
+      var trend=v>0.5?"存活强 ↑":v>0.25?"半数已死":"大量死亡 ↓";
+      var el=document.createElement("div"); el.className="dl-item";
+      el.innerHTML='<div class="dl-swatch" style="background:'+d.color+'"></div>'+style.label+
+        ' <span style="opacity:0.5">5年后 '+Math.round(v*100)+'%</span>'+
+        ' <span style="opacity:0.35;font-size:9px;color:'+d.color+'">'+trend+'</span>';
+      leg.appendChild(el);
+    });
+  }
+
 
   // ══════════════════════════════════════════════
   //  MODE SWITCHING & CONTROLS
   // ══════════════════════════════════════════════
+  // 让标题下方的说明随模式切换——两个模式量的不是同一个东西，必须说清楚
+  function survBasis(aggData) {
+    var d = (aggData || DATA.decayAggregate || []).find(function(x){ return x && x.survival_basis; });
+    return d ? d.survival_basis : "近期仍活跃";
+  }
+
+  function setDecayDesc(mode) {
+    var el = document.getElementById("decay-desc");
+    if (!el) return;
+    if (mode === "survival") {
+      var basis = survBasis();
+      el.innerHTML =
+        '<strong style="color:var(--aaa)">存活率视角 · 把幸存者偏差摊开看。</strong>' +
+        '纵轴是各类型游戏里「'+basis+'」的<strong>占比</strong>，按发布年数变化。' +
+        '它说出了上面那条总体曲线藏起来的事：<strong style="color:var(--bright)">所谓「独立长尾」，其实是少数幸存者撑起来的——大多数同龄独立游戏早已无人在线。</strong>' +
+        '<br><span style="color:#8080b0">存活 = '+basis+'；只统计有该数据的游戏（缺数据的不计入分子分母）。</span>';
+      return;
+    }
+    if (mode === "aggregate") {
+      el.innerHTML =
+        '<strong style="color:var(--aa)">总体视角 · 换了一把尺子。</strong>' +
+        '这里<strong>不是</strong>上面那几款游戏的逐月轨迹，而是把全平台游戏按<strong>发布年数</strong>分组，' +
+        '比较每组的<strong>中位参与深度</strong>（游戏时长 / 在线比率）。' +
+        '横轴是「年」、纵轴是相对参与度——<strong style="color:var(--bright)">和个体视角的「留存% · 逐月」不是同一个量，不能直接比读数</strong>，' +
+        '两者只是从不同角度共同印证长尾。' +
+        '<br><span style="color:var(--aaa)">⚠ 仅统计「仍然活跃」的游戏；当前没人在线的「死游戏」已被排除，所以这条曲线会<strong>高估</strong>典型游戏的长尾。</span>';
+    } else {
+      el.innerHTML =
+        '<strong style="color:var(--indie)">个体视角。</strong>' +
+        '每款代表作 ÷ 它自己的<strong>首月峰值</strong>，按<strong>月</strong>看发布后在线人数掉得有多快——这是少数代表作的真实留存轨迹。' +
+        '<strong style="color:var(--text)">点击图例</strong>高亮单条曲线。';
+    }
+  }
+
   function draw() {
     cancelSweep(); // 任何重绘都先终止进行中的时间游标扫描
+    setDecayDesc(decayMode);
     if (decayMode === "aggregate") {
       drawAggregate();
     } else {

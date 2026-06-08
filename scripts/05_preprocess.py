@@ -317,6 +317,8 @@ def load_raw_data() -> pd.DataFrame:
                     "header_image": game.get("header_image", ""),
                     "median_playtime": int(game.get("median_playtime_forever", 0) or 0),
                     "avg_playtime":    int(game.get("average_playtime_forever", 0) or 0),
+                    "avg_2weeks":      (int(game.get("average_2weeks") or 0)
+                                        if game.get("average_2weeks") not in (None, "") else None),
                 })
         
         df = pd.DataFrame(records)
@@ -908,7 +910,23 @@ def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
         print("    ⚠ 无游戏时长数据")
         df = df.copy()
         df["_playtime"] = 0
-    
+
+    # 存活信号：只用"近两周活跃时长"（average_2weeks）这类真正的近期信号。
+    # 不退回 ccu：ccu>0 的占比受"发行世代构成"主导（近年小作坊游戏暴增拉低新作、
+    # 老作目录只剩幸存者拉高老作），按年龄看不降反升，画出来会得出"越老越活"的错误结论。
+    # 缺数据的游戏保持 NaN，不计入分子分母。无有效信号时 survival_available=False，前端自动隐藏。
+    rec_col, survival_basis = None, ""
+    for col in ["avg_2weeks", "average_2weeks", "players_2weeks"]:
+        if col in df.columns and pd.to_numeric(df[col], errors="coerce").fillna(0).gt(0).any():
+            rec_col, survival_basis = col, "近两周仍有游玩时长"
+            break
+    if rec_col:
+        df["_recent"] = pd.to_numeric(df[rec_col], errors="coerce")  # 缺失保持 NaN
+        print(f"    ✓ 存活率信号: {rec_col}（{int((df['_recent'] > 0).sum())} 款活跃 / {int(df['_recent'].notna().sum())} 款有该数据）")
+    else:
+        df["_recent"] = np.nan
+        print("    ⚠ 无有效近期活跃字段，存活率不可用（前端将隐藏该视图）")
+
     records = []
     
     for gtype in type_list:
@@ -921,6 +939,9 @@ def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
         playtime_curve = []
         engagement_curve = []
         sample_sizes = []
+        survival_curve = []   # alive / known，0..1
+        survival_known = []   # 有近两周数据的游戏数（分母）
+        survival_alive = []   # 近两周仍活跃的游戏数（分子）
         
         for age in range(0, max_age + 1):
             cohort = sub[sub["age"] == age]
@@ -930,6 +951,9 @@ def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
                 playtime_curve.append(playtime_curve[-1] if playtime_curve else 0)
                 engagement_curve.append(engagement_curve[-1] if engagement_curve else 0)
                 sample_sizes.append(0)
+                survival_curve.append(survival_curve[-1] if survival_curve else 0)
+                survival_known.append(0)
+                survival_alive.append(0)
                 continue
             
             # 中位游戏时长 — 只看有玩家的游戏（playtime > 0）
@@ -949,6 +973,14 @@ def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
                 eng = 0
             engagement_curve.append(round(eng, 4))
             sample_sizes.append(n)
+
+            # 存活率 = 近两周仍活跃的游戏 ÷ 有近两周数据的游戏（缺数据的游戏不进分母）
+            rec = cohort["_recent"]
+            known_n = int(rec.notna().sum())
+            alive_n = int((rec > 0).sum())
+            survival_known.append(known_n)
+            survival_alive.append(alive_n)
+            survival_curve.append(round(alive_n / known_n, 4) if known_n >= 3 else (survival_curve[-1] if survival_curve else 0))
         
         if len(playtime_curve) < 3:
             continue
@@ -975,6 +1007,11 @@ def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
             "engagement_normalized": eng_normalized,
             "engagement_absolute": engagement_curve,
             "sample_sizes": sample_sizes,
+            "survival_curve": survival_curve,
+            "survival_known": survival_known,
+            "survival_alive": survival_alive,
+            "survival_available": bool(any(k >= 3 for k in survival_known) and any(a > 0 for a in survival_alive)),
+            "survival_basis": survival_basis,
             "max_age": len(playtime_curve),
             "has_playtime": bool(use_playtime),
         })

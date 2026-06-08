@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Steam 二十年 · 独立游戏崛起史</title>
+<script>
+  // 始终从 Hero 开场：关闭浏览器的滚动位置自动恢复。
+  // 否则刷新/重启 server 后，浏览器会先把滚动恢复到上次位置，而此时
+  // 图表尚未异步渲染、页面还很短，结果落点漂移到中部（方法论视图）附近。
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.addEventListener('load', function () { window.scrollTo(0, 0); });
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -33,8 +40,8 @@
     </div>
     <div class="stat-cell">
       <div class="stat-num" style="color:var(--text)" data-target="1.32亿">—</div>
-      <div class="stat-label">STEAM 月活用户（2024）</div>
-      <div class="stat-trend">2024 峰值同时在线 3700万</div>
+      <div class="stat-label">STEAM 月活用户 MAU（2024）· Valve 公布</div>
+      <div class="stat-trend">2024 峰值同时在线约 3700万 · SteamDB</div>
     </div>
   </div>
   <div class="refresh-wrap">
@@ -58,7 +65,7 @@
   <div class="legend-item"><div class="legend-swatch" style="background:var(--aa)"></div>AA 中型厂商</div>
   <div class="legend-item"><div class="legend-swatch" style="background:var(--aaa)"></div>AAA 3A大作</div>
   <div class="legend-item"><div class="legend-swatch" style="background:var(--f2p)"></div>F2P 免费游玩</div>
-  <div class="legend-source">DATA: STEAMSPY API · STEAM STORE API · VG INSIGHTS 2024 · <span id="last-update">加载中...</span></div>
+  <div class="legend-source">DATA: KAGGLE · STEAMSPY · STEAM STORE API · STEAMCHARTS · VG INSIGHTS 2024 · <span id="last-update">加载中...</span></div>
 </div>
 
 <!-- ═══ MAIN ═══ -->
@@ -171,7 +178,7 @@
       <div class="section-meta">
         <div class="section-tag">Player Retention · 0–24 Months</div>
         <div class="section-title">首周断崖 vs 长尾缓降</div>
-        <div class="section-desc">发布后各月归一化在线人数（% of 首月峰值） · <strong style="color:var(--text)">点击图例</strong>高亮单条曲线</div>
+        <div class="section-desc" id="decay-desc">发布后各月归一化在线人数（% of 首月峰值） · <strong style="color:var(--text)">点击图例</strong>高亮单条曲线</div>
       </div>
       <div class="section-controls">
         <button class="pill active" data-dm="individual">单款游戏</button>
@@ -189,7 +196,7 @@
       <!-- Data provenance badge -->
       <div class="data-badge" id="decay-badge">
         <span class="badge-icon">ℹ</span>
-        <span class="badge-text">曲线基于行业研究参数（Game Analytics / Konvoy）参数化建模，衰减系数与真实公开数据趋势一致，非逐月实测值</span>
+        <span class="badge-text">当前为内嵌示例数据 · 衰减曲线为参数化近似（系数对齐行业公开研究）· 运行 <code>python server.py</code> 加载 SteamCharts 逐月实测数据</span>
       </div>
     </div>
     <div class="insight">
@@ -249,11 +256,46 @@
     </div>
   </section>
 
+  <!-- VIEW 6: GENRE OPPORTUNITY -->
+  <section class="section" id="sec-genre">
+    <div class="section-header">
+      <div class="section-num">06 — OPPORTUNITY</div>
+      <div class="section-meta">
+        <div class="section-tag">Genre Opportunity · 蓝海 vs 红海</div>
+        <div class="section-title">该做一款什么游戏</div>
+        <div class="section-desc">把结论交到开发者手里：按玩法品类铺开 <strong style="color:var(--indie)">供给（竞争）</strong> × <strong style="color:var(--text)">需求（中位拥有量）</strong> · 左上=蓝海机会 · <strong style="color:var(--text)">选你的工作室规模</strong>，地图重算成你这个段位的真实结局</div>
+      </div>
+      <div class="section-controls">
+        <button class="pill active" data-gs="All">全部规模</button>
+        <button class="pill" data-gs="Indie">独立</button>
+        <button class="pill" data-gs="AA">AA</button>
+        <button class="pill" data-gs="AAA">AAA</button>
+        <button class="pill" data-gs="F2P">F2P</button>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-inner" id="genre-inner">
+        <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
+      </div>
+      <div class="decay-legend" id="genre-legend"></div>
+    </div>
+    <div class="insight">
+      <div class="insight-icon">//</div>
+      <div class="insight-text">
+        前五个视图回答了"过去发生了什么"，这一张回答从业者真正要决策的"<strong>那我该做什么</strong>"。每个气泡是一个玩法品类：横轴是<em>供给</em>（在售数量＝竞争激烈度），纵轴是<em>需求</em>（中位拥有量＝典型结局，而非被爆款拉高的均值）。
+        <strong>左上角</strong>——需求高、对手还少——就是最值得切入的蓝海；<strong>右下角</strong>人挤人、回报低，慎入。气泡大小是市场总盘子，颜色越暖代表近年越多人涌入（升温）。
+        <br><br>
+        <strong>"适合自己工作室"</strong>：切换上方规模筛选，地图会只用<em>该段位</em>的游戏重算——独立团队看独立游戏的真实结局，而不是被大厂数据带偏。
+        <strong>诚实提示：</strong>中位拥有量是"典型结局"而非保证，命中率（≥100万占比）会告诉你突围的概率有多低；趋势用发行量动量（近三年 vs 前三年）避开了拥有量随时间累积的偏差。
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="footer">
   <span>STEAM 二十年 · 独立游戏崛起史 · 数据可视化大实验</span>
-  <span>DATA: STEAMSPY · STEAM STORE API · VG INSIGHTS 2024 · D3.JS v7</span>
+  <span>DATA: KAGGLE · STEAMSPY · STEAM STORE API · STEAMCHARTS · VG INSIGHTS 2024 · D3.JS v7</span>
 </footer>
 
 <div class="tip" id="tip"></div>
@@ -269,6 +311,7 @@
 <script src="js/narrative.js"></script>
 <script src="js/link-hints.js"></script>
 <script src="js/tour.js"></script>
+<script src="js/genre.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

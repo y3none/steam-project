@@ -89,6 +89,7 @@ window.addEventListener("resize", () => {
     window._streamRedraw?.();
     window._scatterRedraw?.();
     window._decayRedraw?.();
+    window._genreRedraw?.();
   }, 220);
 });
 
@@ -336,6 +337,7 @@ function updateInsights() {
   initDecay();
   initMethod();
   initSynthesis();
+  initGenre();
   initTour();
 
   // Inject data-driven insights
