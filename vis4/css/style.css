@@ -106,9 +106,15 @@ body::before {
   font-size: clamp(16px, 2vw, 22px);
   color: var(--muted);
   font-weight: 300;
-  margin-bottom: 40px;
   letter-spacing: 0.5px;
 }
+.hero-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+.hero-sub-row .hero-sub { margin-bottom: 0; }
 
 /* ── STATS RIBBON ── */
 .stats-ribbon {
@@ -567,6 +573,40 @@ svg { width: 100%; display: block; overflow: visible; }
   background: var(--panel2);
   overflow-x: auto;
 }
+/* Grouped legend: 2-column grid */
+.dl-group-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  width: 100%;
+}
+.dl-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dl-group.active .dl-group-label {
+  text-shadow: 0 0 12px currentColor;
+}
+.dl-group-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dl-group-inner {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  background: rgba(255,255,255,0.02);
+}
 .dl-type-header {
   flex-basis: 100%;
   font-family: var(--mono);
@@ -743,18 +783,18 @@ svg { width: 100%; display: block; overflow: visible; }
 .section.visible { opacity: 1; transform: none; }
 
 /* ── NARRATIVE: god quadrant highlight (scatter SVG) ── */
-.god-quadrant {
-  fill: rgba(29, 233, 182, 0.08);
-  stroke: var(--indie);
-  stroke-width: 1.5;
-  stroke-dasharray: 6, 4;
-  animation: god-quadrant-pulse 2.5s ease-in-out infinite;
+.god-quadrant-bg { pointer-events: none; }
+.god-threshold-line {
+  animation: line-pulse 2.5s ease-in-out infinite;
 }
-@keyframes god-quadrant-pulse {
-  0%, 100% { stroke-opacity: 0.35; }
-  50% { stroke-opacity: 1; }
+.genre-ref-line {
+  animation: line-pulse 2.5s ease-in-out infinite;
 }
-.god-quadrant-label { opacity: 0.85; }
+@keyframes line-pulse {
+  0%, 100% { stroke-opacity: 0.45; }
+  50% { stroke-opacity: 0.85; }
+}
+.god-quadrant-label-group { opacity: 0.95; }
 
 .insight-text.narrative-reveal {
   transition: opacity 0.8s ease, transform 0.8s ease;
@@ -920,39 +960,53 @@ svg { width: 100%; display: block; overflow: visible; }
 .refresh-wrap {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 10px;
-  margin-top: 18px;
+  flex-shrink: 0;
 }
 .refresh-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--muted);
   font-family: "Space Mono", monospace;
   font-size: 11px;
   letter-spacing: 0.05em;
-  padding: 6px 16px;
+  padding: 5px 14px 5px 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: border-color 0.2s, color 0.2s;
+  gap: 5px;
+  white-space: nowrap;
+  transition: all 0.25s;
 }
-.refresh-btn:hover { border-color: var(--indie); color: var(--indie); }
+.refresh-btn:hover {
+  border-color: var(--indie);
+  color: var(--indie);
+  background: rgba(29,233,182,0.08);
+}
+.refresh-btn:active { transform: scale(0.97); }
 .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.refresh-icon {
-  display: inline-block;
-  font-size: 14px;
+.refresh-btn .refresh-icon {
+  display: flex;
+  align-items: center;
   transition: transform 0.3s;
 }
+.refresh-btn .refresh-icon svg { display: block; }
 .refresh-btn.loading .refresh-icon {
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
+}
+.refresh-btn.loading .refresh-text { display: none; }
+.refresh-btn.loading::after {
+  content: '刷新中…';
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .refresh-status {
   font-size: 10px;
   color: #888;
   font-family: "Space Mono", monospace;
+  white-space: nowrap;
+  min-height: 1em;
 }
 /* ═══════════════════════════════════════════════════════
    VIEW 5 · SYNTHESIS（结论视图）

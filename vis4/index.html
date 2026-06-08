@@ -21,7 +21,16 @@
 <section class="hero">
   <div class="hero-eyebrow">DATA VISUALIZATION · TSINGHUA UNIVERSITY</div>
   <h1 class="hero-title">STEAM <span class="year">二十年</span></h1>
-  <p class="hero-sub">独立游戏如何从零崛起，重塑全球最大 PC 游戏生态 · 2004–2024</p>
+  <div class="hero-sub-row">
+    <p class="hero-sub">独立游戏如何从零崛起，重塑全球最大 PC 游戏生态 · 2004–2024</p>
+    <div class="refresh-wrap">
+      <button class="refresh-btn" id="refresh-btn" title="快速刷新 CCU 在线数据">
+        <svg class="refresh-icon" id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <span class="refresh-text" id="refresh-text">刷新数据</span>
+      </button>
+      <span class="refresh-status" id="refresh-status"></span>
+    </div>
+  </div>
   <div class="stats-ribbon" id="stats-ribbon">
     <div class="stat-cell">
       <div class="stat-num c-indie" data-target="50,000+">—</div>
@@ -43,13 +52,6 @@
       <div class="stat-label">STEAM 月活用户 MAU（2024）· Valve 公布</div>
       <div class="stat-trend">2024 峰值同时在线约 3700万 · SteamDB</div>
     </div>
-  </div>
-  <div class="refresh-wrap">
-    <button class="refresh-btn" id="refresh-btn" title="从 SteamSpy 获取最新 CCU 数据">
-      <span class="refresh-icon" id="refresh-icon">↻</span>
-      <span class="refresh-text" id="refresh-text">刷新数据</span>
-    </button>
-    <span class="refresh-status" id="refresh-status"></span>
   </div>
 </section>
 
@@ -263,7 +265,7 @@
       <div class="section-meta">
         <div class="section-tag">Genre Opportunity · 蓝海 vs 红海</div>
         <div class="section-title">该做一款什么游戏</div>
-        <div class="section-desc">把结论交到开发者手里：按玩法品类铺开 <strong style="color:var(--indie)">供给（竞争）</strong> × <strong style="color:var(--text)">需求（中位拥有量）</strong> · 左上=蓝海机会 · <strong style="color:var(--text)">选你的工作室规模</strong>，地图重算成你这个段位的真实结局</div>
+        <div class="section-desc">把结论交到开发者手里：按玩法品类铺开 <strong style="color:var(--indie)">供给（竞争）</strong> × <strong style="color:var(--text)">需求（均拥有量）</strong> · 左上=蓝海机会 · <strong style="color:var(--text)">选你的工作室规模</strong>，地图重算成你这个段位的真实结局</div>
       </div>
       <div class="section-controls">
         <button class="pill active" data-gs="All">全部规模</button>
@@ -281,12 +283,12 @@
     </div>
     <div class="insight">
       <div class="insight-icon">//</div>
-      <div class="insight-text">
-        前五个视图回答了"过去发生了什么"，这一张回答从业者真正要决策的"<strong>那我该做什么</strong>"。每个气泡是一个玩法品类：横轴是<em>供给</em>（在售数量＝竞争激烈度），纵轴是<em>需求</em>（中位拥有量＝典型结局，而非被爆款拉高的均值）。
+      <div class="insight-text" id="insight-genre">
+        前五个视图回答了"过去发生了什么"，这一张回答从业者真正要决策的"<strong>那我该做什么</strong>"。每个气泡是一个玩法品类：横轴是<em>供给</em>（在售数量＝竞争激烈度），纵轴是<em>需求</em>（均拥有量＝该品类的市场回报水平）。
         <strong>左上角</strong>——需求高、对手还少——就是最值得切入的蓝海；<strong>右下角</strong>人挤人、回报低，慎入。气泡大小是市场总盘子，颜色越暖代表近年越多人涌入（升温）。
         <br><br>
         <strong>"适合自己工作室"</strong>：切换上方规模筛选，地图会只用<em>该段位</em>的游戏重算——独立团队看独立游戏的真实结局，而不是被大厂数据带偏。
-        <strong>诚实提示：</strong>中位拥有量是"典型结局"而非保证，命中率（≥100万占比）会告诉你突围的概率有多低；趋势用发行量动量（近三年 vs 前三年）避开了拥有量随时间累积的偏差。
+        <strong>诚实提示：</strong>均拥有量反映该品类整体市场回报，但受爆款影响；中位拥有量是"典型结局"而非保证，可在气泡详情中对比参考。命中率（≥100万占比）会告诉你突围的概率有多低；趋势用发行量动量（近三年 vs 前三年）避开了拥有量随时间累积的偏差。
       </div>
     </div>
   </section>

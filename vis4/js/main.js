@@ -67,6 +67,7 @@ const typewriterTargets = [
   "insight-stream",
   "insight-scatter",
   "insight-decay",
+  "insight-genre",
 ];
 const typeIO = new IntersectionObserver(entries => {
   entries.forEach(e => {

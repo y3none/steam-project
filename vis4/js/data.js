@@ -327,32 +327,23 @@ window.backgroundRefresh = function() {
     });
 };
 
-// ── 按钮触发的快速刷新 ──────────────────────────────
+// ── 按钮触发的快速刷新（仅 CCU，上限 200 条） ──────────
 window.refreshData = async function() {
   var btn = document.getElementById("refresh-btn");
   var status = document.getElementById("refresh-status");
   btn.classList.add("loading");
   btn.disabled = true;
-  status.textContent = "正在获取最新数据...";
+  status.textContent = "正在获取最新CCU数据...";
 
+  var updated = false;
+
+  // 优先走后端 API
   try {
-    // 优先走后端 API
     var resp = await fetch(API_BASE + '/refresh');
     if (resp.ok) {
       var all = await resp.json();
-      // 热更新（复用 backgroundRefresh 的逻辑）
-      if (all.market) {
-        DATA.market = all.market.map(function(d) {
-          return Object.assign({}, d, {
-            n: d.n != null ? d.n : (d.total_releases || 0),
-            ni: d.ni != null ? d.ni : (d.n_indie || 0),
-            na: d.na != null ? d.na : (d.n_aa || 0),
-            nb: d.nb != null ? d.nb : (d.n_aaa || 0),
-            nf: d.nf != null ? d.nf : (d.n_f2p || 0),
-            ev: d.ev != null ? d.ev : (d.event || null),
-          });
-        });
-      }
+
+      // 仅更新 bubbles 中的 CCU（不重载全量数据）
       if (all.bubbles) {
         DATA.bubbles = all.bubbles.map(function(d) {
           return {
@@ -369,52 +360,68 @@ window.refreshData = async function() {
           };
         });
       }
-      if (all.meta) DATA.meta = all.meta;
+      if (all.meta) {
+        DATA.meta = all.meta;
+        showUpdateTime(all.meta.generated_at);
+      }
 
-      showUpdateTime(new Date().toISOString());
-      if (window._streamRedraw)  window._streamRedraw();
+      // 重绘散点图（CCU 影响气泡位置）
       if (window._scatterRedraw) window._scatterRedraw();
 
-      var total = all.total_in_db || DATA.bubbles.length;
-      status.textContent = "已更新 " + total + " 款游戏数据";
-      return;
+      // 构建更新摘要
+      var lc = all.live_changes || {};
+      var total = lc.total_updated || 0;
+      var parts = ["已更新 " + total + " 款CCU"];
+      if (lc.ccu_rising && lc.ccu_rising.length > 0) {
+        var top = lc.ccu_rising[0];
+        parts.push(top.name + " ↑" + fmt.num(top.ccu_diff));
+      }
+      if (lc.ccu_falling && lc.ccu_falling.length > 0) {
+        var bot = lc.ccu_falling[0];
+        parts.push(bot.name + " ↓" + fmt.num(Math.abs(bot.ccu_diff)));
+      }
+      status.textContent = parts.join(" · ");
+      updated = true;
     }
   } catch(e) {
     console.log("[refresh] API 不可用: " + e.message);
   }
 
-  // 回退：重载静态 JSON
-  try {
-    var results = await Promise.all([
-      loadJSON('../data/processed/market_share.json'),
-      loadJSON('../data/processed/bubbles.json'),
-      loadJSON('../data/processed/decay.json'),
-      loadJSON('../data/processed/meta.json'),
-    ]);
-    if (results[1]) {
-      DATA.bubbles = results[1].map(function(d) {
-        return {
-          name: d.name, type: d.type,
-          pr: d.pos_rate != null ? d.pos_rate : d.pr,
-          ccu: d.peak_ccu != null ? d.peak_ccu : d.ccu,
-          own: d.owners_m != null ? d.owners_m : d.own,
-          yr: d.year != null ? d.year : d.yr,
-          price: d.price != null ? d.price : 0,
-          rc: d.review_count != null ? d.review_count : (d.rc || 0),
-          dev: d.developers || d.dev || [],
-          tags: d.top_tags || d.tags || [],
-          header_image: d.header_image || null,
-        };
-      });
+  // 回退：重载静态 JSON（仅 bubbles）
+  if (!updated) {
+    try {
+      var bubbleData = await loadJSON('../data/processed/bubbles.json');
+      if (bubbleData) {
+        DATA.bubbles = bubbleData.map(function(d) {
+          return {
+            name: d.name, type: d.type,
+            pr: d.pos_rate != null ? d.pos_rate : d.pr,
+            ccu: d.peak_ccu != null ? d.peak_ccu : d.ccu,
+            own: d.owners_m != null ? d.owners_m : d.own,
+            yr: d.year != null ? d.year : d.yr,
+            price: d.price != null ? d.price : 0,
+            rc: d.review_count != null ? d.review_count : (d.rc || 0),
+            dev: d.developers || d.dev || [],
+            tags: d.top_tags || d.tags || [],
+            header_image: d.header_image || null,
+          };
+        });
+        if (window._scatterRedraw) window._scatterRedraw();
+        status.textContent = "已从本地文件刷新";
+      } else {
+        status.textContent = "暂无可更新数据";
+      }
+    } catch(e2) {
+      status.textContent = "刷新失败";
     }
-    if (results[3]) {
-      DATA.meta = results[3];
-      showUpdateTime(results[3].generated_at);
-    }
-    if (window._streamRedraw)  window._streamRedraw();
-    if (window._scatterRedraw) window._scatterRedraw();
-    status.textContent = "已从本地文件刷新";
-  } catch(e2) {
-    status.textContent = "刷新失败";
   }
+
+  // 按钮回归默认状态
+  btn.classList.remove("loading");
+  btn.disabled = false;
+
+  // 状态文本 8 秒后自动清除
+  setTimeout(function() {
+    if (status.textContent) status.textContent = "";
+  }, 8000);
 };
