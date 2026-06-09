@@ -858,6 +858,26 @@ svg { width: 100%; display: block; overflow: visible; }
 }
 .god-quadrant-label-group { opacity: 0.95; }
 
+/* ── NARRATIVE: genre blue-ocean highlight (genre SVG) ── */
+.genre-blue-quadrant {
+  fill: rgba(29, 233, 182, 0.1);
+  stroke: var(--indie);
+  stroke-width: 1.5;
+  stroke-dasharray: 6, 4;
+  animation: god-quadrant-pulse 2.5s ease-in-out infinite;
+}
+.gbub-blue .gbub-main {
+  stroke: #1de9b6 !important;
+}
+.genre-blue-pulse {
+  stroke: var(--indie);
+  animation: genre-blue-bubble-pulse 2s ease-in-out infinite;
+}
+@keyframes genre-blue-bubble-pulse {
+  0%, 100% { stroke-opacity: 0.25; opacity: 0.4; }
+  50% { stroke-opacity: 0.9; opacity: 0.85; }
+}
+
 .insight-text.narrative-reveal {
   transition: opacity 0.8s ease, transform 0.8s ease;
 }
@@ -1350,6 +1370,8 @@ body.tour-active #tour-launch { display: none; }
     scroll-behavior: auto !important;
   }
   .chart-box.link-pulse { animation: none; box-shadow: inset 0 0 0 2px rgba(29,233,182,0.6); }
+  .genre-blue-quadrant { animation: none; stroke-opacity: 0.85; }
+  .genre-blue-pulse { animation: none; stroke-opacity: 0.5; opacity: 0.6; }
 }
 
 /* ── 结论视图入场动画（默认完全可见；加 .syn-played 时错峰浮现，可重复触发） ── */
