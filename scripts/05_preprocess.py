@@ -576,6 +576,44 @@ def process_market_share(df: pd.DataFrame) -> list[dict]:
     
     pivot["total"] = pivot[["Indie","AA","AAA","F2P"]].sum(axis=1)
     ccu_pivot["total"] = ccu_pivot[["Indie","AA","AAA","F2P"]].sum(axis=1)
+
+    # ── 正交分维聚合（与散点/方法论一致）：制作规模 tier ⊥ 商业模式 monetization ──
+    #   tier: Indie/AA/AAA（F2P 已按真实规模并入对应档，不再单列）
+    #   mon : Premium/F2P/Hybrid
+    #   【诚实边界】Hybrid 依赖 categories 的 "In-App Purchases" 信号，仅 Store 富集子集可得，
+    #   故 Hybrid 占比为下界、Premium 为上界——前端商业模式视图需注明，方法论已说明。
+    has_tier = "tier" in df.columns and df["tier"].notna().any()
+    has_mon  = "monetization" in df.columns and df["monetization"].notna().any()
+
+    def _pivot_by(col, agg):
+        if agg == "ccu":
+            p = df.groupby(["year", col])["ccu"].sum().reset_index(name="v")
+        else:
+            p = df.groupby(["year", col]).size().reset_index(name="v")
+        return p.pivot(index="year", columns=col, values="v").fillna(0)
+
+    tier_cnt = _pivot_by("tier", "cnt") if has_tier else None
+    tier_ccu = _pivot_by("tier", "ccu") if has_tier else None
+    mon_cnt  = _pivot_by("monetization", "cnt") if has_mon else None
+    mon_ccu  = _pivot_by("monetization", "ccu") if has_mon else None
+    for p in (tier_cnt, tier_ccu):
+        if p is not None:
+            for c in ["Indie", "AA", "AAA"]:
+                if c not in p.columns: p[c] = 0
+    for p in (mon_cnt, mon_ccu):
+        if p is not None:
+            for c in ["Premium", "F2P", "Hybrid"]:
+                if c not in p.columns: p[c] = 0
+
+    def _shares(p, year, cols):
+        """返回该年各列的占比(%)与绝对计数；总和为 0 时返回 None。"""
+        if p is None or year not in p.index:
+            return None
+        vals = [float(p.loc[year, c]) for c in cols]
+        tot = sum(vals)
+        if tot <= 0:
+            return None
+        return [round(v / tot * 100, 1) for v in vals], [int(round(v)) for v in vals]
     
     records = []
     for year in pivot.index:
@@ -610,6 +648,24 @@ def process_market_share(df: pd.DataFrame) -> list[dict]:
             "event": _get_event(int(year)),
             "ev": _get_event(int(year)),
         })
+
+        rec = records[-1]
+        # ── 制作规模维度（F2P 已并入真实规模档）──
+        ts = _shares(tier_cnt, year, ["Indie", "AA", "AAA"])
+        if ts:
+            (rec["ti"], rec["ta"], rec["tb"]) = ts[0]
+            (rec["nti"], rec["nta"], rec["ntb"]) = ts[1]
+        tc = _shares(tier_ccu, year, ["Indie", "AA", "AAA"])
+        if tc:
+            (rec["cti"], rec["cta"], rec["ctb"]) = tc[0]
+        # ── 商业模式维度 ──
+        ms = _shares(mon_cnt, year, ["Premium", "F2P", "Hybrid"])
+        if ms:
+            (rec["mp"], rec["mf"], rec["mh"]) = ms[0]
+            (rec["nmp"], rec["nmf"], rec["nmh"]) = ms[1]
+        mc = _shares(mon_ccu, year, ["Premium", "F2P", "Hybrid"])
+        if mc:
+            (rec["cmp"], rec["cmf"], rec["cmh"]) = mc[0]
     
     records.sort(key=lambda x: x["year"])
 
@@ -871,6 +927,11 @@ def process_decay(df_reviewed: pd.DataFrame) -> list[dict]:
             records.append({
                 "name":         game["name"],
                 "type":         game["type"],
+                # 正交分类：tier(规模 Indie/AA/AAA) ⊥ monetization(F2P/Premium/Hybrid)
+                #   未显式提供时按既有 type 兜底：F2P → tier 缺省 AAA + mon F2P；
+                #   其它视为 tier=type + mon=Premium。前端单款图据此按维度切分。
+                "tier":         game.get("tier") or (game["type"] if game["type"] != "F2P" else "AAA"),
+                "monetization": game.get("monetization") or ("F2P" if game["type"] == "F2P" else "Premium"),
                 "release_year": game.get("release_year"),
                 "peak_ccu":     peak,
                 "normalized":   normalized,  # 25个值，月0到月24
@@ -1019,104 +1080,118 @@ def process_decay_aggregate(df: pd.DataFrame) -> list[dict]:
         print("    ⚠ 无有效近期活跃字段，存活率不可用（前端将隐藏该视图）")
 
     records = []
-    
-    for gtype in type_list:
-        sub = df[(df["game_type"] == gtype) & (df["year"] > 0)].copy()
-        if len(sub) < 10:
-            continue
-        
-        sub["age"] = current_year - sub["year"]
-        
-        playtime_curve = []
-        engagement_curve = []
-        sample_sizes = []
-        survival_curve = []   # alive / known，0..1
-        survival_known = []   # 有近两周数据的游戏数（分母）
-        survival_alive = []   # 近两周仍活跃的游戏数（分子）
-        
-        for age in range(0, max_age + 1):
-            cohort = sub[sub["age"] == age]
-            n = len(cohort)
-            
-            if n < 3:
-                playtime_curve.append(playtime_curve[-1] if playtime_curve else 0)
-                engagement_curve.append(engagement_curve[-1] if engagement_curve else 0)
-                sample_sizes.append(0)
-                survival_curve.append(survival_curve[-1] if survival_curve else 0)
-                survival_known.append(0)
-                survival_alive.append(0)
-                continue
-            
-            # 中位游戏时长 — 只看有玩家的游戏（playtime > 0）
-            played = cohort[cohort["_playtime"] > 0]
-            if len(played) > 0:
-                med_pt = float(played["_playtime"].median())
-            else:
-                med_pt = 0
-            playtime_curve.append(round(med_pt, 1))
-            
-            # 参与度比率
-            active = cohort[(cohort["owners_m"] > 0) & (cohort["ccu"] > 0)]
-            if len(active) > 0:
-                ratios = active["ccu"] / (active["owners_m"] * 1e6) * 100
-                eng = float(ratios.median())
-            else:
-                eng = 0
-            engagement_curve.append(round(eng, 4))
-            sample_sizes.append(n)
 
-            # 存活率 = 近两周仍活跃的游戏 ÷ 有近两周数据的游戏（缺数据的游戏不进分母）
-            rec = cohort["_recent"]
-            known_n = int(rec.notna().sum())
-            alive_n = int((rec > 0).sum())
-            survival_known.append(known_n)
-            survival_alive.append(alive_n)
-            survival_curve.append(round(alive_n / known_n, 4) if known_n >= 3 else (survival_curve[-1] if survival_curve else 0))
-        
-        if len(playtime_curve) < 3:
+    # ── 三个分组轴：legacy（旧的 4 类混合轴，向后兼容）+ scale（制作规模，3 类）
+    #             + model（商业模式，3 类）。前端按 dim 字段筛选。──
+    AXES = [
+        ("legacy", "game_type",    ["Indie", "AA", "AAA", "F2P"]),
+        ("scale",  "tier",         ["Indie", "AA", "AAA"]),
+        ("model",  "monetization", ["F2P", "Premium", "Hybrid"]),
+    ]
+    MODEL_COLORS = {"F2P": "#69f0ae", "Premium": "#ffd54f", "Hybrid": "#b56bff"}
+
+    for dim_name, col, groups in AXES:
+        if col not in df.columns:
             continue
-        
-        # 归一化
-        pt_base = playtime_curve[0] if playtime_curve[0] > 0 else max(max(playtime_curve), 1)
-        pt_normalized = [round(v / pt_base, 4) if pt_base > 0 else 0 for v in playtime_curve]
-        
-        eng_base = engagement_curve[0] if engagement_curve[0] > 0 else max(max(engagement_curve), 0.001)
-        eng_normalized = [round(v / eng_base, 4) if eng_base > 0 else 0 for v in engagement_curve]
-        
-        # 选择主曲线：有 playtime 数据用 playtime，否则用 engagement
-        use_playtime = playtime_curve[0] > 0
-        
-        total_games = len(sub)
-        
-        records.append({
-            "type": gtype,
-            "color": type_colors.get(gtype, "#888"),
-            "total_games": total_games,
-            "primary": "playtime" if use_playtime else "engagement",
-            "playtime_normalized": pt_normalized,
-            "playtime_absolute": playtime_curve,
-            "engagement_normalized": eng_normalized,
-            "engagement_absolute": engagement_curve,
-            "sample_sizes": sample_sizes,
-            "survival_curve": survival_curve,
-            "survival_known": survival_known,
-            "survival_alive": survival_alive,
-            "survival_available": bool(any(k >= 3 for k in survival_known) and any(a > 0 for a in survival_alive)),
-            "survival_basis": survival_basis,
-            "max_age": len(playtime_curve),
-            "has_playtime": bool(use_playtime),
-        })
-        
-        if use_playtime and len(playtime_curve) > 5:
-            pt0 = playtime_curve[0]
-            pt5 = playtime_curve[5]
-            pt0_str = f"{pt0/60:.0f}h" if pt0 >= 60 else f"{pt0:.0f}min"
-            pt5_str = f"{pt5/60:.0f}h" if pt5 >= 60 else f"{pt5:.0f}min"
-            print(f"    {gtype}: {total_games} 款, 新游戏中位时长 {pt0_str}, 5年老游戏 {pt5_str} ({pt_normalized[5]:.0%})")
-        elif len(engagement_curve) > 5:
-            print(f"    {gtype}: {total_games} 款, 5年参与度保留 {eng_normalized[5]:.0%}")
-    
-    print(f"  生成 {len(records)} 条类型聚合留存曲线")
+        for gtype in groups:
+            sub = df[(df[col] == gtype) & (df["year"] > 0)].copy()
+            if len(sub) < 10:
+                continue
+
+            sub["age"] = current_year - sub["year"]
+
+            playtime_curve = []
+            engagement_curve = []
+            sample_sizes = []
+            survival_curve = []   # alive / known，0..1
+            survival_known = []   # 有近两周数据的游戏数（分母）
+            survival_alive = []   # 近两周仍活跃的游戏数（分子）
+
+            for age in range(0, max_age + 1):
+                cohort = sub[sub["age"] == age]
+                n = len(cohort)
+
+                if n < 3:
+                    playtime_curve.append(playtime_curve[-1] if playtime_curve else 0)
+                    engagement_curve.append(engagement_curve[-1] if engagement_curve else 0)
+                    sample_sizes.append(0)
+                    survival_curve.append(survival_curve[-1] if survival_curve else 0)
+                    survival_known.append(0)
+                    survival_alive.append(0)
+                    continue
+
+                # 中位游戏时长 — 只看有玩家的游戏（playtime > 0）
+                played = cohort[cohort["_playtime"] > 0]
+                if len(played) > 0:
+                    med_pt = float(played["_playtime"].median())
+                else:
+                    med_pt = 0
+                playtime_curve.append(round(med_pt, 1))
+
+                # 参与度比率
+                active = cohort[(cohort["owners_m"] > 0) & (cohort["ccu"] > 0)]
+                if len(active) > 0:
+                    ratios = active["ccu"] / (active["owners_m"] * 1e6) * 100
+                    eng = float(ratios.median())
+                else:
+                    eng = 0
+                engagement_curve.append(round(eng, 4))
+                sample_sizes.append(n)
+
+                # 存活率 = 近两周仍活跃的游戏 ÷ 有近两周数据的游戏（缺数据的游戏不进分母）
+                rec = cohort["_recent"]
+                known_n = int(rec.notna().sum())
+                alive_n = int((rec > 0).sum())
+                survival_known.append(known_n)
+                survival_alive.append(alive_n)
+                survival_curve.append(round(alive_n / known_n, 4) if known_n >= 3 else (survival_curve[-1] if survival_curve else 0))
+
+            if len(playtime_curve) < 3:
+                continue
+
+            # 归一化
+            pt_base = playtime_curve[0] if playtime_curve[0] > 0 else max(max(playtime_curve), 1)
+            pt_normalized = [round(v / pt_base, 4) if pt_base > 0 else 0 for v in playtime_curve]
+
+            eng_base = engagement_curve[0] if engagement_curve[0] > 0 else max(max(engagement_curve), 0.001)
+            eng_normalized = [round(v / eng_base, 4) if eng_base > 0 else 0 for v in engagement_curve]
+
+            # 选择主曲线：有 playtime 数据用 playtime，否则用 engagement
+            use_playtime = playtime_curve[0] > 0
+
+            total_games = len(sub)
+            color = type_colors.get(gtype) or MODEL_COLORS.get(gtype, "#888")
+
+            records.append({
+                "dim": dim_name,
+                "type": gtype,
+                "color": color,
+                "total_games": total_games,
+                "primary": "playtime" if use_playtime else "engagement",
+                "playtime_normalized": pt_normalized,
+                "playtime_absolute": playtime_curve,
+                "engagement_normalized": eng_normalized,
+                "engagement_absolute": engagement_curve,
+                "sample_sizes": sample_sizes,
+                "survival_curve": survival_curve,
+                "survival_known": survival_known,
+                "survival_alive": survival_alive,
+                "survival_available": bool(any(k >= 3 for k in survival_known) and any(a > 0 for a in survival_alive)),
+                "survival_basis": survival_basis,
+                "max_age": len(playtime_curve),
+                "has_playtime": bool(use_playtime),
+            })
+
+            if use_playtime and len(playtime_curve) > 5:
+                pt0 = playtime_curve[0]
+                pt5 = playtime_curve[5]
+                pt0_str = f"{pt0/60:.0f}h" if pt0 >= 60 else f"{pt0:.0f}min"
+                pt5_str = f"{pt5/60:.0f}h" if pt5 >= 60 else f"{pt5:.0f}min"
+                print(f"    [{dim_name}] {gtype}: {total_games} 款, 新游戏中位时长 {pt0_str}, 5年老游戏 {pt5_str} ({pt_normalized[5]:.0%})")
+            elif len(engagement_curve) > 5:
+                print(f"    [{dim_name}] {gtype}: {total_games} 款, 5年参与度保留 {eng_normalized[5]:.0%}")
+
+    print(f"  生成 {len(records)} 条类型聚合留存曲线（横跨 legacy/scale/model 三轴）")
     return records
 
 

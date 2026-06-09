@@ -262,6 +262,14 @@ body::before {
 svg { width: 100%; display: block; overflow: visible; }
 
 /* ── BUTTONS ── */
+.pill-sep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: rgba(255,255,255,0.18);
+  vertical-align: middle;
+}
 .pill {
   font-family: var(--mono);
   font-size: 11px;
@@ -280,6 +288,9 @@ svg { width: 100%; display: block; overflow: visible; }
 .pill.active.red { background: var(--aaa); border-color: var(--aaa); }
 .pill.active.yellow { background: var(--aa); border-color: var(--aa); }
 .pill.active.green { background: var(--f2p); border-color: var(--f2p); }
+.pill.disabled { opacity: 0.35; pointer-events: none; }
+/* 控件分组分隔符（维度 | 度量） */
+.ctrl-sep { width: 1px; align-self: stretch; margin: 2px 5px; background: var(--border2); }
 
 /* ── SEARCH BOX ── */
 .search-box { position: relative; }
@@ -699,9 +710,9 @@ svg { width: 100%; display: block; overflow: visible; }
 .filter-pills .pill.active[data-tone="indie"]   { background: var(--indie); border-color: var(--indie); color:#000; }
 .filter-pills .pill.active[data-tone="aa"]      { background: var(--aa);    border-color: var(--aa);    color:#000; }
 .filter-pills .pill.active[data-tone="aaa"]     { background: var(--aaa);   border-color: var(--aaa);   color:#fff; }
-.filter-pills .pill.active[data-tone="premium"] { background:#9a9ab8; border-color:#9a9ab8; color:#000; }
-.filter-pills .pill.active[data-tone="f2p"]     { background:#4dabf7; border-color:#4dabf7; color:#000; }
-.filter-pills .pill.active[data-tone="hybrid"]  { background:#c08cff; border-color:#c08cff; color:#000; }
+.filter-pills .pill.active[data-tone="premium"] { background:#ff9f43; border-color:#ff9f43; color:#000; }
+.filter-pills .pill.active[data-tone="f2p"]     { background:#18d6e0; border-color:#18d6e0; color:#000; }
+.filter-pills .pill.active[data-tone="hybrid"]  { background:#b56bff; border-color:#b56bff; color:#000; }
 
 /* ── 散点专属：双轴图例（填色轴 + 描边轴） ── */
 .scatter-legend {
@@ -1358,6 +1369,9 @@ body.tour-active #tour-launch { display: none; }
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 .link-chip.show { opacity: 1; transform: translateY(0); }
+/* 散点图顶部有 .scatter-legend 占满一行，chip 移到右下避免与图例重叠 */
+#sec-scatter .link-chip { top: auto; bottom: 10px; left: auto; right: 10px; transform: translateY(6px); }
+#sec-scatter .link-chip.show { transform: translateY(0); }
 
 /* ═══════════════════════════════════════════════════════
    REDUCED MOTION · 尊重系统“减少动态效果”

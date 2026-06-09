@@ -49,15 +49,16 @@ window.initScatter = function() {
     if (highlightQuadrant && isGodQuadrant(d)) return '#fff';
     if (classMode === 'mon')
       return d3.color(MONC[d.monetization] || '#888').darker(0.9);
-    if (d.monetization === 'F2P') return '#9fe6ff';
-    if (d.monetization === 'Hybrid') return '#d8b6ff';
+    if (d.monetization === 'F2P') return '#3df0fb';      // 免费=亮青环（与商业模式配色一致）
+    if (d.monetization === 'Hybrid') return '#cf9dff';   // 混合=紫环
     return d3.color(C[d.tier] || '#888').darker(0.8);
   }
   function bubbleStrokeW(d) {
     if (highlightQuadrant && isGodQuadrant(d)) return 1.5;
     if (classMode === 'mon')
       return d.tier === 'AAA' ? 2.4 : d.tier === 'AA' ? 1.5 : 0.7;
-    return d.monetization === 'Premium' ? 1 : 2;
+    // 默认(tier)视图：免费/混合用更粗的彩色环明确区分商业模式，买断保持细描边
+    return d.monetization === 'F2P' ? 2.4 : d.monetization === 'Hybrid' ? 2 : 1;
   }
   function bubbleDash(d) {
     if (classMode === 'tier' && d.monetization === 'Hybrid') return '3,2';
@@ -534,8 +535,8 @@ window.initScatter = function() {
       ringTitle = '描边 · 商业模式';
       ringItems = [
         ['border:1px solid #888', MON.Premium],
-        ['border:2px solid #9fe6ff', MON.F2P],
-        ['border:2px dashed #d8b6ff', MON.Hybrid]
+        ['border:2.4px solid #3df0fb', MON.F2P],
+        ['border:2px dashed #cf9dff', MON.Hybrid]
       ];
     }
     const dots =
@@ -1203,6 +1204,8 @@ window.initScatter = function() {
       }
       activeFilter = opts.filter;
       syncFilterPills(opts.filter);
+      activeTag = null;          // 清掉残留的标签筛选，避免叙事章节误叠加用户的临时选择
+      updateTagUI();
       selected = null;
       hoverGame = null;
       searchTerm = '';

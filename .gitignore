@@ -12,3 +12,6 @@ backup
 文档/
 data_备份/
 server_tmp.py
+# macOS
+.DS_Store
+**/.DS_Store

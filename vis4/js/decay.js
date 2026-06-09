@@ -9,21 +9,36 @@ window.initDecay = function() {
       decayMode = 'individual';
   let aggHighlighted = null;
   let aggMetric = 'depth';  // 聚合模式子视图：depth=参与深度 / survival=存活率
+  // 聚合分组维度：legacy=原 4 类混合轴（向后兼容默认）/ scale=制作规模 / model=商业模式
+  // 与散点图、河流图保持一致：制作规模 ⊥ 商业模式 两条正交轴
+  let aggDim = 'scale';
   let svg, g, xSc, ySc;
   let firstDraw = true;
   let _iW = 0, _iH = 0, sweepRAF = null;  // 几何缓存 + 时间游标扫描的 rAF 句柄
 
   const TYPE_STYLE = {
-    AAA: {dash: null, width: 2.5, label: '3A大作'},
-    AA: {dash: '6,3', width: 2, label: 'AA中型'},
-    Indie: {dash: null, width: 2, label: '独立游戏'},
-    F2P: {dash: '2,3', width: 2.5, label: 'F2P免费'},
+    AAA:     {dash: null,  width: 2.5, label: '3A大作'},
+    AA:      {dash: '6,3', width: 2,   label: 'AA中型'},
+    Indie:   {dash: null,  width: 2,   label: '独立游戏'},
+    F2P:     {dash: '2,3', width: 2.5, label: 'F2P免费'},
+    Premium: {dash: null,  width: 2,   label: '买断制'},
+    Hybrid:  {dash: '4,4', width: 2.2, label: '混合模式'},
   };
+  // 单款图按维度分组：scale=制作规模 (Indie/AA/AAA) ⊥ model=商业模式 (F2P/Premium/Hybrid)
+  // 与「该做一款什么游戏」、河流图、散点图的双轴 toggle 完全对齐。
+  let indDim = 'scale';
+  function gameKey(d) {
+    if (indDim === 'model') return d.monetization || (d.type === 'F2P' ? 'F2P' : 'Premium');
+    // scale 维度：F2P 游戏读 tier；老数据无 tier 时把 F2P 兜底成 AAA（与 process_decay 一致）
+    return d.tier || (d.type === 'F2P' ? 'AAA' : d.type);
+  }
+  // narrative 比较固定是「制作规模 Indie vs AAA」，与当前 dim 无关
+  function tierOf(d) { return d.tier || (d.type === 'F2P' ? 'AAA' : d.type); }
 
   function lineOpacity(d, hoverName) {
     if (hoverName) return d.name === hoverName ? 1 : 0.07;
     if (highlighted) return d.name === highlighted ? 1 : 0.07;
-    if (narrativeCompare) return NARRATIVE_TYPES.includes(d.type) ? 1 : 0.06;
+    if (narrativeCompare) return NARRATIVE_TYPES.includes(tierOf(d)) ? 1 : 0.06;
     return 0.75;
   }
 
@@ -31,14 +46,14 @@ window.initDecay = function() {
     if ((hoverName && d.name === hoverName) ||
         (highlighted && d.name === highlighted))
       return 3.5;
-    if (narrativeCompare && NARRATIVE_TYPES.includes(d.type)) return 2.8;
-    return (TYPE_STYLE[d.type] || {}).width || 2;
+    if (narrativeCompare && NARRATIVE_TYPES.includes(tierOf(d))) return 2.8;
+    return (TYPE_STYLE[gameKey(d)] || {}).width || 2;
   }
 
   function isLabelActive(d, hoverName) {
     if (hoverName) return d.name === hoverName;
     if (highlighted) return d.name === highlighted;
-    if (narrativeCompare) return NARRATIVE_TYPES.includes(d.type);
+    if (narrativeCompare) return NARRATIVE_TYPES.includes(tierOf(d));
     return true;
   }
 
@@ -258,7 +273,7 @@ window.initDecay = function() {
                 return d.name === highlighted;
               }) :
                   narrativeCompare   ? DATA.decay.filter(function(d) {
-                      return NARRATIVE_TYPES.includes(d.type);
+                      return NARRATIVE_TYPES.includes(tierOf(d));
                     }) :
                                        DATA.decay;
               dotsG.selectAll('.cdot').remove();
@@ -322,7 +337,7 @@ window.initDecay = function() {
                     .attr(
                         'stroke-dasharray',
                         function(d) {
-                          var s = TYPE_STYLE[d.type];
+                          var s = TYPE_STYLE[gameKey(d)];
                           return s ? s.dash : null;
                         })
                     .attr(
@@ -352,7 +367,7 @@ window.initDecay = function() {
             .attr('stroke-dashoffset', 0)
             .on('end', function() {
               var d = d3.select(this).datum();
-              var s = TYPE_STYLE[d.type];
+              var s = TYPE_STYLE[gameKey(d)];
               d3.select(this).attr('stroke-dasharray', s ? s.dash : null);
             });
       });
@@ -476,11 +491,32 @@ window.initDecay = function() {
   function buildLegendIndividual() {
     var leg = document.getElementById('decay-legend');
     leg.innerHTML = '';
-    var typeOrder = ['AAA', 'AA', 'Indie', 'F2P'];
+
+    // 维度切换条：制作规模(scale, 默认) ⇄ 商业模式(model)，与机会矩阵/河流图对齐
+    var dimBar = document.createElement('div');
+    dimBar.style.cssText = 'display:flex;gap:6px;margin:0 0 8px 0;align-items:center';
+    dimBar.innerHTML =
+        '<span style="color:rgba(255,255,255,.45);font-size:10px;font-family:\'Space Mono\',monospace;margin-right:4px">分组：</span>' +
+        '<button class="pill' + (indDim === 'scale' ? ' active' : '') + '" data-inddim="scale">制作规模</button>' +
+        '<button class="pill' + (indDim === 'model' ? ' active' : '') + '" data-inddim="model">商业模式</button>';
+    leg.appendChild(dimBar);
+    dimBar.querySelectorAll('[data-inddim]').forEach(function(b) {
+      b.addEventListener('click', function() {
+        if (indDim === this.dataset.inddim) return;
+        indDim = this.dataset.inddim;
+        highlighted = null;
+        draw();           // 重画曲线（虚实线随 dim 切换）
+      });
+    });
+
+    var typeOrder = indDim === 'model'
+        ? ['Premium', 'F2P', 'Hybrid']
+        : ['AAA', 'AA', 'Indie'];
     var groups = {};
     DATA.decay.forEach(function(d) {
-      if (!groups[d.type]) groups[d.type] = [];
-      groups[d.type].push(d);
+      var k = gameKey(d);
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(d);
     });
 
     // 2-column grid of grouped boxes
@@ -504,7 +540,7 @@ window.initDecay = function() {
             NARRATIVE_TYPES.includes(type) ? 'dl-type-narrative' :
                                              'dl-type-dimmed');
       }
-      catLabel.style.color = C[type] || '#888';
+      catLabel.style.color = C[type] || MONC[type] || '#888';
       catLabel.innerHTML = style.label;
       group.appendChild(catLabel);
 
@@ -541,11 +577,38 @@ window.initDecay = function() {
     var MGA = {t: 28, r: 50, b: 52, l: 60};
     var iW = W - MGA.l - MGA.r, iH = H - MGA.t - MGA.b;
 
-    var aggData = DATA.decayAggregate;
-    if (!aggData || aggData.length === 0) {
+    var aggDataAll = DATA.decayAggregate;
+    if (!aggDataAll || aggDataAll.length === 0) {
       wrap.innerHTML =
           '<div class="loading-wrap" style="opacity:0.4">聚合数据不可用<br><span style="font-size:10px">运行 05_preprocess.py 生成 decay_aggregate.json</span></div>';
       return;
+    }
+    // 按当前维度筛选：兼容老数据（无 dim 字段）→ 落入 legacy 桶
+    var hasDim = aggDataAll.some(function(d) { return d.dim != null; });
+    var aggData = hasDim
+      ? aggDataAll.filter(function(d) { return (d.dim || 'legacy') === aggDim; })
+      : aggDataAll;
+    if (aggData.length === 0 && hasDim) {
+      // 该维度没数据 → 退回 legacy / scale
+      aggData = aggDataAll.filter(function(d) { return (d.dim || 'legacy') === 'legacy'; });
+    }
+
+    // 维度切换条（仅在新格式有 dim 字段时显示）
+    if (hasDim) {
+      var dimBar = document.createElement('div');
+      dimBar.style.cssText = 'display:flex;gap:6px;margin:0 0 6px 4px;align-items:center';
+      dimBar.innerHTML = '<span style="color:rgba(255,255,255,.45);font-size:10px;font-family:\'Space Mono\',monospace;margin-right:4px">分组：</span>' +
+          '<button class="pill' + (aggDim === 'scale' ? ' active' : '') + '" data-aggdim="scale">制作规模</button>' +
+          '<button class="pill' + (aggDim === 'model' ? ' active' : '') + '" data-aggdim="model">商业模式</button>';
+      wrap.appendChild(dimBar);
+      dimBar.querySelectorAll('[data-aggdim]').forEach(function(b) {
+        b.addEventListener('click', function() {
+          if (aggDim === this.dataset.aggdim) return;
+          aggDim = this.dataset.aggdim;
+          aggHighlighted = null;
+          draw();
+        });
+      });
     }
 
     // 子视图切换：参与深度 / 存活率（仅当后端给出存活率数据时显示）

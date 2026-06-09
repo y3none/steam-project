@@ -6,7 +6,7 @@
     "n_games_counted": 56654,
     "demand_axis_field": "mean_owners_m",
     "note": "需求口径同时提供 median/p75/mean。前端纵轴用 mean_owners_m（owners 分桶导致中位分辨率不足），故'需求高'≈'出过爆款'；median/p75 为抗爆款的稳健参照。趋势=近三年vs前三年发行量动量；末年若不完整会使 trend 偏冷。",
-    "by_type_scopes": "Indie/AA/AAA 为互斥规模档；F2P 为正交商业模式桶，可与任一规模档重叠。"
+    "by_type_scopes": "Indie/AA/AAA 为互斥规模档；F2P/Premium/Hybrid 为正交的商业模式桶，可与任一规模档重叠。"
   },
   "genres": [
     {
@@ -38,9 +38,22 @@
           "prev3y": 296,
           "trend": 0.143
         },
+        "Premium": {
+          "count": 12542,
+          "total_owners_m": 1856.9,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1481,
+          "hit_rate": 0.0245,
+          "median_pos": 0.7735,
+          "recent3y": 3961,
+          "prev3y": 3652,
+          "trend": 0.041
+        },
         "Indie": {
           "count": 12234,
-          "total_owners_m": 1971.94,
+          "total_owners_m": 1971.93,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -70,7 +83,7 @@
       "tag": "Strategy",
       "overall": {
         "count": 12425,
-        "total_owners_m": 2856.39,
+        "total_owners_m": 2856.38,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.35,
@@ -94,6 +107,19 @@
           "recent3y": 334,
           "prev3y": 251,
           "trend": 0.142
+        },
+        "Premium": {
+          "count": 11427,
+          "total_owners_m": 1933.8,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1692,
+          "hit_rate": 0.0295,
+          "median_pos": 0.7961,
+          "recent3y": 3243,
+          "prev3y": 3172,
+          "trend": 0.011
         },
         "Indie": {
           "count": 11351,
@@ -127,7 +153,7 @@
       "tag": "RPG",
       "overall": {
         "count": 11567,
-        "total_owners_m": 3046.02,
+        "total_owners_m": 3046.01,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.35,
@@ -151,6 +177,19 @@
           "recent3y": 3258,
           "prev3y": 3107,
           "trend": 0.024
+        },
+        "Premium": {
+          "count": 10621,
+          "total_owners_m": 2360.6,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.2223,
+          "hit_rate": 0.0342,
+          "median_pos": 0.8049,
+          "recent3y": 3512,
+          "prev3y": 3081,
+          "trend": 0.065
         },
         "AA": {
           "count": 1057,
@@ -209,6 +248,19 @@
           "prev3y": 3778,
           "trend": -0.114
         },
+        "Premium": {
+          "count": 10692,
+          "total_owners_m": 1053.33,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0985,
+          "hit_rate": 0.0138,
+          "median_pos": 0.8571,
+          "recent3y": 2995,
+          "prev3y": 3644,
+          "trend": -0.098
+        },
         "AA": {
           "count": 307,
           "total_owners_m": 152.81,
@@ -255,7 +307,7 @@
       "by_type": {
         "AA": {
           "count": 795,
-          "total_owners_m": 588.19,
+          "total_owners_m": 588.2,
           "median_owners_m": 0.075,
           "p75_owners_m": 0.35,
           "p90_owners_m": 1.5,
@@ -266,9 +318,22 @@
           "prev3y": 228,
           "trend": 0.143
         },
+        "Premium": {
+          "count": 7073,
+          "total_owners_m": 1391.99,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1968,
+          "hit_rate": 0.029,
+          "median_pos": 0.8431,
+          "recent3y": 2724,
+          "prev3y": 2355,
+          "trend": 0.073
+        },
         "Indie": {
           "count": 6833,
-          "total_owners_m": 961.47,
+          "total_owners_m": 961.48,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -323,6 +388,19 @@
           "prev3y": 2022,
           "trend": 0.137
         },
+        "Premium": {
+          "count": 6769,
+          "total_owners_m": 1282.82,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1895,
+          "hit_rate": 0.0303,
+          "median_pos": 0.8065,
+          "recent3y": 2673,
+          "prev3y": 1926,
+          "trend": 0.162
+        },
         "AA": {
           "count": 351,
           "total_owners_m": 528.16,
@@ -338,7 +416,7 @@
         },
         "F2P": {
           "count": 521,
-          "total_owners_m": 239.49,
+          "total_owners_m": 239.5,
           "median_owners_m": 0.075,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.75,
@@ -379,6 +457,19 @@
           "recent3y": 1995,
           "prev3y": 2391,
           "trend": -0.09
+        },
+        "Premium": {
+          "count": 6474,
+          "total_owners_m": 495.59,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0766,
+          "hit_rate": 0.0107,
+          "median_pos": 0.85,
+          "recent3y": 1981,
+          "prev3y": 2304,
+          "trend": -0.075
         },
         "AA": {
           "count": 296,
@@ -426,7 +517,7 @@
       "by_type": {
         "Indie": {
           "count": 5807,
-          "total_owners_m": 697.19,
+          "total_owners_m": 697.2,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -436,6 +527,19 @@
           "recent3y": 1581,
           "prev3y": 1957,
           "trend": -0.106
+        },
+        "Premium": {
+          "count": 6196,
+          "total_owners_m": 633.96,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1023,
+          "hit_rate": 0.0132,
+          "median_pos": 0.8547,
+          "recent3y": 1846,
+          "prev3y": 2080,
+          "trend": -0.06
         },
         "AA": {
           "count": 870,
@@ -494,9 +598,22 @@
           "prev3y": 1838,
           "trend": -0.051
         },
+        "Premium": {
+          "count": 5450,
+          "total_owners_m": 1870.23,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.3432,
+          "hit_rate": 0.0578,
+          "median_pos": 0.8182,
+          "recent3y": 1693,
+          "prev3y": 1790,
+          "trend": -0.028
+        },
         "AA": {
           "count": 557,
-          "total_owners_m": 1293.96,
+          "total_owners_m": 1293.95,
           "median_owners_m": 0.35,
           "p75_owners_m": 1.5,
           "p90_owners_m": 3.5,
@@ -526,7 +643,7 @@
       "tag": "Female Protagonist",
       "overall": {
         "count": 5959,
-        "total_owners_m": 812.58,
+        "total_owners_m": 812.59,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.35,
@@ -550,6 +667,19 @@
           "recent3y": 186,
           "prev3y": 154,
           "trend": 0.094
+        },
+        "Premium": {
+          "count": 5682,
+          "total_owners_m": 751.24,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1322,
+          "hit_rate": 0.022,
+          "median_pos": 0.8489,
+          "recent3y": 1780,
+          "prev3y": 1670,
+          "trend": 0.032
         },
         "Indie": {
           "count": 5428,
@@ -583,7 +713,7 @@
       "tag": "Action-Adventure",
       "overall": {
         "count": 5912,
-        "total_owners_m": 806.94,
+        "total_owners_m": 806.95,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.035,
         "p90_owners_m": 0.15,
@@ -607,6 +737,19 @@
           "recent3y": 262,
           "prev3y": 132,
           "trend": 0.33
+        },
+        "Premium": {
+          "count": 5592,
+          "total_owners_m": 760.16,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1359,
+          "hit_rate": 0.0207,
+          "median_pos": 0.8182,
+          "recent3y": 2649,
+          "prev3y": 2174,
+          "trend": 0.098
         },
         "Indie": {
           "count": 5463,
@@ -654,7 +797,7 @@
       "by_type": {
         "Indie": {
           "count": 5602,
-          "total_owners_m": 598.11,
+          "total_owners_m": 598.12,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -664,6 +807,19 @@
           "recent3y": 1539,
           "prev3y": 1805,
           "trend": -0.08
+        },
+        "Premium": {
+          "count": 5417,
+          "total_owners_m": 596.0,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.11,
+          "hit_rate": 0.0157,
+          "median_pos": 0.8596,
+          "recent3y": 1514,
+          "prev3y": 1693,
+          "trend": -0.056
         },
         "F2P": {
           "count": 349,
@@ -722,6 +878,19 @@
           "prev3y": 1638,
           "trend": -0.014
         },
+        "Premium": {
+          "count": 5337,
+          "total_owners_m": 1351.0,
+          "median_owners_m": 0.035,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.2531,
+          "hit_rate": 0.0487,
+          "median_pos": 0.8364,
+          "recent3y": 1696,
+          "prev3y": 1619,
+          "trend": 0.023
+        },
         "AA": {
           "count": 565,
           "total_owners_m": 819.64,
@@ -778,6 +947,19 @@
           "recent3y": 2028,
           "prev3y": 1295,
           "trend": 0.221
+        },
+        "Premium": {
+          "count": 4468,
+          "total_owners_m": 574.59,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1286,
+          "hit_rate": 0.0199,
+          "median_pos": 0.8296,
+          "recent3y": 2036,
+          "prev3y": 1231,
+          "trend": 0.246
         },
         "F2P": {
           "count": 353,
@@ -836,6 +1018,19 @@
           "prev3y": 1505,
           "trend": -0.007
         },
+        "Premium": {
+          "count": 4286,
+          "total_owners_m": 1357.02,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.3166,
+          "hit_rate": 0.0495,
+          "median_pos": 0.7619,
+          "recent3y": 1539,
+          "prev3y": 1451,
+          "trend": 0.029
+        },
         "F2P": {
           "count": 372,
           "total_owners_m": 527.76,
@@ -893,9 +1088,22 @@
           "prev3y": 1469,
           "trend": -0.068
         },
+        "Premium": {
+          "count": 4291,
+          "total_owners_m": 249.65,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0582,
+          "hit_rate": 0.0065,
+          "median_pos": 0.8809,
+          "recent3y": 1421,
+          "prev3y": 1473,
+          "trend": -0.018
+        },
         "F2P": {
           "count": 335,
-          "total_owners_m": 42.08,
+          "total_owners_m": 42.09,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -950,6 +1158,19 @@
           "prev3y": 1428,
           "trend": -0.044
         },
+        "Premium": {
+          "count": 4213,
+          "total_owners_m": 844.33,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.2004,
+          "hit_rate": 0.032,
+          "median_pos": 0.8797,
+          "recent3y": 1361,
+          "prev3y": 1412,
+          "trend": -0.018
+        },
         "AA": {
           "count": 325,
           "total_owners_m": 374.79,
@@ -982,7 +1203,7 @@
       "tag": "Mystery",
       "overall": {
         "count": 4416,
-        "total_owners_m": 440.55,
+        "total_owners_m": 440.56,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.15,
@@ -1007,6 +1228,19 @@
           "prev3y": 1514,
           "trend": 0.063
         },
+        "Premium": {
+          "count": 4164,
+          "total_owners_m": 400.66,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0962,
+          "hit_rate": 0.0142,
+          "median_pos": 0.85,
+          "recent3y": 1736,
+          "prev3y": 1459,
+          "trend": 0.087
+        },
         "F2P": {
           "count": 252,
           "total_owners_m": 39.89,
@@ -1022,7 +1256,7 @@
         },
         "AA": {
           "count": 210,
-          "total_owners_m": 50.4,
+          "total_owners_m": 50.41,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.35,
@@ -1064,6 +1298,19 @@
           "prev3y": 1509,
           "trend": 0.164
         },
+        "Premium": {
+          "count": 3964,
+          "total_owners_m": 564.91,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1425,
+          "hit_rate": 0.0164,
+          "median_pos": 0.8376,
+          "recent3y": 2183,
+          "prev3y": 1497,
+          "trend": 0.186
+        },
         "AA": {
           "count": 356,
           "total_owners_m": 188.28,
@@ -1079,7 +1326,7 @@
         },
         "F2P": {
           "count": 311,
-          "total_owners_m": 140.8,
+          "total_owners_m": 140.81,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -1120,6 +1367,19 @@
           "recent3y": 1004,
           "prev3y": 1272,
           "trend": -0.118
+        },
+        "Premium": {
+          "count": 3689,
+          "total_owners_m": 350.64,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0951,
+          "hit_rate": 0.0119,
+          "median_pos": 0.8636,
+          "recent3y": 1008,
+          "prev3y": 1200,
+          "trend": -0.087
         },
         "AA": {
           "count": 161,
@@ -1178,6 +1438,19 @@
           "prev3y": 1146,
           "trend": -0.035
         },
+        "Premium": {
+          "count": 3477,
+          "total_owners_m": 1535.93,
+          "median_owners_m": 0.035,
+          "p75_owners_m": 0.15,
+          "p90_owners_m": 0.75,
+          "mean_owners_m": 0.4417,
+          "hit_rate": 0.0731,
+          "median_pos": 0.7777,
+          "recent3y": 1087,
+          "prev3y": 1115,
+          "trend": -0.013
+        },
         "AA": {
           "count": 424,
           "total_owners_m": 1095.38,
@@ -1193,7 +1466,7 @@
         },
         "F2P": {
           "count": 426,
-          "total_owners_m": 917.99,
+          "total_owners_m": 918.0,
           "median_owners_m": 0.15,
           "p75_owners_m": 0.75,
           "p90_owners_m": 3.5,
@@ -1237,7 +1510,7 @@
         },
         "F2P": {
           "count": 477,
-          "total_owners_m": 137.08,
+          "total_owners_m": 137.07,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -1247,6 +1520,19 @@
           "recent3y": 33,
           "prev3y": 112,
           "trend": -0.545
+        },
+        "Premium": {
+          "count": 3323,
+          "total_owners_m": 280.75,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.075,
+          "mean_owners_m": 0.0845,
+          "hit_rate": 0.0141,
+          "median_pos": 0.7692,
+          "recent3y": 465,
+          "prev3y": 822,
+          "trend": -0.277
         },
         "AA": {
           "count": 411,
@@ -1291,6 +1577,19 @@
           "recent3y": 1202,
           "prev3y": 1347,
           "trend": -0.057
+        },
+        "Premium": {
+          "count": 3416,
+          "total_owners_m": 544.43,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1594,
+          "hit_rate": 0.0272,
+          "median_pos": 0.8433,
+          "recent3y": 1240,
+          "prev3y": 1314,
+          "trend": -0.029
         },
         "F2P": {
           "count": 214,
@@ -1349,9 +1648,22 @@
           "prev3y": 1447,
           "trend": 0.061
         },
+        "Premium": {
+          "count": 3366,
+          "total_owners_m": 187.75,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.075,
+          "mean_owners_m": 0.0558,
+          "hit_rate": 0.0089,
+          "median_pos": 0.8786,
+          "recent3y": 1591,
+          "prev3y": 1387,
+          "trend": 0.069
+        },
         "AA": {
           "count": 119,
-          "total_owners_m": 66.45,
+          "total_owners_m": 66.44,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.35,
           "p90_owners_m": 1.5,
@@ -1405,6 +1717,19 @@
           "recent3y": 1726,
           "prev3y": 901,
           "trend": 0.314
+        },
+        "Premium": {
+          "count": 3383,
+          "total_owners_m": 400.56,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1184,
+          "hit_rate": 0.0163,
+          "median_pos": 0.8421,
+          "recent3y": 1745,
+          "prev3y": 902,
+          "trend": 0.318
         },
         "F2P": {
           "count": 101,
@@ -1463,9 +1788,22 @@
           "prev3y": 877,
           "trend": 0.325
         },
+        "Premium": {
+          "count": 3219,
+          "total_owners_m": 374.64,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.055,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1164,
+          "hit_rate": 0.0183,
+          "median_pos": 0.8462,
+          "recent3y": 1745,
+          "prev3y": 869,
+          "trend": 0.335
+        },
         "F2P": {
           "count": 94,
-          "total_owners_m": 10.44,
+          "total_owners_m": 10.45,
           "median_owners_m": 0.0225,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -1478,7 +1816,7 @@
         },
         "AA": {
           "count": 86,
-          "total_owners_m": 14.44,
+          "total_owners_m": 14.45,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -1495,7 +1833,7 @@
       "tag": "Management",
       "overall": {
         "count": 3262,
-        "total_owners_m": 621.34,
+        "total_owners_m": 621.35,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.35,
@@ -1519,6 +1857,19 @@
           "recent3y": 160,
           "prev3y": 95,
           "trend": 0.255
+        },
+        "Premium": {
+          "count": 3121,
+          "total_owners_m": 556.02,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1782,
+          "hit_rate": 0.0333,
+          "median_pos": 0.7845,
+          "recent3y": 1321,
+          "prev3y": 1006,
+          "trend": 0.135
         },
         "Indie": {
           "count": 2902,
@@ -1577,6 +1928,19 @@
           "prev3y": 982,
           "trend": 0.099
         },
+        "Premium": {
+          "count": 2925,
+          "total_owners_m": 864.01,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.2954,
+          "hit_rate": 0.0383,
+          "median_pos": 0.7976,
+          "recent3y": 1274,
+          "prev3y": 980,
+          "trend": 0.13
+        },
         "AA": {
           "count": 243,
           "total_owners_m": 128.42,
@@ -1634,6 +1998,19 @@
           "prev3y": 822,
           "trend": 0.13
         },
+        "Premium": {
+          "count": 2634,
+          "total_owners_m": 923.2,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.3505,
+          "hit_rate": 0.0547,
+          "median_pos": 0.8,
+          "recent3y": 1181,
+          "prev3y": 848,
+          "trend": 0.164
+        },
         "AA": {
           "count": 380,
           "total_owners_m": 562.63,
@@ -1649,7 +2026,7 @@
         },
         "F2P": {
           "count": 180,
-          "total_owners_m": 408.23,
+          "total_owners_m": 408.24,
           "median_owners_m": 0.075,
           "p75_owners_m": 0.35,
           "p90_owners_m": 1.5,
@@ -1666,7 +2043,7 @@
       "tag": "Space",
       "overall": {
         "count": 2811,
-        "total_owners_m": 595.71,
+        "total_owners_m": 595.72,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.35,
@@ -1690,6 +2067,19 @@
           "recent3y": 732,
           "prev3y": 810,
           "trend": -0.051
+        },
+        "Premium": {
+          "count": 2630,
+          "total_owners_m": 461.49,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1755,
+          "hit_rate": 0.0327,
+          "median_pos": 0.826,
+          "recent3y": 761,
+          "prev3y": 799,
+          "trend": -0.024
         },
         "F2P": {
           "count": 181,
@@ -1737,7 +2127,7 @@
       "by_type": {
         "Indie": {
           "count": 2651,
-          "total_owners_m": 102.63,
+          "total_owners_m": 102.62,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.075,
@@ -1747,6 +2137,19 @@
           "recent3y": 971,
           "prev3y": 937,
           "trend": 0.018
+        },
+        "Premium": {
+          "count": 2613,
+          "total_owners_m": 96.39,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.075,
+          "mean_owners_m": 0.0369,
+          "hit_rate": 0.0019,
+          "median_pos": 0.8276,
+          "recent3y": 958,
+          "prev3y": 905,
+          "trend": 0.028
         },
         "AA": {
           "count": 64,
@@ -1794,7 +2197,7 @@
       "by_type": {
         "Indie": {
           "count": 2369,
-          "total_owners_m": 243.83,
+          "total_owners_m": 243.84,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -1804,6 +2207,19 @@
           "recent3y": 527,
           "prev3y": 786,
           "trend": -0.197
+        },
+        "Premium": {
+          "count": 2513,
+          "total_owners_m": 267.75,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1065,
+          "hit_rate": 0.0163,
+          "median_pos": 0.7704,
+          "recent3y": 622,
+          "prev3y": 815,
+          "trend": -0.134
         },
         "F2P": {
           "count": 189,
@@ -1820,7 +2236,7 @@
         },
         "AA": {
           "count": 332,
-          "total_owners_m": 100.06,
+          "total_owners_m": 100.05,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.35,
@@ -1862,6 +2278,19 @@
           "prev3y": 1009,
           "trend": -0.035
         },
+        "Premium": {
+          "count": 2521,
+          "total_owners_m": 238.56,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0946,
+          "hit_rate": 0.0139,
+          "median_pos": 0.8771,
+          "recent3y": 969,
+          "prev3y": 965,
+          "trend": 0.002
+        },
         "F2P": {
           "count": 134,
           "total_owners_m": 22.03,
@@ -1877,7 +2306,7 @@
         },
         "AA": {
           "count": 128,
-          "total_owners_m": 82.9,
+          "total_owners_m": 82.89,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.75,
@@ -1894,7 +2323,7 @@
       "tag": "Logic",
       "overall": {
         "count": 2634,
-        "total_owners_m": 106.43,
+        "total_owners_m": 106.42,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.035,
         "p90_owners_m": 0.075,
@@ -1918,6 +2347,19 @@
           "recent3y": 909,
           "prev3y": 1185,
           "trend": -0.132
+        },
+        "Premium": {
+          "count": 2532,
+          "total_owners_m": 96.67,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.01,
+          "p90_owners_m": 0.075,
+          "mean_owners_m": 0.0382,
+          "hit_rate": 0.0032,
+          "median_pos": 0.8824,
+          "recent3y": 905,
+          "prev3y": 1144,
+          "trend": -0.117
         },
         "F2P": {
           "count": 102,
@@ -1976,9 +2418,22 @@
           "prev3y": 963,
           "trend": 0.015
         },
+        "Premium": {
+          "count": 2429,
+          "total_owners_m": 380.31,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1566,
+          "hit_rate": 0.0226,
+          "median_pos": 0.8454,
+          "recent3y": 1062,
+          "prev3y": 929,
+          "trend": 0.067
+        },
         "AA": {
           "count": 242,
-          "total_owners_m": 156.18,
+          "total_owners_m": 156.19,
           "median_owners_m": 0.055,
           "p75_owners_m": 0.35,
           "p90_owners_m": 1.5,
@@ -2008,7 +2463,7 @@
       "tag": "Puzzle-Platformer",
       "overall": {
         "count": 2603,
-        "total_owners_m": 244.87,
+        "total_owners_m": 244.88,
         "median_owners_m": 0.01,
         "p75_owners_m": 0.035,
         "p90_owners_m": 0.15,
@@ -2032,6 +2487,19 @@
           "recent3y": 726,
           "prev3y": 1020,
           "trend": -0.168
+        },
+        "Premium": {
+          "count": 2451,
+          "total_owners_m": 234.44,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0956,
+          "hit_rate": 0.0098,
+          "median_pos": 0.8723,
+          "recent3y": 713,
+          "prev3y": 958,
+          "trend": -0.147
         },
         "AA": {
           "count": 43,
@@ -2065,7 +2533,7 @@
       "tag": "Turn-Based Strategy",
       "overall": {
         "count": 2585,
-        "total_owners_m": 452.6,
+        "total_owners_m": 452.61,
         "median_owners_m": 0.035,
         "p75_owners_m": 0.075,
         "p90_owners_m": 0.35,
@@ -2089,6 +2557,19 @@
           "recent3y": 127,
           "prev3y": 99,
           "trend": 0.124
+        },
+        "Premium": {
+          "count": 2427,
+          "total_owners_m": 415.86,
+          "median_owners_m": 0.035,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1713,
+          "hit_rate": 0.0309,
+          "median_pos": 0.8235,
+          "recent3y": 908,
+          "prev3y": 788,
+          "trend": 0.071
         },
         "Indie": {
           "count": 2243,
@@ -2136,7 +2617,7 @@
       "by_type": {
         "Indie": {
           "count": 2432,
-          "total_owners_m": 502.66,
+          "total_owners_m": 502.67,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.075,
           "p90_owners_m": 0.35,
@@ -2146,6 +2627,19 @@
           "recent3y": 1010,
           "prev3y": 817,
           "trend": 0.106
+        },
+        "Premium": {
+          "count": 2438,
+          "total_owners_m": 605.39,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.2483,
+          "hit_rate": 0.041,
+          "median_pos": 0.7756,
+          "recent3y": 1014,
+          "prev3y": 805,
+          "trend": 0.115
         },
         "AA": {
           "count": 148,
@@ -2204,6 +2698,19 @@
           "prev3y": 858,
           "trend": 0.088
         },
+        "Premium": {
+          "count": 2472,
+          "total_owners_m": 348.91,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1411,
+          "hit_rate": 0.0222,
+          "median_pos": 0.85,
+          "recent3y": 1059,
+          "prev3y": 838,
+          "trend": 0.116
+        },
         "F2P": {
           "count": 98,
           "total_owners_m": 25.97,
@@ -2250,7 +2757,7 @@
       "by_type": {
         "Indie": {
           "count": 2478,
-          "total_owners_m": 236.18,
+          "total_owners_m": 236.19,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -2261,13 +2768,26 @@
           "prev3y": 762,
           "trend": 0.194
         },
+        "Premium": {
+          "count": 2354,
+          "total_owners_m": 295.48,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1255,
+          "hit_rate": 0.0132,
+          "median_pos": 0.7972,
+          "recent3y": 1096,
+          "prev3y": 713,
+          "trend": 0.212
+        },
         "F2P": {
           "count": 160,
           "total_owners_m": 51.8,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.35,
-          "mean_owners_m": 0.3238,
+          "mean_owners_m": 0.3237,
           "hit_rate": 0.0437,
           "median_pos": 0.8133,
           "recent3y": 45,
@@ -2276,7 +2796,7 @@
         },
         "AA": {
           "count": 36,
-          "total_owners_m": 111.1,
+          "total_owners_m": 111.09,
           "median_owners_m": 0.075,
           "p75_owners_m": 0.75,
           "p90_owners_m": 2.5,
@@ -2317,6 +2837,19 @@
           "recent3y": 1055,
           "prev3y": 858,
           "trend": 0.103
+        },
+        "Premium": {
+          "count": 2332,
+          "total_owners_m": 275.87,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1183,
+          "hit_rate": 0.0137,
+          "median_pos": 0.8684,
+          "recent3y": 1150,
+          "prev3y": 873,
+          "trend": 0.137
         },
         "AA": {
           "count": 262,
@@ -2375,6 +2908,19 @@
           "prev3y": 926,
           "trend": 0.023
         },
+        "Premium": {
+          "count": 2251,
+          "total_owners_m": 140.94,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0626,
+          "hit_rate": 0.0062,
+          "median_pos": 0.879,
+          "recent3y": 995,
+          "prev3y": 889,
+          "trend": 0.056
+        },
         "F2P": {
           "count": 146,
           "total_owners_m": 12.0,
@@ -2390,7 +2936,7 @@
         },
         "AA": {
           "count": 113,
-          "total_owners_m": 5.91,
+          "total_owners_m": 5.92,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -2431,6 +2977,19 @@
           "recent3y": 937,
           "prev3y": 731,
           "trend": 0.124
+        },
+        "Premium": {
+          "count": 2221,
+          "total_owners_m": 771.71,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.3475,
+          "hit_rate": 0.036,
+          "median_pos": 0.7751,
+          "recent3y": 1011,
+          "prev3y": 726,
+          "trend": 0.164
         },
         "AA": {
           "count": 206,
@@ -2478,7 +3037,7 @@
       "by_type": {
         "Indie": {
           "count": 2121,
-          "total_owners_m": 222.42,
+          "total_owners_m": 222.43,
           "median_owners_m": 0.01,
           "p75_owners_m": 0.035,
           "p90_owners_m": 0.15,
@@ -2488,6 +3047,19 @@
           "recent3y": 1237,
           "prev3y": 688,
           "trend": 0.285
+        },
+        "Premium": {
+          "count": 2279,
+          "total_owners_m": 302.5,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1327,
+          "hit_rate": 0.0224,
+          "median_pos": 0.8113,
+          "recent3y": 1337,
+          "prev3y": 708,
+          "trend": 0.308
         },
         "AA": {
           "count": 253,
@@ -2546,6 +3118,19 @@
           "prev3y": 116,
           "trend": 0.0
         },
+        "Premium": {
+          "count": 2198,
+          "total_owners_m": 283.67,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.1291,
+          "hit_rate": 0.0159,
+          "median_pos": 0.8428,
+          "recent3y": 880,
+          "prev3y": 802,
+          "trend": 0.046
+        },
         "Indie": {
           "count": 2071,
           "total_owners_m": 221.82,
@@ -2603,6 +3188,19 @@
           "prev3y": 827,
           "trend": 0.009
         },
+        "Premium": {
+          "count": 2172,
+          "total_owners_m": 195.83,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.035,
+          "p90_owners_m": 0.15,
+          "mean_owners_m": 0.0902,
+          "hit_rate": 0.011,
+          "median_pos": 0.8571,
+          "recent3y": 915,
+          "prev3y": 801,
+          "trend": 0.066
+        },
         "AA": {
           "count": 178,
           "total_owners_m": 58.58,
@@ -2649,7 +3247,7 @@
       "by_type": {
         "AA": {
           "count": 212,
-          "total_owners_m": 78.26,
+          "total_owners_m": 78.25,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.75,
@@ -2659,6 +3257,19 @@
           "recent3y": 104,
           "prev3y": 49,
           "trend": 0.359
+        },
+        "Premium": {
+          "count": 2181,
+          "total_owners_m": 330.93,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1517,
+          "hit_rate": 0.0289,
+          "median_pos": 0.8037,
+          "recent3y": 1014,
+          "prev3y": 739,
+          "trend": 0.157
         },
         "Indie": {
           "count": 2092,
@@ -2675,7 +3286,7 @@
         },
         "F2P": {
           "count": 124,
-          "total_owners_m": 30.15,
+          "total_owners_m": 30.14,
           "median_owners_m": 0.055,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.75,
@@ -2717,9 +3328,22 @@
           "prev3y": 786,
           "trend": 0.079
         },
+        "Premium": {
+          "count": 2127,
+          "total_owners_m": 383.23,
+          "median_owners_m": 0.01,
+          "p75_owners_m": 0.075,
+          "p90_owners_m": 0.35,
+          "mean_owners_m": 0.1802,
+          "hit_rate": 0.0339,
+          "median_pos": 0.8261,
+          "recent3y": 953,
+          "prev3y": 747,
+          "trend": 0.121
+        },
         "F2P": {
           "count": 169,
-          "total_owners_m": 35.49,
+          "total_owners_m": 35.48,
           "median_owners_m": 0.035,
           "p75_owners_m": 0.15,
           "p90_owners_m": 0.75,
@@ -2732,7 +3356,7 @@
         },
         "AA": {
           "count": 191,
-          "total_owners_m": 150.89,
+          "total_owners_m": 150.9,
           "median_owners_m": 0.075,
           "p75_owners_m": 0.75,
           "p90_owners_m": 1.5,

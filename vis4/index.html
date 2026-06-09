@@ -83,6 +83,9 @@
         <div class="section-desc">二十年里，谁在给 Steam 供货？平台几度开闸，独立游戏从配角变成绝对主角。<strong style="color:var(--indie)">悬停</strong>看逐年结构，<strong style="color:var(--indie)">点击年份</strong>联动下方散点图。</div>
       </div>
       <div class="section-controls">
+        <button class="pill active" data-sdim="tier">制作规模</button>
+        <button class="pill" data-sdim="mon">商业模式</button>
+        <span class="ctrl-sep"></span>
         <button class="pill active" data-sm="count">发布数量</button>
         <button class="pill" data-sm="ccu">在线人数</button>
       </div>
@@ -274,11 +277,15 @@
         <div class="section-desc">故事讲完，把结论交到开发者手里：按玩法品类铺开 <strong style="color:var(--indie)">供给（竞争）</strong> × <strong style="color:var(--text)">需求（均拥有量）</strong>，左上=蓝海机会。<strong style="color:var(--text)">点击气泡</strong>看决策建议，<strong style="color:var(--text)">选你的工作室规模</strong>，地图重算成你这个段位的真实结局。</div>
       </div>
       <div class="section-controls">
-        <button class="pill active" data-gs="All">全部规模</button>
+        <button class="pill active" data-gs="All">全部</button>
+        <span class="pill-sep" title="制作规模 · 互斥"></span>
         <button class="pill" data-gs="Indie">独立</button>
         <button class="pill" data-gs="AA">AA</button>
         <button class="pill" data-gs="AAA">AAA</button>
-        <button class="pill" data-gs="F2P">F2P</button>
+        <span class="pill-sep" title="商业模式 · 与规模正交"></span>
+        <button class="pill" data-gs="F2P">免费 F2P</button>
+        <button class="pill" data-gs="Premium">买断</button>
+        <button class="pill" data-gs="Hybrid">混合</button>
       </div>
     </div>
     <div class="chart-box">
