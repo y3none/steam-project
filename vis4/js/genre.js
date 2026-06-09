@@ -81,7 +81,12 @@ function normalize(raw) {
 }
 
 var DATA_G = null, scope = 'All', gtip = null;
+var highlightBlueOcean = false;  // 蓝海高亮模式（叙事联动）
 var showAnnotation = false;  // "解读" annotation state
+
+function isBlueOcean(d, mx, my) {
+  return d.mean_owners_m >= my && d.count < mx;
+}
 
 function ensureTip() {
   if (gtip) return gtip;
@@ -118,6 +123,8 @@ function fmtOwn(v) {
 function render() {
   var wrap = document.getElementById('genre-inner');
   if (!wrap || !DATA_G) return;
+  var lockH = wrap.offsetHeight;
+  if (lockH > 0) wrap.style.minHeight = lockH + 'px';
   wrap.innerHTML = '';
   var det =
       document.getElementById('genre-detail');  // 重绘/切规模时复位钉选详情
@@ -164,6 +171,7 @@ function render() {
         .attr('font-family', '\'Space Mono\',monospace')
         .text('该工作室规模下样本不足');
     buildLegend([]);
+    wrap.style.minHeight = '';
     return;
   }
 
@@ -226,15 +234,16 @@ function render() {
   function isHot(d) {
     if (selectedGenre) return d === selectedGenre;
     if (activeQ) return quadrant(d, mx, my).name === activeQ;
+    if (highlightBlueOcean) return isBlueOcean(d, mx, my);
     return false;
   }
   // 统一的气泡视觉刷新——所有交互(悬浮离开/点象限/点气泡/重置)都收敛到这里，杜绝状态打架
   function applyBubbleState(dur) {
     dur = dur || 250;
-    var dimmed = !!(selectedGenre || activeQ);
+    var dimmed = !!(selectedGenre || activeQ || highlightBlueOcean);
     node.interrupt().transition().duration(dur).attr('opacity', function(d) {
       if (!dimmed) return 1;
-      return isHot(d) ? 1 : (selectedGenre ? 0.12 : 0.1);
+      return isHot(d) ? 1 : (highlightBlueOcean ? 0.12 : (selectedGenre ? 0.12 : 0.1));
     });
     node.select('circle')
         .interrupt()
@@ -248,7 +257,9 @@ function render() {
         .attr(
             'fill-opacity',
             function(d) {
-              return !dimmed ? .75 : (isHot(d) ? 1 : 0.2);
+              if (!dimmed) return .75;
+              if (isHot(d)) return highlightBlueOcean && !selectedGenre && !activeQ ? 0.9 : 1;
+              return highlightBlueOcean ? 0.12 : 0.2;
             })
         .attr(
             'stroke',
@@ -369,12 +380,11 @@ function render() {
     },
   ];
   qDefs.forEach(function(qd) {
-    g.append('rect')
+    var rect = g.append('rect')
         .attr('x', qd.rx)
         .attr('y', qd.ry)
         .attr('width', qd.rw)
         .attr('height', qd.rh)
-        .attr('fill', qd.fill)
         .style('cursor', 'pointer')
         .on('click', function(ev) {
           ev.stopPropagation();
@@ -384,6 +394,12 @@ function render() {
             highlightQuadrant(qd.qn);
           }
         });
+    // 蓝海模式下给蓝海象限加特殊样式
+    if (highlightBlueOcean && qd.qn === '蓝海机会') {
+      rect.attr('class', 'genre-blue-quadrant');
+    } else {
+      rect.attr('fill', qd.fill);
+    }
   });
   // 点击 SVG 空白区域 → 重置
   svg.on('click', function() {
@@ -472,7 +488,9 @@ function render() {
   var node = g.selectAll('.gbub')
                  .data(rows)
                  .join('g')
-                 .attr('class', 'gbub')
+                 .attr('class', function(d) {
+                   return 'gbub' + (highlightBlueOcean && isBlueOcean(d, mx, my) ? ' gbub-blue' : '');
+                 })
                  .attr(
                      'transform',
                      function(d, i) {
@@ -505,6 +523,9 @@ function render() {
       })
       .attr('r', function(d) {
         return r(d.total_owners_m);
+      })
+      .on('end', function(d, i) {
+        if (highlightBlueOcean && i === rows.length - 1) applyBubbleState(0);
       });
 
   var labeled = {};
@@ -526,7 +547,9 @@ function render() {
           function(d) {
             return -r(d.total_owners_m) - 4;
           })
-      .attr('fill', '#e8e8f0')
+      .attr('fill', function(d) {
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? '#1de9b6' : '#e8e8f0';
+      })
       .attr('font-family', '\'Noto Sans SC\',sans-serif')
       .attr('font-size', 13)
       .attr('pointer-events', 'none')
@@ -535,13 +558,18 @@ function render() {
       })
       .attr('opacity', 0)
       .transition()
-      .delay(550)
+      .delay(function(d, i) {
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 + i * 20 : 550;
+      })
       .duration(380)
-      .attr('opacity', 1);
+      .attr('opacity', function(d) {
+        if (!highlightBlueOcean) return 1;
+        return isBlueOcean(d, mx, my) ? 1 : 0.2;
+      });
 
   node.on('mouseenter',
           function(ev, d) {
-            if (selectedGenre) return;  // 已钉选时，悬浮不打断当前高亮
+            if (selectedGenre || highlightBlueOcean) return;  // 已钉选/蓝海模式时，悬浮不打断当前高亮
             // 放大当前气泡，其余变暗
             d3.select(this)
                 .select('circle')
@@ -650,9 +678,20 @@ function render() {
         .attr('font-weight', '600')
         .attr('pointer-events', 'none')
         .text('慎入');
+    // 蓝海模式额外提示
+    g.append('text')
+        .attr('x', iW / 2)
+        .attr('y', iH + 16)
+        .attr('text-anchor', 'middle')
+        .attr('fill', 'rgba(255,255,255,0.5)')
+        .attr('font-family', '\'Noto Sans SC\',sans-serif')
+        .attr('font-size', 13)
+        .attr('pointer-events', 'none')
+        .text('气泡越大 = 市场越大，颜色越暖 = 近年越多人涌入');
   }
 
   buildLegend(rows);
+  wrap.style.minHeight = '';
 }
 
 function row(k, v) {
@@ -731,12 +770,21 @@ function syncPills() {
     b.classList.toggle('active', b.dataset.gs === scope);
   });
 }
+function setScope(s) {
+  if (!MULT[s]) return;
+  var sy = window.scrollY;
+  scope = s;
+  syncPills();
+  render();
+  requestAnimationFrame(function() {
+    window.scrollTo(0, sy);
+  });
+}
 function bindPills() {
   document.querySelectorAll('#sec-genre [data-gs]').forEach(function(b) {
     b.addEventListener('click', function() {
-      scope = this.dataset.gs;
-      syncPills();
-      render();
+      highlightBlueOcean = false;
+      setScope(this.dataset.gs);
     });
   });
 }
@@ -777,14 +825,18 @@ window.initGenre = function() {
   })();
 };
 
-// 供导览 / 联动调用：切换工作室规模
-window._genreSetScope = function(s) {
-  if (!MULT[s]) return;
-  scope = s;
-  syncPills();
-  render();
-};
+// 供导览 / 联动调用：切换工作室规模、narrative 高亮
+window._genreSetScope = setScope;
 window._genreRedraw = function() {
+  if (DATA_G) render();
+};
+window._genreApplyNarrative = function(opts) {
+  if (opts && opts.highlightBlueOcean != null)
+    highlightBlueOcean = opts.highlightBlueOcean;
+  if (DATA_G) render();
+};
+window._genreResetNarrative = function() {
+  highlightBlueOcean = false;
   if (DATA_G) render();
 };
 })();
