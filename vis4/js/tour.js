@@ -10,6 +10,7 @@ window.initTour = function() {
     window._streamSelectYear && window._streamSelectYear(null);
     window._scatterApplyNarrative && window._scatterApplyNarrative({ filter: "all", highlightQuadrant: false });
     window._decayApplyNarrative && window._decayApplyNarrative({ compareIndieAAA: false });
+    window._genreResetNarrative && window._genreResetNarrative();
   }
 
   // ── 步骤定义：每段 = 滚动目标 + 字幕 + 触发动作 + 停留时长 ──
@@ -71,7 +72,7 @@ window.initTour = function() {
     {
       sel: "#sec-synthesis", chapter: "05 · 结论", title: "三因一果",
       text: "数量爆炸 × 顶尖口碑追平 × 长尾留存 = 独立游戏拿下近半 Steam 收入。但数量的另一面是“发现性危机”——崛起的是整体，多数开发者仍困在长尾。这就是我们想留下的问题。",
-      dur: 11000,
+      dur: 3000,
       action() { /* 结论视图为静态内容，仅滚动到位 */ },
       // 动态：三张因卡依次浮现 + 大数字滚动计数
       anim(A) { A.synth(); },
@@ -79,13 +80,15 @@ window.initTour = function() {
     {
       sel: "#sec-genre", chapter: "尾声 · 给从业者", title: "那，该做一款什么游戏？",
       text: "我们把结论交回开发者手里：按玩法品类铺开供给与需求，左上角是需求高、对手少的蓝海。切到「独立」——地图重算成你这个段位的真实机会。这才是这套系统的落点：不止说明过去，更指向该做什么。",
-      dur: 9500,
+      dur: 6000,
       action() { window._genreSetScope && window._genreSetScope("Indie"); },
-      // 动态：先看全貌，再聚焦到“独立”段位
+      // 动态：全貌 → 点亮蓝海 → 切到独立段位
       anim(A) {
+        A.later(() => A.genre({ highlightBlueOcean: false }), 0);
         if (window._genreSetScope) {
-          A.later(function(){ window._genreSetScope("All"); }, 200);
-          A.later(function(){ window._genreSetScope("Indie"); }, 1800);
+          A.later(() => window._genreSetScope("All"), 0);
+          A.later(() => A.genre({ highlightBlueOcean: true }), 0);
+          A.later(() => window._genreSetScope("Indie"), 3000);
         }
       },
     },
@@ -169,6 +172,7 @@ window.initTour = function() {
     decay: o => window._decayApplyNarrative && window._decayApplyNarrative(o),
     sweep: ms => window._decaySweep && window._decaySweep(ms),
     synth: () => window._synthesisReplay && window._synthesisReplay(),
+    genre: o => window._genreApplyNarrative && window._genreApplyNarrative(o),
     later,
   };
 
@@ -207,18 +211,23 @@ window.initTour = function() {
       } catch (e) { console.warn("[tour]", e); }
     }, RM ? 0 : 450);
     render();
-    // 当前进度点：播放中→倒计时动画；最后一章→置满；其余→置空（待播放）
+    // 当前进度点：播放中→倒计时动画；暂停→置空或冻结
     const curDot = progEl.querySelector(".tour-dot.current");
     const willPlay = (keepPlaying ?? playing);
     if (curDot) {
-      if (idx === steps.length - 1) setDotFill(curDot, 100);
-      else if (willPlay) setDotFill(curDot, null, s.dur);
+      if (willPlay) setDotFill(curDot, null, s.dur);
       else setDotFill(curDot, 0);
     }
-    if ((keepPlaying ?? playing) && idx < steps.length - 1) {
-      timer = setTimeout(() => goTo(idx + 1, true), s.dur);
-    } else if (idx === steps.length - 1) {
-      setPlaying(false); // 到结尾自动停
+    if (willPlay) {
+      timer = setTimeout(() => {
+        if (idx < steps.length - 1) {
+          goTo(idx + 1, true);
+        } else {
+          const dot = progEl.querySelector(".tour-dot.current");
+          if (dot) setDotFill(dot, 100);
+          setPlaying(false);
+        }
+      }, s.dur);
     }
   }
 
@@ -226,7 +235,6 @@ window.initTour = function() {
     playing = p;
     $("#tour-play").textContent = p ? "⏸" : "▶";
     if (p) {
-      if (idx >= steps.length - 1) idx = 0; // 已到结尾再点播放则重头开始
       goTo(idx, true);
     } else {
       clearTimer();

@@ -48,7 +48,11 @@
     return { meta: raw.meta || {}, genres: genres };
   }
 
-  var DATA_G = null, scope = "All", gtip = null;
+  var DATA_G = null, scope = "All", gtip = null, highlightBlueOcean = false;
+
+  function isBlueOcean(d, mx, my) {
+    return d.median_owners_m >= my && d.count < mx;
+  }
 
   function ensureTip() {
     if (gtip) return gtip;
@@ -79,6 +83,8 @@
   function render() {
     var wrap = document.getElementById("genre-inner");
     if (!wrap || !DATA_G) return;
+    var lockH = wrap.offsetHeight;
+    if (lockH > 0) wrap.style.minHeight = lockH + "px";
     wrap.innerHTML = "";
     var rows = DATA_G.genres.map(function (x) {
       var s = x.scopes[scope]; return s ? Object.assign({ tag: x.tag }, s) : null;
@@ -92,7 +98,7 @@
     if (!rows.length) {
       g.append("text").attr("x", iW/2).attr("y", iH/2).attr("fill", "#8080a0").attr("text-anchor", "middle")
         .attr("font-family", "'Space Mono',monospace").text("该工作室规模下样本不足");
-      buildLegend([]); return;
+      buildLegend([]); wrap.style.minHeight = ""; return;
     }
 
     var x = d3.scaleLog().domain([d3.min(rows, function(d){return d.count;})*0.8, d3.max(rows, function(d){return d.count;})*1.15]).range([0, iW]);
@@ -101,8 +107,11 @@
     var mx = d3.median(rows, function(d){return d.count;}), my = d3.median(rows, function(d){return d.median_owners_m;});
 
     // 象限底色
-    g.append("rect").attr("x",0).attr("y",0).attr("width",x(mx)).attr("height",y(my)).attr("fill","rgba(29,233,182,.045)");
-    g.append("rect").attr("x",x(mx)).attr("y",y(my)).attr("width",iW-x(mx)).attr("height",iH-y(my)).attr("fill","rgba(255,82,82,.045)");
+    var blueRect = g.append("rect").attr("x", 0).attr("y", 0).attr("width", x(mx)).attr("height", y(my));
+    if (highlightBlueOcean) blueRect.attr("class", "genre-blue-quadrant");
+    else blueRect.attr("fill", "rgba(29,233,182,.045)");
+    g.append("rect").attr("x", x(mx)).attr("y", y(my)).attr("width", iW - x(mx)).attr("height", iH - y(my))
+      .attr("fill", highlightBlueOcean ? "rgba(255,82,82,.02)" : "rgba(255,82,82,.045)");
     // 中位分隔线
     g.append("line").attr("x1",x(mx)).attr("x2",x(mx)).attr("y1",0).attr("y2",iH).attr("stroke","rgba(255,255,255,.08)").attr("stroke-dasharray","3,4");
     g.append("line").attr("x1",0).attr("x2",iW).attr("y1",y(my)).attr("y2",y(my)).attr("stroke","rgba(255,255,255,.08)").attr("stroke-dasharray","3,4");
@@ -123,19 +132,55 @@
     g.append("text").attr("transform","rotate(-90)").attr("x",0).attr("y",-44).attr("text-anchor","end").attr("style",AT).text("需求：中位拥有量（对数）→ 越上典型结局越好");
 
     // 气泡
-    var node = g.selectAll(".gbub").data(rows).join("g").attr("class","gbub")
-      .attr("transform", function(d){ return "translate(" + x(d.count) + "," + y(d.median_owners_m) + ")"; })
-      .style("cursor","pointer");
-    node.append("circle").attr("r",0).attr("fill", function(d){return trendColor(d.trend);}).attr("fill-opacity",.55)
-      .attr("stroke", function(d){return trendColor(d.trend);}).attr("stroke-width",1.2)
-      .transition().duration(650).delay(function(d,i){return i*20;}).attr("r", function(d){return r(d.total_owners_m);});
+    var node = g.selectAll(".gbub").data(rows).join("g")
+      .attr("class", function (d) {
+        return "gbub" + (highlightBlueOcean && isBlueOcean(d, mx, my) ? " gbub-blue" : "");
+      })
+      .attr("transform", function (d) { return "translate(" + x(d.count) + "," + y(d.median_owners_m) + ")"; })
+      .style("cursor", "pointer");
+
+    node.each(function (d, i) {
+      var blue = highlightBlueOcean && isBlueOcean(d, mx, my);
+      var dim = highlightBlueOcean && !blue;
+      var rad = r(d.total_owners_m);
+      var grp = d3.select(this);
+      var delay = blue ? i * 20 + 400 : i * 20;
+      var dur = blue ? 850 : 650;
+      var restOp = dim ? 0.12 : (blue ? 0.9 : 0.55);
+
+      if (blue) {
+        // grp.append("circle").attr("class", "genre-blue-pulse")
+        //   .attr("r", rad + 8).attr("fill", "none").attr("stroke", "#1de9b6").attr("stroke-width", 1.5)
+        //   .attr("pointer-events", "none");
+      }
+      grp.append("circle").attr("class", "gbub-main").attr("r", 0)
+        .attr("fill", trendColor(d.trend)).attr("fill-opacity", restOp)
+        .attr("stroke", trendColor(d.trend)).attr("stroke-width", blue ? 1.7 : 1.2)
+        .transition().duration(dur).delay(delay).attr("r", rad);
+    });
 
     var labeled = {};
-    rows.slice().sort(function(a,b){return b.total_owners_m-a.total_owners_m;}).slice(0,11).forEach(function(d){ labeled[d.tag]=1; });
-    node.filter(function(d){return labeled[d.tag];}).append("text").attr("text-anchor","middle")
-      .attr("dy", function(d){return -r(d.total_owners_m)-4;}).attr("fill","#e8e8f0")
-      .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",10).attr("pointer-events","none")
-      .text(function(d){return d.tag;}).attr("opacity",0).transition().delay(550).duration(380).attr("opacity",1);
+    rows.slice().sort(function (a, b) { return b.total_owners_m - a.total_owners_m; }).slice(0, 11)
+      .forEach(function (d) { labeled[d.tag] = 1; });
+    node.filter(function (d) { return labeled[d.tag]; }).append("text").attr("text-anchor", "middle")
+      .attr("dy", function (d) { return -r(d.total_owners_m) - 4; })
+      .attr("fill", function (d) {
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? "#1de9b6" : "#e8e8f0";
+      })
+      .attr("font-family", "'Noto Sans SC',sans-serif").attr("font-size", 10).attr("pointer-events", "none")
+      .text(function (d) { return d.tag; }).attr("opacity", 0)
+      .transition().delay(function (d, i) {
+        var blue = highlightBlueOcean && isBlueOcean(d, mx, my);
+        return blue ? 700 + i * 20 : 550;
+      }).duration(380).attr("opacity", function (d) {
+        if (!highlightBlueOcean) return 1;
+        return isBlueOcean(d, mx, my) ? 1 : 0.2;
+      });
+
+    function bubbleRestOpacity(d) {
+      if (!highlightBlueOcean) return 0.55;
+      return isBlueOcean(d, mx, my) ? 0.9 : 0.12;
+    }
 
     var tip = ensureTip();
     node.on("mousemove", function (ev, d) {
@@ -145,17 +190,21 @@
         '<div style="font-family:\'Space Mono\',monospace;font-size:11px;padding:2px 8px;border-radius:5px;display:inline-block;margin-bottom:8px;background:' + q.col + '22;color:' + q.col + ';border:1px solid ' + q.col + '55">' + q.name + '</div>' +
         row("供给(竞争)", d.count.toLocaleString() + " 款") +
         row("中位拥有量", fmtOwn(d.median_owners_m)) +
-        row("命中率(≥1M)", Math.round(d.hit_rate*100) + "%") +
-        (d.median_pos != null ? row("中位好评率", Math.round(d.median_pos*100) + "%") : "") +
+        row("命中率(≥1M)", Math.round(d.hit_rate * 100) + "%") +
+        (d.median_pos != null ? row("中位好评率", Math.round(d.median_pos * 100) + "%") : "") +
         row("市场总规模", Math.round(d.total_owners_m) + "M") +
-        rowC("趋势", (d.trend>0?"升温 +":"") + d.trend.toFixed(2), trendColor(d.trend));
+        rowC("趋势", (d.trend > 0 ? "升温 +" : "") + d.trend.toFixed(2), trendColor(d.trend));
       tip.style.left = Math.min(ev.clientX + 16, window.innerWidth - 270) + "px";
       tip.style.top = (ev.clientY + 14) + "px";
       tip.style.opacity = 1;
-      d3.select(this).select("circle").attr("fill-opacity", .85);
-    }).on("mouseleave", function () { tip.style.opacity = 0; d3.select(this).select("circle").attr("fill-opacity", .55); });
+      d3.select(this).select(".gbub-main").attr("fill-opacity", 0.85);
+    }).on("mouseleave", function (ev, d) {
+      tip.style.opacity = 0;
+      d3.select(this).select(".gbub-main").attr("fill-opacity", bubbleRestOpacity(d));
+    });
 
     buildLegend(rows);
+    wrap.style.minHeight = "";
   }
 
   function row(k, v) { return '<div style="display:flex;justify-content:space-between;gap:14px;margin:2px 0;color:#8080a0"><span>' + k + '</span><b style="color:#e8e8f0;font-family:\'Space Mono\',monospace">' + v + '</b></div>'; }
@@ -184,8 +233,20 @@
   }
   function bindPills() {
     document.querySelectorAll("#sec-genre [data-gs]").forEach(function (b) {
-      b.addEventListener("click", function () { scope = this.dataset.gs; syncPills(); render(); });
+      b.addEventListener("click", function () {
+        highlightBlueOcean = false;
+        setScope(this.dataset.gs);
+      });
     });
+  }
+
+  function setScope(s) {
+    if (!MULT[s]) return;
+    var sy = window.scrollY;
+    scope = s;
+    syncPills();
+    render();
+    requestAnimationFrame(function () { window.scrollTo(0, sy); });
   }
 
   window.initGenre = function () {
@@ -208,7 +269,15 @@
     })();
   };
 
-  // 供导览 / 联动调用：切换工作室规模
-  window._genreSetScope = function (s) { if (!MULT[s]) return; scope = s; syncPills(); render(); };
+  // 供导览 / 联动调用：切换工作室规模、narrative 高亮
+  window._genreSetScope = setScope;
   window._genreRedraw = function () { if (DATA_G) render(); };
+  window._genreApplyNarrative = function (opts) {
+    if (opts && opts.highlightBlueOcean != null) highlightBlueOcean = opts.highlightBlueOcean;
+    if (DATA_G) render();
+  };
+  window._genreResetNarrative = function () {
+    highlightBlueOcean = false;
+    if (DATA_G) render();
+  };
 })();
