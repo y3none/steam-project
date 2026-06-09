@@ -51,8 +51,12 @@
     return { meta: raw.meta || {}, genres: genres };
   }
 
-  var DATA_G = null, scope = "All", gtip = null;
-  var showAnnotation = false; // "解读" annotation state
+  var DATA_G = null, scope = "All", gtip = null, highlightBlueOcean = false;
+  var showAnnotation = false;
+
+  function isBlueOcean(d, mx, my) {
+    return d.mean_owners_m >= my && d.count < mx;
+  }
 
   function ensureTip() {
     if (gtip) return gtip;
@@ -83,6 +87,8 @@
   function render() {
     var wrap = document.getElementById("genre-inner");
     if (!wrap || !DATA_G) return;
+    var lockH = wrap.offsetHeight;
+    if (lockH > 0) wrap.style.minHeight = lockH + "px";
     wrap.innerHTML = "";
     var det = document.getElementById("genre-detail");   // 重绘/切规模时复位钉选详情
     if (det) { det.style.display = "none"; det.innerHTML = ""; }
@@ -104,7 +110,7 @@
     if (!rows.length) {
       g.append("text").attr("x", iW/2).attr("y", iH/2).attr("fill", "#8080a0").attr("text-anchor", "middle")
         .attr("font-family", "'Space Mono',monospace").text("该工作室规模下样本不足");
-      buildLegend([]); return;
+      buildLegend([]); wrap.style.minHeight = ""; return;
     }
 
     var x = d3.scaleLog().domain([d3.min(rows, function(d){return d.count;})*0.8, d3.max(rows, function(d){return d.count;})*1.15]).range([0, iW]);
@@ -113,27 +119,30 @@
     var mx = d3.median(rows, function(d){return d.count;}), my = d3.median(rows, function(d){return d.mean_owners_m;});
 
     // ── 交互状态：高亮象限 activeQ + 钉选品类 selectedGenre（互斥）──
-    var activeQ = null;        // 当前高亮的象限名称
-    var selectedGenre = null;  // 当前钉选的品类气泡
+    var activeQ = null;
+    var selectedGenre = null;
     var tip = ensureTip();
 
-    // 某气泡当前是否处于“高亮态”（选中的品类 / 选中象限内）
     function isHot(d) {
       if (selectedGenre) return d === selectedGenre;
       if (activeQ) return quadrant(d, mx, my).name === activeQ;
+      if (highlightBlueOcean) return isBlueOcean(d, mx, my);
       return false;
     }
-    // 统一的气泡视觉刷新——所有交互(悬浮离开/点象限/点气泡/重置)都收敛到这里，杜绝状态打架
     function applyBubbleState(dur) {
       dur = dur || 250;
-      var dimmed = !!(selectedGenre || activeQ);
+      var dimmed = !!(selectedGenre || activeQ || highlightBlueOcean);
       node.interrupt().transition().duration(dur).attr("opacity", function(d) {
         if (!dimmed) return 1;
-        return isHot(d) ? 1 : (selectedGenre ? 0.12 : 0.1);
+        return isHot(d) ? 1 : (highlightBlueOcean ? 0.12 : (selectedGenre ? 0.12 : 0.1));
       });
       node.select("circle").interrupt().transition().duration(dur)
         .attr("r", function(d){ return r(d.total_owners_m) * (selectedGenre === d ? 1.18 : 1); })
-        .attr("fill-opacity", function(d){ return !dimmed ? .75 : (isHot(d) ? 1 : 0.2); })
+        .attr("fill-opacity", function(d) {
+          if (!dimmed) return .75;
+          if (isHot(d)) return highlightBlueOcean && !selectedGenre && !activeQ ? 0.9 : 1;
+          return highlightBlueOcean ? 0.12 : 0.2;
+        })
         .attr("stroke", function(d){ return isHot(d) ? "#fff" : trendColor(d.trend); })
         .attr("stroke-width", function(d){ return isHot(d) ? 2 : (dimmed ? 0.5 : 1.2); })
         .attr("filter", function(d){ return isHot(d) ? "url(#genre-glow)" : null; });
@@ -142,7 +151,6 @@
     function highlightQuadrant(qn) { activeQ = qn; selectedGenre = null; tip.style.opacity = 0; showDetail(null); applyBubbleState(250); }
     function selectGenre(d)        { selectedGenre = d; activeQ = null; tip.style.opacity = 0; showDetail(d); applyBubbleState(250); }
 
-    // 钉选详情卡（常驻，点 ✕ / 空白 / 再点同气泡 取消）
     function showDetail(d) {
       var box = document.getElementById("genre-detail");
       if (!box) return;
@@ -183,26 +191,27 @@
       { fill: "rgba(255,82,82,.06)",   rx: x(mx), ry: y(my), rw: iW-x(mx),  rh: iH-y(my),  qn: "过度饱和" },
     ];
     qDefs.forEach(function(qd) {
-      g.append("rect")
+      var rect = g.append("rect")
         .attr("x", qd.rx).attr("y", qd.ry).attr("width", qd.rw).attr("height", qd.rh)
-        .attr("fill", qd.fill)
         .style("cursor", "pointer")
         .on("click", function(ev) {
           ev.stopPropagation();
           if (activeQ === qd.qn) { resetBubbles(); }
           else { highlightQuadrant(qd.qn); }
         });
+      if (highlightBlueOcean && qd.qn === "蓝海机会") {
+        rect.attr("class", "genre-blue-quadrant");
+      } else {
+        rect.attr("fill", qd.fill);
+      }
     });
-    // 点击 SVG 空白区域 → 重置
     svg.on("click", function() { resetBubbles(); });
-    // 中位参考线（与结论数字同色 #ffd54f + 呼吸动画）
     g.append("line").attr("x1",x(mx)).attr("x2",x(mx)).attr("y1",0).attr("y2",iH)
       .attr("stroke","#ffd54f").attr("stroke-width",1.5).attr("stroke-dasharray","6,4")
       .attr("class","genre-ref-line");
     g.append("line").attr("x1",0).attr("x2",iW).attr("y1",y(my)).attr("y2",y(my))
       .attr("stroke","#ffd54f").attr("stroke-width",1.5).attr("stroke-dasharray","6,4")
       .attr("class","genre-ref-line");
-    // 象限标签（带该象限品类数）
     var qCount = {"蓝海机会":0,"红海热门":0,"小众/未验证":0,"过度饱和":0};
     rows.forEach(function(d){ var n = quadrant(d, mx, my).name; if (qCount[n] != null) qCount[n]++; });
     var QL = "font-family:'Space Mono',monospace;font-size:16px;font-weight:700;letter-spacing:1px";
@@ -221,7 +230,10 @@
     g.append("text").attr("transform","rotate(-90)").attr("x",0).attr("y",-44).attr("text-anchor","end").attr("style",AT).text("需求：平均拥有量（对数）→ 越上市场回报越高");
 
     // 气泡 — 用 mean_owners_m 定位 Y，加轻微抖动避免重叠
-    var node = g.selectAll(".gbub").data(rows).join("g").attr("class","gbub")
+    var node = g.selectAll(".gbub").data(rows).join("g")
+      .attr("class", function (d) {
+        return "gbub" + (highlightBlueOcean && isBlueOcean(d, mx, my) ? " gbub-blue" : "");
+      })
       .attr("transform", function(d,i){
         var jx = (Math.sin(i * 7.13) * 0.5 + 0.5 - 0.5) * (iW / rows.length * 0.4);
         var jy = (Math.cos(i * 11.07) * 0.5 + 0.5 - 0.5) * (iH / rows.length * 0.3);
@@ -230,18 +242,30 @@
       .style("cursor","pointer");
     node.append("circle").attr("r",0).attr("fill", function(d){return trendColor(d.trend);}).attr("fill-opacity",.75)
       .attr("stroke", function(d){return trendColor(d.trend);}).attr("stroke-width",1.2)
-      .transition().duration(650).delay(function(d,i){return i*20;}).attr("r", function(d){return r(d.total_owners_m);});
+      .transition().duration(650).delay(function(d,i){return i*20;})
+      .attr("r", function(d){return r(d.total_owners_m);})
+      .on("end", function(d, i) {
+        if (highlightBlueOcean && i === rows.length - 1) applyBubbleState(0);
+      });
 
     var labeled = {};
     rows.slice().sort(function(a,b){return b.total_owners_m-a.total_owners_m;}).slice(0,11).forEach(function(d){ labeled[d.tag]=1; });
     node.filter(function(d){return labeled[d.tag];}).append("text").attr("text-anchor","middle")
-      .attr("dy", function(d){return -r(d.total_owners_m)-4;}).attr("fill","#e8e8f0")
+      .attr("dy", function(d){return -r(d.total_owners_m)-4;})
+      .attr("fill", function(d) {
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? "#1de9b6" : "#e8e8f0";
+      })
       .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",13).attr("pointer-events","none")
-      .text(function(d){return d.tag;}).attr("opacity",0).transition().delay(550).duration(380).attr("opacity",1);
+      .text(function(d){return d.tag;}).attr("opacity",0)
+      .transition().delay(function(d, i) {
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 + i * 20 : 550;
+      }).duration(380).attr("opacity", function(d) {
+        if (!highlightBlueOcean) return 1;
+        return isBlueOcean(d, mx, my) ? 1 : 0.2;
+      });
 
     node.on("mouseenter", function (ev, d) {
-      if (selectedGenre) return;  // 已钉选时，悬浮不打断当前高亮
-      // 放大当前气泡，其余变暗
+      if (selectedGenre || highlightBlueOcean) return;
       d3.select(this).select("circle")
         .interrupt()
         .transition().duration(150).ease(d3.easeCubicOut)
@@ -268,17 +292,14 @@
       tip.style.opacity = 1;
     }).on("mouseleave", function (ev, d) {
       tip.style.opacity = 0;
-      applyBubbleState(250);  // 统一恢复：自动尊重 selectedGenre / activeQ，不再各自为政
+      applyBubbleState(250);
     }).on("click", function (ev, d) {
-      ev.stopPropagation();   // 关键：阻止冒泡到 svg 的 resetBubbles，否则“点击=重置”
+      ev.stopPropagation();
       if (selectedGenre === d) resetBubbles();
       else selectGenre(d);
     });
 
-    // ── "解读" annotation overlay ──
     if (showAnnotation) {
-      // Highlight 蓝海机会 (top-left) and 过度饱和 (bottom-right)
-      // 蓝海：标签在象限内部、"蓝海机会"文字下方
       g.append("rect").attr("x", 0).attr("y", 0).attr("width", x(mx)).attr("height", y(my))
         .attr("fill", "#1de9b6").attr("fill-opacity", 0.12)
         .attr("stroke", "#1de9b6").attr("stroke-width", 2).attr("stroke-dasharray", "6,4")
@@ -287,7 +308,6 @@
         .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
         .attr("font-size", 13).attr("font-weight", "600")
         .attr("pointer-events", "none").text("需求高·对手少");
-      // 过度饱和：标签在象限内部、"过度饱和"文字上方
       g.append("rect").attr("x", x(mx)).attr("y", y(my)).attr("width", iW-x(mx)).attr("height", iH-y(my))
         .attr("fill", "#ff5252").attr("fill-opacity", 0.12)
         .attr("stroke", "#ff5252").attr("stroke-width", 2).attr("stroke-dasharray", "6,4")
@@ -297,7 +317,6 @@
         .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
         .attr("font-size", 13).attr("font-weight", "600")
         .attr("pointer-events", "none").text("慎入");
-      // Bottom annotation text
       g.append("text").attr("x", iW / 2).attr("y", iH + 16).attr("text-anchor", "middle")
         .attr("fill", "rgba(255,255,255,0.5)").attr("font-family", "'Noto Sans SC',sans-serif")
         .attr("font-size", 13).attr("pointer-events", "none")
@@ -305,6 +324,7 @@
     }
 
     buildLegend(rows);
+    wrap.style.minHeight = "";
   }
 
   function row(k, v) { return '<div style="display:flex;justify-content:space-between;gap:14px;margin:2px 0;color:#8080a0"><span>' + k + '</span><b style="color:#e8e8f0;font-family:\'Space Mono\',monospace">' + v + '</b></div>'; }
@@ -354,8 +374,20 @@
   }
   function bindPills() {
     document.querySelectorAll("#sec-genre [data-gs]").forEach(function (b) {
-      b.addEventListener("click", function () { scope = this.dataset.gs; syncPills(); render(); });
+      b.addEventListener("click", function () {
+        highlightBlueOcean = false;
+        setScope(this.dataset.gs);
+      });
     });
+  }
+
+  function setScope(s) {
+    if (!MULT[s]) return;
+    var sy = window.scrollY;
+    scope = s;
+    syncPills();
+    render();
+    requestAnimationFrame(function () { window.scrollTo(0, sy); });
   }
 
   window.initGenre = function () {
@@ -378,7 +410,15 @@
     })();
   };
 
-  // 供导览 / 联动调用：切换工作室规模
-  window._genreSetScope = function (s) { if (!MULT[s]) return; scope = s; syncPills(); render(); };
+  // 供导览 / 联动调用：切换工作室规模、narrative 高亮
+  window._genreSetScope = setScope;
   window._genreRedraw = function () { if (DATA_G) render(); };
+  window._genreApplyNarrative = function (opts) {
+    if (opts && opts.highlightBlueOcean != null) highlightBlueOcean = opts.highlightBlueOcean;
+    if (DATA_G) render();
+  };
+  window._genreResetNarrative = function () {
+    highlightBlueOcean = false;
+    if (DATA_G) render();
+  };
 })();
