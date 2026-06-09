@@ -1,17 +1,63 @@
 //  VIEW 1: STREAM GRAPH
 // ════════════════════════════════════════════════
 window.initStream = function() {
-  const KEYS = ["f2p","aaa","aa","indie"];
-  const KC = { indie:C.Indie, aa:C.AA, aaa:C.AAA, f2p:C.F2P };
-  const KL = { indie:"INDIE", aa:"AA", aaa:"AAA", f2p:"F2P" };
+  // ── 两条正交分类维度（与散点图一致）：制作规模 tier ⊥ 商业模式 monetization ──
+  //   tier: Indie/AA/AAA（F2P 已按真实规模并入对应档）
+  //   mon : Premium 买断 / F2P 免费 / Hybrid 混合
+  const DIM = {
+    tier: {
+      keys:  ["aaa", "aa", "indie"],
+      color: { indie: C.Indie, aa: C.AA, aaa: C.AAA },
+      label: { indie: "INDIE", aa: "AA", aaa: "AAA" },
+    },
+    mon: {
+      keys:  ["hybrid", "premium", "f2p"],
+      color: { premium: MONC.Premium, f2p: MONC.F2P, hybrid: MONC.Hybrid },
+      label: { premium: "买断制", f2p: "免费F2P", hybrid: "混合模式" },
+    },
+  };
   const EVENTS = [{yr:2012,label:"GREENLIGHT"},{yr:2017,label:"DIRECT"},{yr:2020,label:"COVID"}];
   const MG = {t:24,r:24,b:38,l:48};
 
   let svg,g,xSc,ySc;
   let mode = "count"; // "count" or "ccu"
+  let dim  = "tier";  // "tier"=制作规模 | "mon"=商业模式
   let selectedYear = null;
   let isModeCountEntranceDone = false;
   let isModeCCUEntranceDone = false;
+
+  // 当前维度下每段的份额取值（含诚实回退）：
+  //  · tier：优先用后端干净字段 ti/ta/tb（CCU: cti/cta/ctb，F2P 已并入真实规模档）；
+  //          缺失则用旧 indie/aa/aaa(ci/ca/cb) 去掉 F2P 后归一化兜底。
+  //  · mon ：优先用后端 mp/mf/mh（CCU: cmp/cmf/cmh）；缺失则该(模式,维度)无数据。
+  function dimVals(row) {
+    if (dim === "tier") {
+      if (mode === "ccu") {
+        if (row.cti != null) return { indie: row.cti, aa: row.cta, aaa: row.ctb };
+        return _renorm3(row.ci ?? 0, row.ca ?? 0, row.cb ?? 0, "indie","aa","aaa");
+      }
+      if (row.ti != null) return { indie: row.ti, aa: row.ta, aaa: row.tb };
+      return _renorm3(row.indie ?? 0, row.aa ?? 0, row.aaa ?? 0, "indie","aa","aaa");
+    } else {  // mon
+      if (mode === "ccu") {
+        if (row.cmp != null) return { premium: row.cmp, f2p: row.cmf, hybrid: row.cmh };
+        return null;  // SteamCharts CCU 未按商业模式聚合 → 无数据
+      }
+      if (row.mp != null) return { premium: row.mp, f2p: row.mf, hybrid: row.mh };
+      return null;
+    }
+  }
+  function _renorm3(a, b, c, ka, kb, kc) {
+    const s = a + b + c;
+    const o = {};
+    if (s > 0) { o[ka]=+(a/s*100).toFixed(1); o[kb]=+(b/s*100).toFixed(1); o[kc]=+(c/s*100).toFixed(1); }
+    else { o[ka]=o[kb]=o[kc]=0; }
+    return o;
+  }
+  // 当前(模式,维度)是否有可用数据（mon 维度依赖后端聚合）
+  function dimAvailable() {
+    return DATA.market.some(r => dimVals(r) != null);
+  }
 
   function draw() {
     const wrap = document.getElementById("stream-inner");
@@ -26,29 +72,40 @@ window.initStream = function() {
     const xMin = mode === "ccu" ? 2012 : 2004;
     xSc = d3.scaleLinear().domain([xMin, 2024]).range([0, iW]);
 
-    // Build data for current mode, filter by xMin
-    let stackData;
-    if (mode === "ccu") {
-      stackData = DATA.market
-        .filter(d => d.year >= 2012)
-        .map(d => ({
-          year: d.year,
-          indie: d.ci ?? 0,
-          aa:    d.ca ?? 0,
-          aaa:   d.cb ?? 0,
-          f2p:   d.cf ?? 0,
-          _orig: d,
-        }));
-    } else {
-      stackData = DATA.market.map(d => ({
-        year: d.year,
-        indie: d.indie,
-        aa:    d.aa,
-        aaa:   d.aaa,
-        f2p:   d.f2p,
-        _orig: d,
-      }));
+    // 当前维度的分段定义
+    const KEYS = DIM[dim].keys, KC = DIM[dim].color, KL = DIM[dim].label;
+
+    // 商业模式无分维数据 → 优雅提示，不硬拆造假
+    if (!dimAvailable()) {
+      // 区分两种情况：① 发布维度有数据、仅在线占比缺；② 整体未生成分维数据
+      const monCountOk = DATA.market.some(r => r.mp != null);
+      const line1 = (dim === "mon" && mode === "ccu" && monCountOk)
+        ? "商业模式·在线占比暂无分维聚合数据"
+        : "商业模式分维数据尚未生成";
+      const line2 = (dim === "mon" && mode === "ccu" && monCountOk)
+        ? "（SteamCharts 仅按制作规模聚合在线数 · 可切「发布数量」查看）"
+        : "（请重新运行 05_preprocess.py 生成 tier/monetization 分维聚合）";
+      g.append("text")
+        .attr("x", iW/2).attr("y", iH/2)
+        .attr("text-anchor","middle")
+        .attr("fill","rgba(255,255,255,0.45)")
+        .attr("font-family","'Space Mono',monospace")
+        .attr("font-size", 12)
+        .text(line1);
+      g.append("text")
+        .attr("x", iW/2).attr("y", iH/2 + 20)
+        .attr("text-anchor","middle")
+        .attr("fill","rgba(255,255,255,0.3)")
+        .attr("font-family","'Noto Sans SC',sans-serif")
+        .attr("font-size", 11)
+        .text(line2);
+      return;
     }
+
+    // Build data for current mode/dimension（dimVals 内含后端字段优先 + 诚实回退）
+    let stackData = DATA.market
+      .filter(d => mode !== "ccu" || d.year >= 2012)
+      .map(d => Object.assign({ year: d.year, _orig: d }, dimVals(d)));
 
     const stack = d3.stack().keys(KEYS)
       .offset(d3.stackOffsetWiggle).order(d3.stackOrderInsideOut);
@@ -106,16 +163,24 @@ window.initStream = function() {
           <div class="tip-row"><span class="tip-k">${modeLabel}</span><span class="tip-v" style="color:${KC[s.key]}">${val}%</span></div>`;
 
         if (mode === "ccu") {
-          // CCU mode: show absolute CCU if available
-          const absKey = {"indie":"ci_abs","aa":"ca_abs","aaa":"cb_abs","f2p":"cf_abs"}[s.key];
-          const absVal = d[absKey];
+          // CCU mode: show absolute CCU if available（仅 tier 维度有绝对值字段）
+          const absKey = {"indie":"ci_abs","aa":"ca_abs","aaa":"cb_abs"}[s.key];
+          const absVal = absKey ? d[absKey] : null;
           if (absVal) {
             tipContent += `<div class="tip-row"><span class="tip-k">月均在线</span><span class="tip-v">~${fmt.num(Math.round(absVal))}k</span></div>`;
           }
           tipContent += `<div style="margin-top:3px;font-size:8px;color:#6060a0">基于 SteamCharts 月均在线数据计算</div>`;
         } else {
-          tipContent += `<div class="tip-row"><span class="tip-k">本年总发布</span><span class="tip-v">${fmt.num(d.n)} 款</span></div>
-          <div class="tip-row"><span class="tip-k">${KL[s.key]}发布量</span><span class="tip-v">${fmt.num(d["n"+s.key[0]])} 款</span></div>`;
+          // 各段当年发布量绝对数：tier→ni/na/nb（后端干净计数 nti/nta/ntb 优先），mon→nmp/nmf/nmh
+          const cntKey = {
+            indie: d.nti != null ? "nti" : "ni", aa: d.nta != null ? "nta" : "na",
+            aaa:   d.ntb != null ? "ntb" : "nb",
+            premium: "nmp", f2p: "nmf", hybrid: "nmh",
+          }[s.key];
+          const cnt = cntKey != null ? d[cntKey] : null;
+          tipContent += `<div class="tip-row"><span class="tip-k">本年总发布</span><span class="tip-v">${fmt.num(d.n)} 款</span></div>`;
+          if (cnt != null)
+            tipContent += `<div class="tip-row"><span class="tip-k">${KL[s.key]}发布量</span><span class="tip-v">${fmt.num(cnt)} 款</span></div>`;
         }
 
         tipContent += `${d.ev?`<div class="tip-event">◆ ${d.ev}</div>`:""}
@@ -208,6 +273,16 @@ window.initStream = function() {
       .attr("fill","rgba(255,255,255,0.15)").attr("font-family","'Space Mono',monospace").attr("font-size",11)
       .text(mode==="ccu" ? "MODE: AVG. ONLINE SHARE" : "MODE: RELEASE COUNT");
 
+    // 商业模式视图诚实脚注：Hybrid 依赖内购信号 → 下界估计（与方法论一致）
+    if (dim === "mon") {
+      g.append("text")
+        .attr("x", 0).attr("y", iH + 30)
+        .attr("fill", "rgba(255,255,255,0.3)")
+        .attr("font-family", "'Noto Sans SC',sans-serif")
+        .attr("font-size", 10)
+        .text("注：混合模式依赖「内购」信号识别，仅 Store 富集子集可得 → 占比为下界，买断为上界");
+    }
+
     // Grow animation: reveal from left to right
     if ((!isModeCountEntranceDone && mode == "count") || (!isModeCCUEntranceDone && mode == "ccu")) {
       clipRect.transition()
@@ -266,8 +341,36 @@ window.initStream = function() {
     });
   });
 
+  // Controls: 维度切换（制作规模 ⇄ 商业模式）
+  function syncDimUI() {
+    document.querySelectorAll("[data-sdim]").forEach(x =>
+      x.classList.toggle("active", x.dataset.sdim === dim));
+    // 商业模式·在线占比无分维数据时，禁用「在线人数」并加提示
+    const ccuBtn = document.querySelector('[data-sm="ccu"]');
+    if (ccuBtn) {
+      const block = dim === "mon" && !DATA.market.some(r => r.cmp != null);
+      ccuBtn.classList.toggle("disabled", block);
+      ccuBtn.title = block ? "商业模式维度暂无在线占比数据" : "";
+    }
+  }
+  document.querySelectorAll("[data-sdim]").forEach(b => {
+    b.addEventListener("click", function () {
+      if (dim === this.dataset.sdim) return;
+      dim = this.dataset.sdim;
+      // 切到商业模式且当前在「在线人数」却无 CCU 分维数据 → 自动回退到发布数量
+      if (dim === "mon" && mode === "ccu" && !DATA.market.some(r => r.cmp != null)) {
+        mode = "count";
+        document.querySelectorAll("[data-sm]").forEach(x =>
+          x.classList.toggle("active", x.dataset.sm === "count"));
+      }
+      syncDimUI();
+      draw();
+    });
+  });
+
   draw();
-  window._streamRedraw = draw;
+  syncDimUI();
+  window._streamRedraw = function () { syncDimUI(); draw(); };
   // 供导览模式（tour.js）以编程方式选中/清除年份，复用既有联动链
   window._streamSelectYear = selectYear;
 };

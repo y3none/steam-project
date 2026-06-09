@@ -4,8 +4,10 @@
 const C = { Indie:"#1de9b6", AA:"#ffd54f", AAA:"#ff5252", F2P:"#4dabf7" };
 const TL = { Indie:"独立游戏", AA:"中型AA", AAA:"3A大作", F2P:"免费F2P" };
 // 商业模式 monetization（与 tier 正交）：买断 / 免费 / 混合
+// 配色按【冷暖对立】区分免费↔买断：买断=暖琥珀、免费=亮青、混合=紫，
+// 三色色相分得开，免费/买断一眼可辨（旧版三色都偏冷灰，区分度不足）。
 const MON  = { Premium:"买断制", F2P:"免费F2P", Hybrid:"混合模式" };
-const MONC = { Premium:"#9a9ab8", F2P:"#4dabf7", Hybrid:"#c08cff" };
+const MONC = { Premium:"#ff9f43", F2P:"#18d6e0", Hybrid:"#b56bff" };
 // 取气泡的商业模式标签 / 颜色（统一入口，散点·详情·tooltip 共用）
 function monOf(d)    { return d.monetization || (d.f2p ? "F2P" : "Premium"); }
 function monLabel(d) { return MON[monOf(d)] || monOf(d); }
