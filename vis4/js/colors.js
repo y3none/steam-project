@@ -1,7 +1,15 @@
 //  COLORS & UTILS
 // ════════════════════════════════════════════════
-const C = { Indie:"#1de9b6", AA:"#ffd54f", AAA:"#ff5252", F2P:"#69f0ae" };
+// 制作规模 tier（填充色，三档）：Indie / AA / AAA
+const C = { Indie:"#1de9b6", AA:"#ffd54f", AAA:"#ff5252", F2P:"#4dabf7" };
 const TL = { Indie:"独立游戏", AA:"中型AA", AAA:"3A大作", F2P:"免费F2P" };
+// 商业模式 monetization（与 tier 正交）：买断 / 免费 / 混合
+const MON  = { Premium:"买断制", F2P:"免费F2P", Hybrid:"混合模式" };
+const MONC = { Premium:"#9a9ab8", F2P:"#4dabf7", Hybrid:"#c08cff" };
+// 取气泡的商业模式标签 / 颜色（统一入口，散点·详情·tooltip 共用）
+function monOf(d)    { return d.monetization || (d.f2p ? "F2P" : "Premium"); }
+function monLabel(d) { return MON[monOf(d)] || monOf(d); }
+function monColor(d) { return MONC[monOf(d)] || "#888"; }
 const fmt = {
   pct:   v => v.toFixed(1) + "%",
   ccu:   v => v >= 1e6 ? (v/1e6).toFixed(2)+"M" : v >= 1e3 ? (d3.format(".0f")(v/1e3))+"k" : String(v),

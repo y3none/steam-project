@@ -5,6 +5,20 @@ window.initTour = function() {
   const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const scrollOpt = { behavior: RM ? "auto" : "smooth", block: "start" };
 
+  // 把元素垂直居中到视口（带顶部下限，避免遮住吸顶图例条）
+  function centerInView(el) {
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const desired = window.scrollY + rect.top - Math.max(80, (window.innerHeight - rect.height) / 2);
+    const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    window.scrollTo({ top: Math.max(0, Math.min(desired, maxTop)), behavior: scrollOpt.behavior });
+  }
+  // genre 图表在切换工作室规模时会重绘，重绘后再居中一次（高度稳定，通常无跳动）
+  function recenterGenre() {
+    const box = document.querySelector("#sec-genre .chart-box");
+    if (box) centerInView(box);
+  }
+
   // ── narrative 复位（退出 / 开场时回到中性状态） ──
   function resetAll() {
     window._streamSelectYear && window._streamSelectYear(null);
@@ -78,17 +92,17 @@ window.initTour = function() {
       anim(A) { A.synth(); },
     },
     {
-      sel: "#sec-genre", chapter: "尾声 · 给从业者", title: "那，该做一款什么游戏？",
+      sel: "#sec-genre", centerSel: ".chart-box", chapter: "尾声 · 给从业者", title: "那，该做一款什么游戏？",
       text: "我们把结论交回开发者手里：按玩法品类铺开供给与需求，左上角是需求高、对手少的蓝海。切到「独立」——地图重算成你这个段位的真实机会。这才是这套系统的落点：不止说明过去，更指向该做什么。",
-      dur: 6000,
+      dur: 7500,
       action() { window._genreSetScope && window._genreSetScope("Indie"); },
-      // 动态：全貌 → 点亮蓝海 → 切到独立段位
+      // 动态：全貌 → 点亮蓝海 → 切到独立段位；每次重算后重新居中
       anim(A) {
         A.later(() => A.genre({ highlightBlueOcean: false }), 0);
         if (window._genreSetScope) {
-          A.later(() => window._genreSetScope("All"), 0);
-          A.later(() => A.genre({ highlightBlueOcean: true }), 0);
-          A.later(() => window._genreSetScope("Indie"), 3000);
+          A.later(function () { window._genreSetScope("All"); recenterGenre(); }, 200);
+          A.later(() => A.genre({ highlightBlueOcean: true }), 1500);
+          A.later(function () { window._genreSetScope("Indie"); recenterGenre(); }, 3000);
         }
       },
     },
@@ -200,8 +214,17 @@ window.initTour = function() {
     const s = steps[idx];
     const target = document.querySelector(s.sel);
     if (target) {
-      if (s.sel === ".hero") window.scrollTo({ top: 0, behavior: scrollOpt.behavior });
-      else target.scrollIntoView(scrollOpt);
+      if (s.sel === ".hero") {
+        window.scrollTo({ top: 0, behavior: scrollOpt.behavior });
+      } else if (s.centerSel) {
+        // 把章节内的指定元素（通常是图表框）垂直居中到视口——
+        // 用于页面末尾的区块：scrollIntoView(block:"start") 会因文档底部
+        // 不足以下滚而被钳制，导致图表停在视口下半（有半截在折叠线以下）。
+        // 末尾已加 .scroll-runway 提供下滚余量，这里再做一次精确居中。
+        centerInView(target.querySelector(s.centerSel) || target);
+      } else {
+        target.scrollIntoView(scrollOpt);
+      }
     }
     // 等滚动落定再触发：非 reduced-motion 且该章有 anim() → 播放动态序列；否则直接到终态
     setTimeout(() => {

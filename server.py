@@ -215,7 +215,7 @@ def fetch_live_ccu(appids):
             pass
         return None
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as pool:
         futures = {pool.submit(get_one, aid): aid for aid in appids}
         for f in concurrent.futures.as_completed(futures):
             r = f.result()
@@ -596,16 +596,16 @@ def api_data():
 @app.route("/api/refresh")
 def api_refresh():
     """
-    实时刷新：从 Steam 官方 API 获取当前在线人数（秒级变化），
-    不重复调用 SteamSpy（日更快照）。
+    快速刷新：仅从 Steam 官方 API 获取前 200 款高 CCU 游戏的实时在线人数。
+    不重新执行全量数据处理，直接就地更新 bubbles 中的 CCU 字段。
     """
     t0 = time.time()
     try:
-        # 从数据库中取 CCU 最高的游戏，查询实时在线
-        top_appids = _get_top_appids(20)
+        # 1. 取 CCU 最高的 200 款游戏
+        top_appids = _get_top_appids(200)
         live_ccu = fetch_live_ccu(top_appids)
 
-        # 对比旧 CCU，生成变化
+        # 2. 更新数据库中的 CCU + 记录变化
         changes = []
         with db._lock:
             for appid, new_ccu in live_ccu.items():
@@ -613,19 +613,39 @@ def api_refresh():
                     g = db._games[appid]
                     old_ccu = g.get("ccu", 0) or 0
                     diff = new_ccu - old_ccu
+                    g["ccu"] = new_ccu
                     changes.append({
                         "appid": appid,
                         "name": g.get("name", appid),
                         "ccu": new_ccu,
                         "ccu_diff": diff,
                     })
-                    # 更新数据库中的 CCU
-                    g["ccu"] = new_ccu
 
+        # 不在此处 save_to_disk —— 写整个 JSON 很慢，留给全量爬取时再持久化
+        db._dirty = True  # 标记脏数据，下次全量保存时会写入
+
+        # 3. 就地更新 store.bubbles 中的 CCU（不重新跑全量处理）
+        if store.bubbles and changes:
+            ccu_map = {c["name"]: c["ccu"] for c in changes if c.get("name")}
+            for b in store.bubbles:
+                new_ccu_val = ccu_map.get(b.get("name"))
+                if new_ccu_val is not None:
+                    b["peak_ccu"] = new_ccu_val
+                    if "ccu" in b:
+                        b["ccu"] = new_ccu_val
+
+        # 4. 更新 meta 时间戳
+        if store.meta:
+            store.meta["generated_at"] = datetime.now().isoformat()
+
+        # 5. 构建变化摘要
         changes.sort(key=lambda c: abs(c.get("ccu_diff", 0)), reverse=True)
         ccu_up   = [c for c in changes if c.get("ccu_diff", 0) > 0][:5]
         ccu_down = [c for c in changes if c.get("ccu_diff", 0) < 0][:5]
         top_ccu_now = sorted(changes, key=lambda c: -(c.get("ccu", 0)))[:5]
+
+        elapsed = round(time.time() - t0, 2)
+        print(f"[refresh] ✓ {len(live_ccu)} 款 CCU 已更新, 耗时 {elapsed}s")
 
         return jsonify({
             "market":  store.market,
@@ -633,7 +653,7 @@ def api_refresh():
             "decay":   store.decay,
             "meta":    store.meta,
             "total_in_db": db.count,
-            "elapsed_sec": round(time.time() - t0, 2),
+            "elapsed_sec": elapsed,
             "live_changes": {
                 "timestamp": datetime.now().isoformat(),
                 "total_updated": len(live_ccu),
@@ -655,17 +675,6 @@ def api_refresh():
                 "live_changes": {"total_updated": 0, "top_ccu_now": [],
                                  "ccu_rising": [], "ccu_falling": [],
                                  "new_games": [], "new_reviews": []},
-                "error": str(e),
-            })
-        return jsonify({"error": str(e)}), 500
-    except Exception as e:
-        print(f"[refresh] 失败: {e}")
-        import traceback; traceback.print_exc()
-        if store.status["loaded"]:
-            return jsonify({
-                "market": store.market, "bubbles": store.bubbles,
-                "decay": store.decay,   "meta": store.meta,
-                "freshly_crawled": 0, "total_in_db": db.count,
                 "error": str(e),
             })
         return jsonify({"error": str(e)}), 500

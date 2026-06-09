@@ -1,19 +1,20 @@
 //  VIEW 4: METHODOLOGY — Updated to reflect actual implementation
 // ════════════════════════════════════════════════
 window.initMethod = function() {
-  const wrap = document.getElementById("method-inner");
+  const wrap = document.getElementById('method-inner');
   if (!wrap) return;
 
-  var totalLabel = (DATA.meta && DATA.meta.total_games)
-    ? fmt.num(DATA.meta.total_games) + '+'
-    : '120,000+';
+  var totalLabel = (DATA.meta && DATA.meta.total_games) ?
+      fmt.num(DATA.meta.total_games) + '+' :
+      '120,000+';
 
   wrap.innerHTML = `
     <div class="method-grid">
       <div class="method-cell">
         <div class="method-cell-title">四源数据融合</div>
         <div class="method-cell-body">
-          <strong>① Kaggle Steam Dataset</strong> — 主数据源，${totalLabel} 游戏，含发布日期、评价、owners、标签<br>
+          <strong>① Kaggle Steam Dataset</strong> — 主数据源，${
+      totalLabel} 游戏，含发布日期、评价、owners、标签<br>
           <strong>② SteamSpy API</strong> — 补充标签权重、近期游戏时长，Top100 实时爬取 + 全量分页采集<br>
           <strong>③ Steam Store API</strong> — 校验分类标签、开发商/发行商、Metacritic 评分<br>
           <strong>④ SteamCharts.com</strong> — 2012年至今逐月 Avg. Players，用于视图一在线占比和视图三衰减曲线<br>
@@ -21,14 +22,20 @@ window.initMethod = function() {
         </div>
       </div>
       <div class="method-cell">
-        <div class="method-cell-title">游戏分类规则（业界共识）</div>
+        <div class="method-cell-title">游戏分类规则（两个正交维度）</div>
         <div class="method-cell-body">
-          <strong>F2P</strong>：<code>price=0</code> 且 tags/genres 含 "Free to Play"（避免限免独立游戏误判）<br>
-          <strong>AAA</strong>：发行商 ∈ 已知大厂名单（30 家，含 Valve/Blizzard/Rockstar 等）且 owners ≥ 0.5M<br>
-          <strong>Indie</strong>：Indie 标签投票 > 0 或 genre 含 "Indie"，且无 AAA 发行商信号<br>
-          <strong>AA</strong>：无 Indie 信号 + owners ≥ 0.5M 或 price ≥ $9.99 的中间地带<br>
-          <strong>手动覆盖</strong>：60+ 款已知游戏按业界共识手动标注（如 Black Myth: Wukong → AAA, $140M 预算）<br>
-          <span style="color:var(--aa)">⚠</span> 价格使用当前售价（非首发价），降价 3A 大作通过发行商名单+手动覆盖修正
+          分类沿<strong>两个相互独立的维度</strong>展开，互不蕴含——
+          <em>AAA 也可以是 F2P</em>（如《原神》《Apex》《CS2》），独立游戏同样可以 F2P。<br>
+          <strong>① 规模档 tier（制作 / 发行投入）</strong><br>
+          &nbsp;&nbsp;<strong>AAA</strong>：发行商 ∈ 已知大厂名单（30 家，含 Valve/Blizzard/Rockstar 等）且 owners ≥ 0.5M<br>
+          &nbsp;&nbsp;<strong>Indie</strong>：Indie 标签投票 > 0 或 genre 含 "Indie"，且无 AAA 发行商信号<br>
+          &nbsp;&nbsp;<strong>AA</strong>：无 Indie 信号 + owners ≥ 0.5M 或 price ≥ $9.99 的中间地带<br>
+          <strong>② 商业模式 monetization（与规模档正交）</strong><br>
+          &nbsp;&nbsp;<strong>F2P</strong>：免费进入 + tags/genres 含 "Free to Play"（仅 price=0 而无 F2P 信号视为限免买断，记为 Premium）<br>
+          &nbsp;&nbsp;<strong>Premium</strong>：买断制 / 付费进入<br>
+          <strong>手动覆盖</strong>：60+ 款已知游戏按业界共识标注两个维度（如 Black Myth: Wukong → AAA·Premium；原神 → AAA·F2P）<br>
+          <span style="color:var(--aa)">⚠</span> 堆叠图 / 散点 / 衰减视图中的 “F2P” 是<strong>商业模式分段</strong>（与规模档可重叠），并非第四个规模档；
+          机会矩阵与散点详情会同时给出 tier 与 monetization 两维真值。
         </div>
       </div>
       <div class="method-cell">
@@ -78,83 +85,104 @@ window.initMethod = function() {
 };
 
 function drawPipeline() {
-  const wrap = document.getElementById("method-pipeline");
+  const wrap = document.getElementById('method-pipeline');
   if (!wrap) return;
   const W = wrap.clientWidth || 700;
-  const H = 90;
+  const H = 100;
 
-  var gameCount = (DATA.meta && DATA.meta.total_games)
-    ? Math.round(DATA.meta.total_games / 1000) + 'k+ games'
-    : '120k+ games';
+  var gameCount = (DATA.meta && DATA.meta.total_games) ?
+      Math.round(DATA.meta.total_games / 1000) + 'k+ games' :
+      '120k+ games';
 
   const steps = [
-    { label: "Kaggle\nDataset",     sub: gameCount,        color: "#1de9b6" },
-    { label: "SteamSpy\nAPI",       sub: "实时 Top100",   color: "#1de9b6" },
-    { label: "SteamCharts",         sub: "月均在线 CCU",   color: "#1de9b6" },
-    { label: "Steam API",           sub: "实时 CCU",       color: "#69f0ae" },
-    { label: "清洗 · 分类\n融合",    sub: "05_preprocess",  color: "#ffd54f" },
-    { label: "JSON\n输出",           sub: "4 files",        color: "#ffd54f" },
-    { label: "D3.js v7\n可视化",     sub: "5 视图 + 联动", color: "#ff5252" },
+    {label: 'Kaggle\nDataset', sub: gameCount, color: '#1de9b6'},
+    {label: 'SteamSpy\nAPI', sub: '实时 Top100', color: '#69f0ae'},
+    {label: 'SteamCharts', sub: '月均在线 CCU', color: '#26c6da'},
+    {label: 'Steam API', sub: '实时 CCU', color: '#4fc3f7'},
+    {label: '清洗 · 分类\n融合', sub: '05_preprocess', color: '#ffd54f'},
+    {label: 'JSON\n输出', sub: '4 files', color: '#ffab40'},
+    {label: 'D3.js v7\n可视化', sub: '5 视图 + 联动', color: '#ff5252'},
   ];
 
-  const svg = d3.select(wrap).append("svg")
-    .attr("viewBox", `0 0 ${W} ${H}`)
-    .attr("height", H);
+  const svg = d3.select(wrap)
+                  .append('svg')
+                  .attr('viewBox', `0 0 ${W} ${H}`)
+                  .attr('height', H);
 
-  // Arrow marker
-  svg.append("defs").append("marker")
-    .attr("id", "arrow-m").attr("viewBox", "0 0 10 10")
-    .attr("refX", 9).attr("refY", 5)
-    .attr("markerWidth", 6).attr("markerHeight", 6)
-    .attr("orient", "auto-start-reverse")
-    .append("path")
-    .attr("d", "M 0 0 L 10 5 L 0 10 z")
-    .attr("fill", "#2a2a48");
+  // Arrow marker (larger)
+  svg.append('defs')
+      .append('marker')
+      .attr('id', 'arrow-m')
+      .attr('viewBox', '0 0 10 10')
+      .attr('refX', 9)
+      .attr('refY', 5)
+      .attr('markerWidth', 4)
+      .attr('markerHeight', 4)
+      .attr('orient', 'auto-start-reverse')
+      .append('path')
+      .attr('d', 'M 0 0 L 10 5 L 0 10 z')
+      .attr('fill', '#3a3a58');
 
   const stepW = W / steps.length;
+  const boxW = 120, boxH = 70, boxY = 20;
 
   steps.forEach((s, i) => {
     const cx = stepW * i + stepW / 2;
 
-    // Arrow between steps
+    // Arrow between steps — endpoints computed from box edges
     if (i > 0) {
-      const prevCx = stepW * (i-1) + stepW / 2;
-      svg.append("line")
-        .attr("x1", prevCx + 36).attr("x2", cx - 36)
-        .attr("y1", 36).attr("y2", 36)
-        .attr("stroke", "#2a2a48").attr("stroke-width", 1)
-        .attr("marker-end", "url(#arrow-m)");
+      const prevCx = stepW * (i - 1) + stepW / 2;
+      const pad = 2;
+      const arrowX1 = prevCx + boxW / 2 + pad;
+      const arrowX2 = cx - boxW / 2 - pad;
+      svg.append('line')
+          .attr('x1', arrowX1)
+          .attr('x2', arrowX2)
+          .attr('y1', boxY + boxH / 2)
+          .attr('y2', boxY + boxH / 2)
+          .attr('stroke', '#3a3a58')
+          .attr('stroke-width', 3)
+          .attr('marker-end', 'url(#arrow-m)');
     }
 
-    // Box
-    svg.append("rect")
-      .attr("x", cx - 38).attr("y", 14)
-      .attr("width", 76).attr("height", 44)
-      .attr("rx", 4)
-      .attr("fill", "rgba(255,255,255,0.03)")
-      .attr("stroke", s.color).attr("stroke-width", 0.5)
-      .attr("opacity", 0.6);
+    // Box with colored fill & border
+    svg.append('rect')
+        .attr('x', cx - boxW / 2)
+        .attr('y', boxY)
+        .attr('width', boxW)
+        .attr('height', boxH)
+        .attr('rx', 6)
+        .attr('fill', s.color)
+        .attr('fill-opacity', 0.1)
+        .attr('stroke', s.color)
+        .attr('stroke-width', 1.8);
 
-    // Label
-    const lines = s.label.split("\n");
+    // Label (centered, larger font)
+    const lines = s.label.split('\n');
+    const labelStartY = boxY + boxH / 2 - (lines.length - 1) * 8;
     lines.forEach((line, li) => {
-      svg.append("text")
-        .attr("x", cx).attr("y", 32 + li * 12)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#d8d8f0")
-        .attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 9)
-        .text(line);
+      svg.append('text')
+          .attr('x', cx)
+          .attr('y', labelStartY + li * 16)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('fill', '#e8e8f0')
+          .attr('font-family', '\'Space Mono\',monospace')
+          .attr('font-size', 14)
+          .attr('font-weight', '600')
+          .text(line);
     });
 
     // Sub label
-    svg.append("text")
-      .attr("x", cx).attr("y", 74)
-      .attr("text-anchor", "middle")
-      .attr("fill", "#6060a0")
-      .attr("font-family", "'Space Mono',monospace")
-      .attr("font-size", 8)
-      .text(s.sub);
+    svg.append('text')
+        .attr('x', cx)
+        .attr('y', boxY + boxH + 16)
+        .attr('text-anchor', 'middle')
+        .attr('fill', s.color)
+        .attr('font-family', '\'Space Mono\',monospace')
+        .attr('font-size', 12)
+        .attr('font-weight', '500')
+        .text(s.sub);
   });
 }
 
