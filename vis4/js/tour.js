@@ -5,11 +5,23 @@ window.initTour = function() {
   const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const scrollOpt = { behavior: RM ? "auto" : "smooth", block: "start" };
 
-  // 把元素垂直居中到视口（带顶部下限，避免遮住吸顶图例条）
+  // 底部字幕条占用的高度（含与图表的呼吸间距）。滚动时把这块预留出来，避免遮挡图表。
+  // 用 offsetHeight 而非 getBoundingClientRect：前者不受入场动画 bottom 影响，稳定可靠。
+  function barReserve() {
+    if (!active || !bar || !bar.classList.contains("show")) return 0;
+    return bar.offsetHeight + 22 + 18; // 22 = bar 距底间距，再留 18 呼吸位
+  }
+
+  // 把元素居中到「未被字幕条遮挡」的可视区（顶部留出吸顶图例条空间）
   function centerInView(el) {
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const desired = window.scrollY + rect.top - Math.max(80, (window.innerHeight - rect.height) / 2);
+    const availTop = 80;                                   // 顶部下限（吸顶图例条）
+    const availBottom = window.innerHeight - barReserve(); // 底部上限（字幕条之上）
+    const availH = Math.max(120, availBottom - availTop);
+    // 图表高于可视区时顶对齐（优先露出图表上半）；否则在可视区内垂直居中
+    const offset = rect.height > availH ? availTop : availTop + (availH - rect.height) / 2;
+    const desired = window.scrollY + rect.top - offset;
     const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     window.scrollTo({ top: Math.max(0, Math.min(desired, maxTop)), behavior: scrollOpt.behavior });
   }
@@ -49,9 +61,14 @@ window.initTour = function() {
       sel: "#sec-scatter", chapter: "跨视图联动", title: "一次点击，两图联动",
       text: "注意散点图随年份实时重筛：在 2016 → 2018 → 2017 之间擦动，每次都由河流图的年份联动驱动——这就是我们的跨视图下钻设计。",
       dur: 7500,
-      action() { window._streamSelectYear && window._streamSelectYear(2017); },
+      action() {
+        // 复位散点：清掉前后章节可能残留的 filter / quadrant / tag
+        window._scatterApplyNarrative && window._scatterApplyNarrative({ filter: "all", highlightQuadrant: false });
+        window._streamSelectYear && window._streamSelectYear(2017);
+      },
       // 动态：在相邻年份间擦动，让散点图当场重新筛选，最后落到 2017
       anim(A) {
+        A.scatter({ filter: "all", highlightQuadrant: false });
         [2016, 2018, 2017].forEach((y, k) => A.later(() => A.stream(y), k * 1500));
       },
     },
@@ -212,28 +229,29 @@ window.initTour = function() {
     clearAnim();
     idx = Math.max(0, Math.min(steps.length - 1, i));
     const s = steps[idx];
+    // 先渲染字幕条（更新文案 → offsetHeight 反映当前步高度），再据此计算预留空间滚动
+    render();
     const target = document.querySelector(s.sel);
     if (target) {
       if (s.sel === ".hero") {
         window.scrollTo({ top: 0, behavior: scrollOpt.behavior });
-      } else if (s.centerSel) {
-        // 把章节内的指定元素（通常是图表框）垂直居中到视口——
-        // 用于页面末尾的区块：scrollIntoView(block:"start") 会因文档底部
-        // 不足以下滚而被钳制，导致图表停在视口下半（有半截在折叠线以下）。
-        // 末尾已加 .scroll-runway 提供下滚余量，这里再做一次精确居中。
-        centerInView(target.querySelector(s.centerSel) || target);
       } else {
-        target.scrollIntoView(scrollOpt);
+        // 统一聚焦图表框，在「字幕条之上的可视区」内居中——避免图表下半截
+        // （坐标轴 / 图例）被底部字幕条遮挡；centerInView 内置高于可视区时顶对齐。
+        const focus = (s.centerSel && target.querySelector(s.centerSel))
+                   || target.querySelector(".chart-box")
+                   || target;
+        centerInView(focus);
       }
     }
     // 等滚动落定再触发：非 reduced-motion 且该章有 anim() → 播放动态序列；否则直接到终态
-    setTimeout(() => {
+    // 用 later() 入队，确保暂停时 clearAnim() 能取消这次延迟触发
+    later(() => {
       try {
         if (!RM && s.anim) s.anim(A);
         else s.action();
       } catch (e) { console.warn("[tour]", e); }
     }, RM ? 0 : 450);
-    render();
     // 当前进度点：播放中→倒计时动画；暂停→置空或冻结
     const curDot = progEl.querySelector(".tour-dot.current");
     const willPlay = (keepPlaying ?? playing);
@@ -261,6 +279,7 @@ window.initTour = function() {
       goTo(idx, true);
     } else {
       clearTimer();
+      clearAnim(); // 取消本章节排队中的分阶段动画，否则暂停后仍会继续触发
       freezeCurrentFill(); // 暂停时把倒计时绿条冻结在当前位置，给出明确反馈
     }
   }

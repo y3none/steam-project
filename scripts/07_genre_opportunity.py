@@ -276,9 +276,11 @@ def main():
         if tier not in ("Indie", "AA", "AAA"):
             tier = "Indie"
         try:
-            is_f2p = (classify_monet(rec) == "F2P")
+            monet = classify_monet(rec)
         except Exception:
-            is_f2p = (fallback_monetization(rec) == "F2P")
+            monet = fallback_monetization(rec)
+        if monet not in ("F2P", "Premium", "Hybrid"):
+            monet = "Premium"
         kept += 1
         for tag in tags:
             if not tag or tag.strip().lower() in STOPWORD_LC:
@@ -290,10 +292,10 @@ def main():
             # 规模档桶（Indie/AA/AAA，互斥）
             slot = by_tag_type[tag][tier]
             slot["o"].append(om); slot["p"].append(pr); slot["y"].append(yr)
-            # F2P 桶与规模档【正交、可重叠】：一款 F2P 的 AAA 会同时计入 AAA 和 F2P
-            if is_f2p:
-                fslot = by_tag_type[tag]["F2P"]
-                fslot["o"].append(om); fslot["p"].append(pr); fslot["y"].append(yr)
+            # 商业模式桶（F2P/Premium/Hybrid，互斥）——与规模档【正交、可重叠】
+            #   一款 F2P 的 AAA 会同时计入 AAA 和 F2P；一款付费 Indie 会同时计入 Indie 和 Premium
+            mslot = by_tag_type[tag][monet]
+            mslot["o"].append(om); mslot["p"].append(pr); mslot["y"].append(yr)
 
     print(f"参与统计的游戏(评价≥{MIN_REVIEWS}): {kept} 款 · 候选品类 {len(owners_by_tag)} 个")
 
@@ -322,7 +324,7 @@ def main():
         "note": ("需求口径同时提供 median/p75/mean。前端纵轴用 mean_owners_m（owners 分桶导致"
                  "中位分辨率不足），故'需求高'≈'出过爆款'；median/p75 为抗爆款的稳健参照。"
                  "趋势=近三年vs前三年发行量动量；末年若不完整会使 trend 偏冷。"),
-        "by_type_scopes": "Indie/AA/AAA 为互斥规模档；F2P 为正交商业模式桶，可与任一规模档重叠。",
+        "by_type_scopes": "Indie/AA/AAA 为互斥规模档；F2P/Premium/Hybrid 为正交的商业模式桶，可与任一规模档重叠。",
     }
     out = {"meta": meta, "genres": rows}
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:

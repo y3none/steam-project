@@ -34,6 +34,8 @@ const MULT = {
   AA: {c: .14, o: 1.7, t: .26, h: 1.6},
   AAA: {c: .035, o: 4.2, t: .42, h: 3.0},
   F2P: {c: .05, o: 2.6, t: .30, h: 2.2},
+  Premium: {c: .92, o: .88, t: .68, h: .80},
+  Hybrid: {c: .02, o: 3.1, t: .14, h: 2.4},
 };
 function buildFallback() {
   const genres = SAMPLE_OVERALL.map(function(a) {
@@ -66,13 +68,13 @@ function buildFallback() {
   return {meta: {source: '内嵌示例数据'}, genres: genres, _fallback: true};
 }
 
-// 把真实 json 或兜底统一成 {tag, scopes:{All,Indie,AA,AAA,F2P}}
+// 把真实 json 或兜底统一成 {tag, scopes:{All,Indie,AA,AAA,F2P,Premium,Hybrid}}
 function normalize(raw) {
   if (raw && raw.genres && raw.genres[0] && raw.genres[0].scopes)
     return raw;  // 已是兜底结构
   var genres = (raw.genres || []).map(function(g) {
     var scopes = {All: g.overall};
-    ['Indie', 'AA', 'AAA', 'F2P'].forEach(function(t) {
+    ['Indie', 'AA', 'AAA', 'F2P', 'Premium', 'Hybrid'].forEach(function(t) {
       if (g.by_type && g.by_type[t]) scopes[t] = g.by_type[t];
     });
     return {tag: g.tag, scopes: scopes};
@@ -528,30 +530,29 @@ function render() {
         if (highlightBlueOcean && i === rows.length - 1) applyBubbleState(0);
       });
 
-  var labeled = {};
-  rows.slice()
-      .sort(function(a, b) {
-        return b.total_owners_m - a.total_owners_m;
-      })
-      .slice(0, 11)
-      .forEach(function(d) {
-        labeled[d.tag] = 1;
-      });
-  node.filter(function(d) {
-        return labeled[d.tag];
-      })
-      .append('text')
+  // 标注【全部】品类（旧版只标市场总盘前 11，导致多数气泡无文字）。
+  // 为避免叠字：① 加深色描边光晕(paint-order)保证重叠时仍可读；
+  //            ② 按索引奇偶在气泡上/下交错放置，错开相邻标签；
+  //            ③ 入场后跑一次贪心碰撞检测：按市场总盘从大到小依次放置，
+  //               尝试上下左右四个候选位置，全冲突则隐藏次要标签。
+  node.append('text')
+      .attr('class', 'genre-label')
       .attr('text-anchor', 'middle')
       .attr(
           'dy',
-          function(d) {
-            return -r(d.total_owners_m) - 4;
+          function(d, i) {
+            var rr = r(d.total_owners_m);
+            return (i % 2 === 0) ? (-rr - 5) : (rr + 13);
           })
       .attr('fill', function(d) {
         return highlightBlueOcean && isBlueOcean(d, mx, my) ? '#1de9b6' : '#e8e8f0';
       })
+      .attr('stroke', '#0a0a12')          // 深色光晕，压在其它气泡/标签上仍清晰
+      .attr('stroke-width', 3)
+      .attr('stroke-linejoin', 'round')
+      .attr('paint-order', 'stroke')      // 先描边后填字 → 文字在光晕之上
       .attr('font-family', '\'Noto Sans SC\',sans-serif')
-      .attr('font-size', 13)
+      .attr('font-size', 11.5)
       .attr('pointer-events', 'none')
       .text(function(d) {
         return d.tag;
@@ -565,7 +566,64 @@ function render() {
       .attr('opacity', function(d) {
         if (!highlightBlueOcean) return 1;
         return isBlueOcean(d, mx, my) ? 1 : 0.2;
+      })
+      .on('end', function(d, i) {
+        // 末个标签入场后跑一次贪心碰撞检测（重绘时也会因 selection 重建而再次触发）
+        if (i === rows.length - 1) resolveLabelCollisions();
       });
+
+  // 贪心碰撞：按市场总盘从大到小排序，依次尝试 4 个候选位置；全冲突则隐藏
+  function resolveLabelCollisions() {
+    var labels = node.select('text.genre-label').nodes();
+    if (!labels.length) return;
+    // 按数据 total_owners_m 降序，重要的优先占位
+    var entries = labels.map(function(el) {
+      var d3sel = d3.select(el);
+      var datum = d3sel.datum();
+      return { el: el, sel: d3sel, datum: datum, weight: datum.total_owners_m || 0 };
+    }).sort(function(a, b) { return b.weight - a.weight; });
+
+    var placed = []; // {x, y, w, h}
+    entries.forEach(function(e) {
+      var rr = r(e.datum.total_owners_m);
+      var bbox;
+      try { bbox = e.el.getBBox(); } catch (err) { bbox = { width: 0, height: 0 }; }
+      var tw = bbox.width, th = bbox.height || 14;
+      // 标签所属 node 在 g 内的位移
+      var parent = e.el.parentNode;
+      var tx = parent && parent.transform && parent.transform.baseVal[0]
+               ? parent.transform.baseVal[0].matrix.e : 0;
+      var ty = parent && parent.transform && parent.transform.baseVal[0]
+               ? parent.transform.baseVal[0].matrix.f : 0;
+      var cands = [
+        { dy: -rr - 5,  dx: 0 },           // 上
+        { dy: rr + 13,  dx: 0 },           // 下
+        { dy: 4,        dx: rr + tw/2 + 6 }, // 右
+        { dy: 4,        dx: -rr - tw/2 - 6 }, // 左
+      ];
+      var found = null;
+      for (var k = 0; k < cands.length; k++) {
+        var cx = tx + cands[k].dx, cy = ty + cands[k].dy;
+        var box = { x: cx - tw/2 - 1, y: cy - th + 2, w: tw + 2, h: th };
+        var clash = placed.some(function(p) {
+          return !(box.x + box.w < p.x || p.x + p.w < box.x ||
+                   box.y + box.h < p.y || p.y + p.h < box.y);
+        });
+        if (!clash) { found = { cand: cands[k], box: box }; break; }
+      }
+      if (found) {
+        e.sel.attr('dy', found.cand.dy)
+             .attr('dx', found.cand.dx || 0)
+             .attr('opacity', highlightBlueOcean
+               ? (isBlueOcean(e.datum, mx, my) ? 1 : 0.2)
+               : 1);
+        placed.push(found.box);
+      } else {
+        // 全冲突 → 隐藏（hover 时仍由 tooltip 显示完整信息）
+        e.sel.attr('opacity', 0);
+      }
+    });
+  }
 
   node.on('mouseenter',
           function(ev, d) {
