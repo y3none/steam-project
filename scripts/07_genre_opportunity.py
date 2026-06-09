@@ -5,17 +5,27 @@
 为每个品类算出四个决策维度：
 
   · 供给(supply)     = 该品类在售游戏数（横轴 / 竞争激烈度）
-  · 需求(demand)     = 该品类的中位拥有量（纵轴 / 典型结局，而非被爆款拉高的均值）
+  · 需求(demand)     = 该品类拥有量。本脚本对每个品类同时输出多种口径：
+                         median_owners_m（中位 / 抗爆款，真正的"典型结局"）、
+                         p75_owners_m（上四分位 / "做得好时"的预期）、
+                         mean_owners_m（均值 / 会被头部爆款拉高）。
+                       ⚠ 注意：前端机会矩阵当前用 mean_owners_m 定位纵轴
+                         （因 SteamSpy owners 是分桶区间，中位数在粗桶下分辨率不足），
+                         故"需求高"实际含义偏向"该品类出过爆款"，而非"普遍都卖得好"。
+                         前端 tooltip 应同时展示 median/p75 作为稳健参照（已随本 JSON 提供）。
   · 市场规模         = 该品类总拥有量（气泡大小）
   · 趋势(trend)      = 近三年 vs 前三年的发行数量动量（气泡颜色，红=升温/蓝=降温）
+                       ⚠ 右删失风险：若数据快照截止于某年年中，则最近一年发行量被低估，
+                         trend 会系统性偏冷。建议在 meta 标注快照日期或丢弃不完整的末年。
 另附：命中率(owners≥1M 的占比)、质量门槛(中位好评率)。
 
 读法（前端按象限呈现）：
   左上 高需求·低供给 → 蓝海机会      右上 高需求·高供给 → 红海热门
   左下 低需求·低供给 → 小众/未验证    右下 低需求·高供给 → 过度饱和（慎入）
 
-所有数字均来自真实聚合，可溯源；不做任何硬编码。每个品类同时输出"按工作室规模(类型)
-拆分"的子聚合，前端可据此筛选——独立工作室只看独立游戏在各品类下的真实结局。
+所有数字均来自真实聚合，可溯源；不做任何硬编码。每个品类同时输出"按规模档(tier)
+拆分"的子聚合，外加一个【与规模档正交】的 F2P 子聚合（商业模式维度，可与任一规模档重叠）。
+前端可据此筛选——独立工作室只看独立游戏在各品类下的真实结局。
 
 用法:  python 07_genre_opportunity.py
 输出:  data/processed/genre_opportunity.json
@@ -66,32 +76,46 @@ STOPWORD_LC = {
 
 
 # ── 复用主流程的分类器（拿不到就用内置兜底）──────────────
+#   tier（规模档 Indie/AA/AAA）与 monetization（F2P/Premium）是【正交】两维：
+#   AAA 也可以是 F2P（原神/Apex），Indie 也可以 F2P。所以这里两个分类器都要拿。
 def load_classifier():
     for p in [BASE_DIR / "05_preprocess.py", BASE_DIR / "scripts" / "05_preprocess.py"]:
         if p.exists():
             try:
                 mod = SourceFileLoader("pp", str(p)).load_module()
-                return mod.classify_game_type
+                monet = getattr(mod, "classify_monetization", None)
+                return mod.classify_game_type, monet
             except Exception as e:
                 print(f"    ⚠ 无法加载分类器({e})，使用内置兜底")
-    return None
+    return None, None
 
 
 def fallback_classify(rec):
-    """无主分类器时的粗略兜底：仅用于不影响主结论的退路。"""
-    price = rec.get("price_usd", rec.get("price", 0)) or 0
-    try:
-        price = float(price)
-    except Exception:
-        price = 0
-    if price == 0:
-        return "F2P"
-    owners = parse_owners_m(rec.get("owners", ""))
+    """无主分类器时的粗略兜底【规模档】：仅用于不影响主结论的退路。不再返回 F2P。"""
+    owners = parse_owners_m(rec.get("owners", rec.get("owners_m", "")))
     if owners >= 20:
         return "AAA"
     if owners >= 2:
         return "AA"
     return "Indie"
+
+
+def fallback_monetization(rec):
+    """兜底【商业模式】：免费进入 + Free to Play 信号 → F2P，否则 Premium。"""
+    price = rec.get("price_usd", rec.get("price", 0)) or 0
+    try:
+        price = float(price)
+    except Exception:
+        price = 0
+    is_free = rec.get("is_free", False)
+    tags = rec.get("tags", {}) or {}
+    genres = " ".join(rec.get("genres", []) or []).lower() if isinstance(rec.get("genres"), list) else str(rec.get("genres", "")).lower()
+    has_f2p = (
+        (isinstance(tags, dict) and any(
+            tags.get(k, 0) and tags.get(k, 0) > 50 for k in ("Free to Play", "Free To Play", "F2P")))
+        or "free to play" in genres
+    )
+    return "F2P" if (has_f2p and (is_free or price == 0)) else "Premium"
 
 
 def parse_owners_m(owners):
@@ -219,7 +243,11 @@ def main():
     records = load_records()
     if not records:
         return
-    classify = load_classifier() or fallback_classify
+    classify_tier, classify_monet = load_classifier()
+    if classify_tier is None:
+        classify_tier = fallback_classify
+    if classify_monet is None:
+        classify_monet = fallback_monetization
 
     cur_year = max((parse_year(r) for r in records), default=2024)
     cur_year = min(cur_year, 2025)
@@ -242,11 +270,15 @@ def main():
         pr = pos_rate(rec)
         yr = parse_year(rec)
         try:
-            gtype = classify(rec)
+            tier = classify_tier(rec)
         except Exception:
-            gtype = fallback_classify(rec)
-        if gtype not in ("Indie", "AA", "AAA", "F2P"):
-            gtype = "Indie"
+            tier = fallback_classify(rec)
+        if tier not in ("Indie", "AA", "AAA"):
+            tier = "Indie"
+        try:
+            is_f2p = (classify_monet(rec) == "F2P")
+        except Exception:
+            is_f2p = (fallback_monetization(rec) == "F2P")
         kept += 1
         for tag in tags:
             if not tag or tag.strip().lower() in STOPWORD_LC:
@@ -255,8 +287,13 @@ def main():
             owners_by_tag[tag].append(om)
             pos_by_tag[tag].append(pr)
             years_by_tag[tag].append(yr)
-            slot = by_tag_type[tag][gtype]
+            # 规模档桶（Indie/AA/AAA，互斥）
+            slot = by_tag_type[tag][tier]
             slot["o"].append(om); slot["p"].append(pr); slot["y"].append(yr)
+            # F2P 桶与规模档【正交、可重叠】：一款 F2P 的 AAA 会同时计入 AAA 和 F2P
+            if is_f2p:
+                fslot = by_tag_type[tag]["F2P"]
+                fslot["o"].append(om); fslot["p"].append(pr); fslot["y"].append(yr)
 
     print(f"参与统计的游戏(评价≥{MIN_REVIEWS}): {kept} 款 · 候选品类 {len(owners_by_tag)} 个")
 
@@ -281,7 +318,11 @@ def main():
         "min_reviews": MIN_REVIEWS,
         "hit_owners_m": HIT_OWNERS_M,
         "n_games_counted": kept,
-        "note": "median_owners 为典型结局(中位)，非均值；趋势为近三年vs前三年发行量动量。",
+        "demand_axis_field": "mean_owners_m",
+        "note": ("需求口径同时提供 median/p75/mean。前端纵轴用 mean_owners_m（owners 分桶导致"
+                 "中位分辨率不足），故'需求高'≈'出过爆款'；median/p75 为抗爆款的稳健参照。"
+                 "趋势=近三年vs前三年发行量动量；末年若不完整会使 trend 偏冷。"),
+        "by_type_scopes": "Indie/AA/AAA 为互斥规模档；F2P 为正交商业模式桶，可与任一规模档重叠。",
     }
     out = {"meta": meta, "genres": rows}
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:

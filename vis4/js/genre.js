@@ -31,6 +31,7 @@
         var med = +(o*m.o).toFixed(3);
         scopes[s] = { count: Math.max(8, Math.round(c*m.c)), median_owners_m: med,
           mean_owners_m: +(med * 2.5).toFixed(4),
+          p75_owners_m: +(med * 1.6).toFixed(4),
           total_owners_m: +(tot*m.t).toFixed(1), hit_rate: Math.min(.6, +(h*m.h).toFixed(3)),
           median_pos: pos, trend: Math.max(-.6, Math.min(.6, tr + (s==="F2P"?-.05:s==="Indie"?.03:0))) };
       }
@@ -59,7 +60,7 @@
     gtip.id = "genre-tip";
     gtip.style.cssText = "position:fixed;pointer-events:none;z-index:60;opacity:0;transition:opacity .12s;" +
       "background:#15151f;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;max-width:250px;" +
-      "box-shadow:0 12px 40px rgba(0,0,0,.6);font-size:12px;font-family:'Noto Sans SC',sans-serif;color:#e8e8f0";
+      "box-shadow:0 12px 40px rgba(0,0,0,.6);font-size:13px;font-family:'Noto Sans SC',sans-serif;color:#e8e8f7";
     document.body.appendChild(gtip);
     return gtip;
   }
@@ -162,7 +163,7 @@
       .attr("stroke","#ffd54f").attr("stroke-width",1.5).attr("stroke-dasharray","6,4")
       .attr("class","genre-ref-line");
     // 象限标签
-    var QL = "font-family:'Space Mono',monospace;font-size:14px;font-weight:700;letter-spacing:1px";
+    var QL = "font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:1px";
     g.append("text").attr("x",6).attr("y",13).attr("style",QL).attr("fill","#1de9b6").text("◤ 蓝海机会");
     g.append("text").attr("x",iW-6).attr("y",13).attr("text-anchor","end").attr("style",QL).attr("fill","#ffd54f").text("红海热门 ◥");
     g.append("text").attr("x",6).attr("y",iH-6).attr("style",QL).attr("fill","#50506a").text("◣ 小众/未验证");
@@ -173,7 +174,7 @@
       .call(styleAxis);
     g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(function(d){return d>=1?d+"M":(d*1000)+"k";}))
       .call(styleAxis);
-    var AT = "fill:#50506a;font-family:'Space Mono',monospace;font-size:11px";
+    var AT = "fill:#8e8eb4;font-family:'Space Mono',monospace;font-size:12.5px";
     g.append("text").attr("x",iW).attr("y",iH+40).attr("text-anchor","end").attr("style",AT).text("供给：在售游戏数（对数）→ 越右竞争越激烈");
     g.append("text").attr("transform","rotate(-90)").attr("x",0).attr("y",-44).attr("text-anchor","end").attr("style",AT).text("需求：平均拥有量（对数）→ 越上市场回报越高");
 
@@ -193,7 +194,7 @@
     rows.slice().sort(function(a,b){return b.total_owners_m-a.total_owners_m;}).slice(0,11).forEach(function(d){ labeled[d.tag]=1; });
     node.filter(function(d){return labeled[d.tag];}).append("text").attr("text-anchor","middle")
       .attr("dy", function(d){return -r(d.total_owners_m)-4;}).attr("fill","#e8e8f0")
-      .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",10).attr("pointer-events","none")
+      .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",11.5).attr("pointer-events","none")
       .text(function(d){return d.tag;}).attr("opacity",0).transition().delay(550).duration(380).attr("opacity",1);
 
     node.on("mouseenter", function (ev, d) {
@@ -209,10 +210,11 @@
       var q = quadrant(d, mx, my);
       tip.innerHTML =
         '<div style="font-weight:700;font-size:14px;margin-bottom:6px">' + d.tag + '</div>' +
-        '<div style="font-family:\'Space Mono\',monospace;font-size:11px;padding:2px 8px;border-radius:5px;display:inline-block;margin-bottom:8px;background:' + q.col + '22;color:' + q.col + ';border:1px solid ' + q.col + '55">' + q.name + '</div>' +
+        '<div style="font-family:\'Space Mono\',monospace;font-size:12px;padding:2px 8px;border-radius:5px;display:inline-block;margin-bottom:8px;background:' + q.col + '22;color:' + q.col + ';border:1px solid ' + q.col + '55">' + q.name + '</div>' +
         row("供给(竞争)", d.count.toLocaleString() + " 款") +
-        row("均拥有量", fmtOwn(d.mean_owners_m)) +
-        row("中位拥有量", fmtOwn(d.median_owners_m)) +
+        row("均拥有量·定位纵轴", fmtOwn(d.mean_owners_m)) +
+        row("中位拥有量·典型", fmtOwn(d.median_owners_m)) +
+        (d.p75_owners_m != null ? row("上四分位·做得好", fmtOwn(d.p75_owners_m)) : "") +
         row("命中率(≥1M)", Math.round(d.hit_rate*100) + "%") +
         (d.median_pos != null ? row("中位好评率", Math.round(d.median_pos*100) + "%") : "") +
         row("市场总规模", Math.round(d.total_owners_m) + "M") +
@@ -244,7 +246,7 @@
         .style("pointer-events", "none");
       g.append("text").attr("x", 6).attr("y", 34)
         .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 11).attr("font-weight", "600")
+        .attr("font-size", 12).attr("font-weight", "600")
         .attr("pointer-events", "none").text("需求高·对手少");
       // 过度饱和：标签在象限内部、"过度饱和"文字上方
       g.append("rect").attr("x", x(mx)).attr("y", y(my)).attr("width", iW-x(mx)).attr("height", iH-y(my))
@@ -254,12 +256,12 @@
       g.append("text").attr("x", iW - 6).attr("y", iH - 24)
         .attr("text-anchor", "end")
         .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 11).attr("font-weight", "600")
+        .attr("font-size", 12).attr("font-weight", "600")
         .attr("pointer-events", "none").text("慎入");
       // Bottom annotation text
       g.append("text").attr("x", iW / 2).attr("y", iH + 16).attr("text-anchor", "middle")
         .attr("fill", "rgba(255,255,255,0.5)").attr("font-family", "'Noto Sans SC',sans-serif")
-        .attr("font-size", 11).attr("pointer-events", "none")
+        .attr("font-size", 12).attr("pointer-events", "none")
         .text("气泡越大 = 市场越大，颜色越暖 = 近年越多人涌入");
     }
 
@@ -269,7 +271,7 @@
   function row(k, v) { return '<div style="display:flex;justify-content:space-between;gap:14px;margin:2px 0;color:#8080a0"><span>' + k + '</span><b style="color:#e8e8f0;font-family:\'Space Mono\',monospace">' + v + '</b></div>'; }
   function rowC(k, v, c) { return '<div style="display:flex;justify-content:space-between;gap:14px;margin:2px 0;color:#8080a0"><span>' + k + '</span><b style="color:' + c + ';font-family:\'Space Mono\',monospace">' + v + '</b></div>'; }
   function styleAxis(sel) {
-    sel.selectAll("text").attr("fill", "#8080a0").attr("font-family", "'Space Mono',monospace").attr("font-size", "10px");
+    sel.selectAll("text").attr("fill", "#a2a2c8").attr("font-family", "'Space Mono',monospace").attr("font-size", "11.5px");
     sel.selectAll("line,path").attr("stroke", "rgba(255,255,255,.08)");
   }
 
@@ -279,7 +281,7 @@
     leg.innerHTML = "";
     var src = (DATA_G && DATA_G._fallback) ? "内嵌示例数据（运行 07_genre_opportunity.py 生成真实数据）" : "STEAMSPY tags 聚合 · 均拥有量=市场回报（中位数因 SteamSpy 区间估算几乎无区分度）";
     var wrap = document.createElement("div");
-    wrap.style.cssText = "display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.45);font-size:11px;flex-wrap:wrap";
+    wrap.style.cssText = "display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.62);font-size:12px;flex-wrap:wrap";
     // "解读" button
     var btn = document.createElement("button");
     btn.className = "pill" + (showAnnotation ? " active" : "");

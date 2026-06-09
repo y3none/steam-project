@@ -187,6 +187,10 @@ window.loadRealData = async function() {
       return {
         name:  d.name,
         type:  d.type,
+        // ── 正交分类：展示段(type) 之外，携带真实两维标签 ──
+        tier:         d.tier || (d.type === 'F2P' ? null : d.type) || 'Indie',
+        monetization: d.monetization || (d.f2p || d.type === 'F2P' ? 'F2P' : 'Premium'),
+        f2p:          d.f2p != null ? !!d.f2p : (d.monetization === 'F2P' || d.type === 'F2P'),
         pr:    d.pos_rate  != null ? d.pos_rate  : d.pr,
         ccu:   d.peak_ccu  != null ? d.peak_ccu  : d.ccu,
         own:   d.owners_m  != null ? d.owners_m  : d.own,

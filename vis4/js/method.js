@@ -22,14 +22,20 @@ window.initMethod = function() {
         </div>
       </div>
       <div class="method-cell">
-        <div class="method-cell-title">游戏分类规则（业界共识）</div>
+        <div class="method-cell-title">游戏分类规则（两个正交维度）</div>
         <div class="method-cell-body">
-          <strong>F2P</strong>：<code>price=0</code> 且 tags/genres 含 "Free to Play"（避免限免独立游戏误判）<br>
-          <strong>AAA</strong>：发行商 ∈ 已知大厂名单（30 家，含 Valve/Blizzard/Rockstar 等）且 owners ≥ 0.5M<br>
-          <strong>Indie</strong>：Indie 标签投票 > 0 或 genre 含 "Indie"，且无 AAA 发行商信号<br>
-          <strong>AA</strong>：无 Indie 信号 + owners ≥ 0.5M 或 price ≥ $9.99 的中间地带<br>
-          <strong>手动覆盖</strong>：60+ 款已知游戏按业界共识手动标注（如 Black Myth: Wukong → AAA, $140M 预算）<br>
-          <span style="color:var(--aa)">⚠</span> 价格使用当前售价（非首发价），降价 3A 大作通过发行商名单+手动覆盖修正
+          分类沿<strong>两个相互独立的维度</strong>展开，互不蕴含——
+          <em>AAA 也可以是 F2P</em>（如《原神》《Apex》《CS2》），独立游戏同样可以 F2P。<br>
+          <strong>① 规模档 tier（制作 / 发行投入）</strong><br>
+          &nbsp;&nbsp;<strong>AAA</strong>：发行商 ∈ 已知大厂名单（30 家，含 Valve/Blizzard/Rockstar 等）且 owners ≥ 0.5M<br>
+          &nbsp;&nbsp;<strong>Indie</strong>：Indie 标签投票 > 0 或 genre 含 "Indie"，且无 AAA 发行商信号<br>
+          &nbsp;&nbsp;<strong>AA</strong>：无 Indie 信号 + owners ≥ 0.5M 或 price ≥ $9.99 的中间地带<br>
+          <strong>② 商业模式 monetization（与规模档正交）</strong><br>
+          &nbsp;&nbsp;<strong>F2P</strong>：免费进入 + tags/genres 含 "Free to Play"（仅 price=0 而无 F2P 信号视为限免买断，记为 Premium）<br>
+          &nbsp;&nbsp;<strong>Premium</strong>：买断制 / 付费进入<br>
+          <strong>手动覆盖</strong>：60+ 款已知游戏按业界共识标注两个维度（如 Black Myth: Wukong → AAA·Premium；原神 → AAA·F2P）<br>
+          <span style="color:var(--aa)">⚠</span> 堆叠图 / 散点 / 衰减视图中的 “F2P” 是<strong>商业模式分段</strong>（与规模档可重叠），并非第四个规模档；
+          机会矩阵与散点详情会同时给出 tier 与 monetization 两维真值。
         </div>
       </div>
       <div class="method-cell">

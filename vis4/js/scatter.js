@@ -787,7 +787,9 @@ window.initScatter = function() {
     p.innerHTML = `
       ${imgHtml}
       <div class="detail-game-name">${d.name}</div>
-      <div class="detail-type" style="color:${col}">${TL[d.type] || d.type} · ${
+      <div class="detail-type" style="color:${col}">${
+        (TL[d.tier] || d.tier || TL[d.type] || d.type)}${
+        d.f2p ? ' · <span style="color:var(--f2p)">F2P</span>' : ' · 买断'} · ${
         d.yr || '—'}</div>
       <div class="detail-row"><span class="detail-key">好评率</span><span class="detail-val" style="color:${
         col}">${fmt.pct(d.pr)}</span></div>

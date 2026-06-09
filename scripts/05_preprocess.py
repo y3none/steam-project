@@ -86,19 +86,20 @@ def parse_release_year(date_str: str) -> int | None:
 
 def classify_game_type(row: dict) -> str:
     """
-    根据多个维度判断游戏类型：Indie / AA / AAA / F2P
-    
-    分类标准与业界共识对齐：
+    判断游戏的【制作规模档 tier】：Indie / AA / AAA
+    —— 这是「投入/团队/发行规模」维度，与【商业模式 monetization】(见 classify_monetization)
+       彼此独立、正交。一款游戏可以同时是 AAA 且 F2P（如原神、CS2、Apex）。
+       因此本函数【不再返回 F2P】；免费与否由 classify_monetization 单独判定。
+
+    规模档标准（与业界共识对齐）：
     - AAA：大型开发团队（100+人）、高预算（通常$50M+）、大发行商
-           代表：GTA V, Elden Ring, Black Myth: Wukong, Baldur's Gate 3
+           代表：GTA V, Elden Ring, Black Myth: Wukong, Baldur's Gate 3, 原神(规模上)
     - AA：中等规模团队和预算，介于独立和3A之间
-           代表：Hellblade, A Plague Tale, No Man's Sky
+           代表：Hellblade, A Plague Tale, No Man's Sky, Warframe(规模上)
     - Indie：小型团队、自主发行或独立发行商、低预算
            代表：Stardew Valley, Hollow Knight, Celeste
-    - F2P：免费游玩 + 内购驱动的商业模式
-           代表：Dota 2, CS2, Genshin Impact
-    
-    判定优先级：手动覆盖 > F2P标签 > 大厂AAA > Indie标签 > AA规模 > 兜底
+
+    判定优先级：手动覆盖(规模) > 大厂AAA > Indie标签 > AA规模 > 兜底
     注意：Kaggle 的 price 是当前售价（可能已降价），不能用于判定首发定位。
     """
     name       = str(row.get("name", "")).strip()
@@ -155,41 +156,32 @@ def classify_game_type(row: dict) -> str:
         "Inside":            "Indie",
         "Subnautica":        "Indie",
         "Mudrunner":         "Indie",
-        # ── F2P 大作 ──
-        "DOTA 2":            "F2P",
-        "Dota 2":            "F2P",
-        "CS:GO":             "F2P",
-        "Counter-Strike 2":  "F2P",
-        "Apex Legends":      "F2P",
-        "Warframe":          "F2P",
-        "Path of Exile":     "F2P",
-        "Path of Exile 2":   "F2P",
-        "Genshin Impact":    "F2P",
-        "Destiny 2":         "F2P",
-        "Team Fortress 2":   "F2P",
-        "Lost Ark":          "F2P",
-        "Smite":             "F2P",
-        "SMITE 2":           "F2P",
-        "Rocket League":     "F2P",
-        "Fall Guys":         "F2P",
-        "MultiVersus":       "F2P",
+        # ── 曾是 F2P 大作：这里只标【规模档】，其“免费”身份由 classify_monetization 标注 ──
+        #    （正交示范：原神/CS2/Apex 规模上是 AAA，同时商业模式是 F2P）
+        "DOTA 2":            "AAA",
+        "Dota 2":            "AAA",
+        "CS:GO":             "AAA",
+        "Counter-Strike 2":  "AAA",
+        "Apex Legends":      "AAA",
+        "Warframe":          "AA",
+        "Path of Exile":     "AA",
+        "Path of Exile 2":   "AA",
+        "Genshin Impact":    "AAA",
+        "Destiny 2":         "AAA",
+        "Team Fortress 2":   "AAA",
+        "Lost Ark":          "AAA",
+        "Smite":             "AA",
+        "SMITE 2":           "AA",
+        "Rocket League":     "AA",
+        "Fall Guys":         "AA",
+        "MultiVersus":       "AA",
     }
     if name in MANUAL_OVERRIDES:
         return MANUAL_OVERRIDES[name]
 
-    # ── 1. F2P 判断：需要 tags/genres 中有 Free to Play 信号 ──
-    has_f2p_tag = (
-        tags.get("Free to Play", 0) > 50
-        or tags.get("Free To Play", 0) > 50
-        or tags.get("F2P", 0) > 50
-        or "free to play" in genres
-    )
-
-    if has_f2p_tag and (is_free or price == 0):
-        return "F2P"
-
-    # price=0 但没有 F2P 标签 → 可能是限免/慈善包/早期免费
-    # 不直接判定 F2P，继续往下走其他规则
+    # ── 1. 免费与否不在此判定 ──
+    #    F2P 是商业模式，与规模档正交，统一交由 classify_monetization() 处理。
+    #    本函数继续只判定 Indie / AA / AAA 三档规模。
 
     # ── 2. AAA 发行商列表 ──
     AAA_PUBLISHERS = {
@@ -245,6 +237,46 @@ def classify_game_type(row: dict) -> str:
             return "AA"
 
     return "Indie"
+
+
+# 明确的 F2P 名单（这些游戏可能因当前售价/标签缺失而漏判，手动补上商业模式）
+# 注意：它们各自的【规模档】见上方 MANUAL_OVERRIDES，两个维度独立维护。
+F2P_TITLES = {
+    "DOTA 2", "Dota 2", "CS:GO", "Counter-Strike 2", "Apex Legends", "Warframe",
+    "Path of Exile", "Path of Exile 2", "Genshin Impact", "Destiny 2",
+    "Team Fortress 2", "Lost Ark", "Smite", "SMITE 2", "Rocket League",
+    "Fall Guys", "MultiVersus",
+}
+
+
+def classify_monetization(row: dict) -> str:
+    """
+    判断游戏的【商业模式 monetization】：F2P / Premium
+    —— 与制作规模档 tier 正交：AAA 也可以是 F2P（原神），Indie 也可以是 F2P。
+
+    F2P 判定 = 免费进入 + 内购驱动，需要 tags/genres 中有明确的 Free to Play 信号。
+    只 price==0 但无 F2P 标签 → 视为限免/慈善包/早期免费的【买断制】游戏，记为 Premium，
+    避免把临时免费的独立买断游戏误判成 F2P。
+    """
+    name = str(row.get("name", "")).strip()
+    if name in F2P_TITLES:
+        return "F2P"
+
+    is_free = row.get("is_free", False)
+    price   = row.get("price_usd", 0) or 0
+    genres  = " ".join(row.get("genres", []) or []).lower()
+    tags    = row.get("tags", {}) or {}
+
+    has_f2p_tag = (
+        (isinstance(tags, dict) and (
+            tags.get("Free to Play", 0) > 50
+            or tags.get("Free To Play", 0) > 50
+            or tags.get("F2P", 0) > 50))
+        or "free to play" in genres
+    )
+    if has_f2p_tag and (is_free or price == 0):
+        return "F2P"
+    return "Premium"
 
 
 # ══════════════════════════════════════════════════
@@ -448,11 +480,25 @@ def build_main_df(df_raw: pd.DataFrame) -> pd.DataFrame:
     if "price_usd" not in df.columns:
         df["price_usd"] = pd.to_numeric(df["price"] if "price" in df.columns else pd.Series([0]*len(df)), errors="coerce").fillna(0) / 100
     
-    # 游戏类型分类
+    # 游戏分类：两个【正交】维度
+    #   tier         —— 制作/发行规模：Indie / AA / AAA  （classify_game_type）
+    #   monetization —— 商业模式：     F2P / Premium      （classify_monetization）
+    # 二者互不蕴含：AAA 也可以是 F2P（如《原神》《Apex》），Indie 也可以 F2P。
+    #
+    # game_type 是给【现有四段式前端视图】用的【展示用派生段】：
+    #   game_type = "F2P" if monetization=="F2P" else tier
+    # 这样堆叠图/气泡图/衰减图仍能照旧消费四类标签，而真实的正交信息
+    # 保存在 tier / monetization 两个独立字段里，供散点详情、方法论、机会矩阵使用。
     if len(df) > 0:
-        df["game_type"] = df.apply(lambda row: classify_game_type(row.to_dict()), axis=1)
+        df["tier"]         = df.apply(lambda row: classify_game_type(row.to_dict()), axis=1)
+        df["monetization"] = df.apply(lambda row: classify_monetization(row.to_dict()), axis=1)
+        df["game_type"]    = df.apply(
+            lambda row: "F2P" if row["monetization"] == "F2P" else row["tier"], axis=1
+        )
     else:
-        df["game_type"] = pd.Series(dtype=str)
+        df["tier"]         = pd.Series(dtype=str)
+        df["monetization"] = pd.Series(dtype=str)
+        df["game_type"]    = pd.Series(dtype=str)
 
     # 过滤：只保留游戏类型（排除 DLC、工具、原声等）
     if "type" in df.columns:
@@ -613,6 +659,9 @@ def cal_meta(df_main: pd.DataFrame, df_reviewed: pd.DataFrame) -> dict:
         "total_games":       len(df_main),
         "reviewed_games":    len(df_reviewed),
         "type_counts":       df_main["game_type"].value_counts().to_dict(),
+        # ── 正交维度计数（tier ⊥ monetization）──
+        "tier_counts":         df_main["tier"].value_counts().to_dict() if "tier" in df_main.columns else {},
+        "monetization_counts": df_main["monetization"].value_counts().to_dict() if "monetization" in df_main.columns else {},
         "pos_rate_median":   pos_rate_median,
         "avg_ccu":           avg_ccu,
         "yearly_stats":      yearly_stats,
@@ -704,6 +753,10 @@ def process_bubbles(df_reviewed: pd.DataFrame, top_n: int = 160) -> list[dict]:
             "appid":       str(row.get("appid", "")),
             "name":        _get_name(row),
             "type":        row["game_type"],
+            # ── 正交分类：展示段(type) 之外，单独携带真实的两维标签 ──
+            "tier":         row.get("tier", row["game_type"]),
+            "monetization": row.get("monetization", "Premium"),
+            "f2p":          bool(row.get("monetization") == "F2P"),
             "year":        int(row["year"]) if pd.notna(row.get("year")) else None,
             "pos_rate":    round(float(row["pos_rate"]), 1),
             "peak_ccu":    int(row["ccu"]),
