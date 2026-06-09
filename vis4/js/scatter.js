@@ -632,7 +632,7 @@ window.initScatter = function() {
     if (searchTerm && searchMode === 'name')
       return fuzzyMatch(d.name, searchTerm) ? 0.75 : 0.08;
     // 象限模式下，show 列表已仅含神作气泡，直接高亮
-    if (highlightQuadrant) return isGodQuadrant(d) ? 1 : 0.3;
+    if (highlightQuadrant) return isGodQuadrant(d) ? 1 : 0;
     return d.ccu > 100000 ? 0.85 : 0.65;
   }
 
