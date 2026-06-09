@@ -209,11 +209,11 @@ function updateInsights() {
     var yr2017 = market.find(function(d) { return d.year === 2017; });
     var yr2016 = market.find(function(d) { return d.year === 2016; });
     var directCount = yr2017 ? fmt.num(yr2017.ni) : '7,600';
-    var preCount = yr2016 ? fmt.num(yr2016.ni) : '4,000';
-    var jumpPct = yr2016 && yr2017 ? Math.round((yr2017.ni - yr2016.ni) / yr2016.ni * 100) : 75;
+    var preCount = yr2016 ? fmt.num(yr2016.ni) : '5,472';
+    var jumpPct = yr2016 && yr2017 ? Math.round((yr2017.ni - yr2016.ni) / yr2016.ni * 100) : 39;
 
     var html1 =
-      '<span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏年发布量首次超越 AA+3A 之和；' +
+      '<span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，推动独立游戏年发布量在次年首次超越 AA+3A 之和；' +
       '<span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 ' + preCount +
       ' <em>跳升至 ' + directCount + '（+' + jumpPct + '%）</em>；' +
       '<span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。' +

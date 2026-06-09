@@ -2,6 +2,67 @@
 // ════════════════════════════════════════════════
 const DATA = {};
 
+// ── 统一的气泡分类归一化：保证每个气泡都带【两条正交分类轴】的字段 ──
+//   ▸ 轴 A 制作规模 tier        : Indie / AA / AAA            —— 【永远不会是 F2P】
+//   ▸ 轴 B 商业模式 monetization: Premium / F2P / Hybrid      —— 与 tier 正交，三值
+//        Premium 买断制 · F2P 免费制 · Hybrid 混合(买断或免费 + 内购驱动)
+//   一款游戏在两条轴上各有一个归属（如《原神》= AAA × F2P，《GTA V》= AAA × Hybrid）。
+//   type 仅为旧上色逻辑保留的“展示段”，新视图改用 tier / monetization 两个轴各自上色。
+// 无论数据来自后端 JSON 还是内嵌兜底，都过这一关，杜绝“F2P·买断”这类自相矛盾。
+function _inferTier(d) {
+  var own = (d.owners_m != null ? d.owners_m : d.own) || 0;
+  if (own >= 20) return "AAA";
+  if (own >= 2)  return "AA";
+  return "Indie";
+}
+window.enrichBubble = function (d) {
+  // 显式商业模式优先（后端 classify_monetization 给出 Premium/F2P/Hybrid）
+  var explicitMon =
+        (d.monetization === "F2P" || d.monetization === "Premium" || d.monetization === "Hybrid")
+        ? d.monetization : null;
+  var f2pFlag = (d.f2p != null) ? !!d.f2p
+              : explicitMon ? (explicitMon === "F2P")
+              : (d.type === "F2P");
+  var tier = d.tier;
+  if (!tier || tier === "F2P") {
+    tier = (d.type && d.type !== "F2P") ? d.type : _inferTier(d);
+  }
+  // 三值商业模式：免费 → F2P；非免费但有内购信号(iap/hybrid) → Hybrid；其余 → Premium
+  var mon = explicitMon
+          || (f2pFlag ? "F2P"
+              : (d.iap || d.hybrid) ? "Hybrid"
+              : "Premium");
+  d.f2p = (mon === "F2P");             // 兼容旧字段：仅“纯免费”为 true
+  d.tier = tier;                       // 真实规模档，绝不为 F2P
+  d.monetization = mon;                // Premium / F2P / Hybrid，与 tier 正交
+  if (!d.type) d.type = (mon === "F2P") ? "F2P" : tier;   // 展示段缺失时再补
+  return d;
+};
+
+// 后端 JSON / 兜底数据 → 前端气泡对象的【唯一】映射入口。
+// 所有加载路径（首屏、渐进式全量、CCU 增量、静态回退）都走这里，
+// 杜绝某条路径漏掉 tier/f2p 导致筛选失效或显示 undefined。
+window._mapBubble = function (d) {
+  return window.enrichBubble({
+    name:  d.name,
+    type:  d.type,
+    tier:         d.tier,
+    monetization: d.monetization,
+    f2p:          d.f2p,
+    iap:          (d.iap != null) ? d.iap : d.has_iap,   // 内购信号(后端 categories: In-App Purchases)
+    hybrid:       d.hybrid,
+    pr:    d.pos_rate  != null ? d.pos_rate  : d.pr,
+    ccu:   d.peak_ccu  != null ? d.peak_ccu  : d.ccu,
+    own:   d.owners_m  != null ? d.owners_m  : d.own,
+    yr:    d.year      != null ? d.year      : d.yr,
+    price: d.price     != null ? d.price     : 0,
+    rc:    d.review_count != null ? d.review_count : (d.rc || 0),
+    dev:   d.developers || d.dev || [],
+    tags:  d.top_tags  || d.tags || [],
+    header_image: d.header_image || null,
+  });
+};
+
 // Market data: count = release count share, ccu_* = CCU share (estimated from aggregated data)
 DATA.market = [
   {year:2004,indie:8,  aa:42,aaa:38,f2p:12,n:150,  ni:12,  na:63, nb:57, nf:18, ev:null,    ci:2, ca:18,cb:35,cf:45},
@@ -28,20 +89,20 @@ DATA.market = [
 ];
 
 DATA.bubbles = [
-  {name:"CS:GO / CS2",       type:"F2P",  pr:86,ccu:1818773,own:55,  yr:2012,price:0,    rc:5400000, dev:["Valve"],             tags:["FPS","竞技","免费","动作","多人"]},
-  {name:"DOTA 2",            type:"F2P",  pr:89,ccu:1291328,own:42,  yr:2013,price:0,    rc:1850000, dev:["Valve"],             tags:["MOBA","策略","免费","多人","竞技"]},
-  {name:"PUBG",              type:"AAA",  pr:67,ccu:3257248,own:22,  yr:2017,price:29.99,rc:1100000, dev:["PUBG Studios"],      tags:["大逃杀","生存","射击","多人","开放世界"]},
+  {name:"CS:GO / CS2",       type:"F2P",  tier:"AAA", f2p:true, pr:86,ccu:1818773,own:55,  yr:2012,price:0,    rc:5400000, dev:["Valve"],             tags:["FPS","竞技","免费","动作","多人"]},
+  {name:"DOTA 2",            type:"F2P",  tier:"AAA", f2p:true, pr:89,ccu:1291328,own:42,  yr:2013,price:0,    rc:1850000, dev:["Valve"],             tags:["MOBA","策略","免费","多人","竞技"]},
+  {name:"PUBG",              type:"AAA",  iap:true, pr:67,ccu:3257248,own:22,  yr:2017,price:29.99,rc:1100000, dev:["PUBG Studios"],      tags:["大逃杀","生存","射击","多人","开放世界"]},
   {name:"Cyberpunk 2077",    type:"AAA",  pr:87,ccu:1054388,own:15,  yr:2020,price:59.99,rc:650000,  dev:["CD Projekt RED"],    tags:["开放世界","RPG","动作","赛博朋克","单人"]},
   {name:"Elden Ring",        type:"AAA",  pr:97,ccu:952523, own:10,  yr:2022,price:59.99,rc:650000,  dev:["FromSoftware"],      tags:["魂类","动作RPG","开放世界","困难","黑暗"]},
   {name:"Hogwarts Legacy",   type:"AAA",  pr:86,ccu:879308, own:8,   yr:2023,price:59.99,rc:280000,  dev:["Avalanche Software"],tags:["魔法","开放世界","动作","RPG","单人"]},
-  {name:"GTA V",             type:"AAA",  pr:87,ccu:364548, own:25,  yr:2015,price:29.99,rc:1400000, dev:["Rockstar North"],    tags:["开放世界","动作","犯罪","多人","单人"]},
+  {name:"GTA V",             type:"AAA",  iap:true, pr:87,ccu:364548, own:25,  yr:2015,price:29.99,rc:1400000, dev:["Rockstar North"],    tags:["开放世界","动作","犯罪","多人","单人"]},
   {name:"The Witcher 3",     type:"AAA",  pr:97,ccu:103000, own:12,  yr:2015,price:39.99,rc:420000,  dev:["CD Projekt RED"],    tags:["开放世界","RPG","剧情","奇幻","单人"]},
-  {name:"Black Myth: Wukong",type:"AA",   pr:96,ccu:2416376,own:20,  yr:2024,price:59.99,rc:380000,  dev:["Game Science"],      tags:["动作","魂类","中国神话","优美","单人"]},
-  {name:"Baldur's Gate 3",   type:"AA",   pr:97,ccu:875343, own:8,   yr:2023,price:59.99,rc:420000,  dev:["Larian Studios"],    tags:["RPG","回合制","多人","剧情","奇幻"]},
-  {name:"Monster Hunter: World",type:"AA",pr:90,ccu:330519, own:9,   yr:2018,price:29.99,rc:310000,  dev:["Capcom"],            tags:["动作","狩猎","合作","开放世界","RPG"]},
+  {name:"Black Myth: Wukong",type:"AAA",  pr:96,ccu:2416376,own:20,  yr:2024,price:59.99,rc:380000,  dev:["Game Science"],      tags:["动作","魂类","中国神话","优美","单人"]},
+  {name:"Baldur's Gate 3",   type:"AAA",  pr:97,ccu:875343, own:8,   yr:2023,price:59.99,rc:420000,  dev:["Larian Studios"],    tags:["RPG","回合制","多人","剧情","奇幻"]},
+  {name:"Monster Hunter: World",type:"AAA",pr:90,ccu:330519, own:9,   yr:2018,price:29.99,rc:310000,  dev:["Capcom"],            tags:["动作","狩猎","合作","开放世界","RPG"]},
   {name:"No Man's Sky",      type:"AA",   pr:88,ccu:212321, own:8,   yr:2016,price:59.99,rc:390000,  dev:["Hello Games"],       tags:["太空","探索","生存","多人","开放世界"]},
   {name:"Palworld",          type:"Indie",pr:79,ccu:2101867,own:20,  yr:2024,price:29.99,rc:280000,  dev:["Pocketpair"],        tags:["生存","制作","多人","开放世界","驯兽"]},
-  {name:"Rust",              type:"Indie",pr:85,ccu:245243, own:14,  yr:2013,price:39.99,rc:650000,  dev:["Facepunch Studios"], tags:["生存","多人","制作","开放世界","PvP"]},
+  {name:"Rust",              type:"Indie",iap:true, pr:85,ccu:245243, own:14,  yr:2013,price:39.99,rc:650000,  dev:["Facepunch Studios"], tags:["生存","多人","制作","开放世界","PvP"]},
   {name:"Valheim",           type:"Indie",pr:96,ccu:502387, own:10,  yr:2021,price:19.99,rc:230000,  dev:["Iron Gate Studio"],  tags:["生存","维京","制作","多人","开放世界"]},
   {name:"Stardew Valley",    type:"Indie",pr:98,ccu:89063,  own:21,  yr:2016,price:14.99,rc:640000,  dev:["ConcernedApe"],      tags:["农场模拟","放松","RPG","像素","单人"]},
   {name:"Hades",             type:"Indie",pr:97,ccu:100654, own:6,   yr:2020,price:24.99,rc:280000,  dev:["Supergiant Games"],  tags:["Roguelite","动作","地牢","剧情","高重玩"]},
@@ -55,10 +116,11 @@ DATA.bubbles = [
   {name:"Subnautica",        type:"Indie",pr:97,ccu:46236,  own:7,   yr:2018,price:29.99,rc:200000,  dev:["Unknown Worlds"],    tags:["生存","开放世界","水下","制作","大气"]},
   {name:"Satisfactory",      type:"Indie",pr:98,ccu:77714,  own:4,   yr:2020,price:34.99,rc:170000,  dev:["Coffee Stain Studios"],tags:["基地建设","工厂","合作","探索","自动化"]},
   {name:"Schedule I",        type:"Indie",pr:98,ccu:414000, own:5,   yr:2025,price:29.99,rc:180000,  dev:["TVGS"],              tags:["犯罪","模拟","独立","沙盒","开放世界"]},
-  {name:"Warframe",          type:"F2P",  pr:87,ccu:128220, own:14,  yr:2013,price:0,    rc:510000,  dev:["Digital Extremes"],  tags:["免费","动作","第三人称","科幻","多人"]},
-  {name:"Apex Legends",      type:"F2P",  pr:81,ccu:228439, own:18,  yr:2019,price:0,    rc:420000,  dev:["Respawn Entertainment"],tags:["大逃杀","免费","FPS","竞技","多人"]},
-  {name:"Path of Exile",     type:"F2P",  pr:86,ccu:232724, own:9,   yr:2013,price:0,    rc:450000,  dev:["Grinding Gear Games"],tags:["动作RPG","免费","黑暗奇幻","困难","多人"]},
+  {name:"Warframe",          type:"F2P",  tier:"AA",  f2p:true, pr:87,ccu:128220, own:14,  yr:2013,price:0,    rc:510000,  dev:["Digital Extremes"],  tags:["免费","动作","第三人称","科幻","多人"]},
+  {name:"Apex Legends",      type:"F2P",  tier:"AAA", f2p:true, pr:81,ccu:228439, own:18,  yr:2019,price:0,    rc:420000,  dev:["Respawn Entertainment"],tags:["大逃杀","免费","FPS","竞技","多人"]},
+  {name:"Path of Exile",     type:"F2P",  tier:"AA",  f2p:true, pr:86,ccu:232724, own:9,   yr:2013,price:0,    rc:450000,  dev:["Grinding Gear Games"],tags:["动作RPG","免费","黑暗奇幻","困难","多人"]},
 ];
+DATA.bubbles.forEach(window.enrichBubble);   // 兜底数据也补齐正交分类字段
 
 // ── 衰减曲线：参数化生成（固定种子）
 function genDecay(seed, a, b, c, floor) {
@@ -74,8 +136,8 @@ DATA.decay = [
   {name:"GTA V",              type:"AAA",  color:"#ff5252", peak:364548,  yr:2015, data:genDecay(1, 0.90,0.58,0.05,0.04)},
   {name:"Cyberpunk 2077",     type:"AAA",  color:"#ff7070", peak:1054388, yr:2020, data:genDecay(2, 0.88,0.72,0.04,0.03)},
   {name:"Hogwarts Legacy",    type:"AAA",  color:"#ff9090", peak:879308,  yr:2023, data:genDecay(3, 0.92,0.82,0.03,0.02)},
-  {name:"Black Myth: Wukong", type:"AA",   color:"#ffd54f", peak:2416376, yr:2024, data:genDecay(4, 0.85,0.55,0.08,0.06)},
-  {name:"Baldur's Gate 3",    type:"AA",   color:"#ffe082", peak:875343,  yr:2023, data:genDecay(5, 0.70,0.24,0.22,0.16)},
+  {name:"Black Myth: Wukong", type:"AAA",  color:"#ff8a80", peak:2416376, yr:2024, data:genDecay(4, 0.85,0.55,0.08,0.06)},
+  {name:"No Man's Sky",       type:"AA",   color:"#ffd54f", peak:212321,  yr:2016, data:genDecay(5, 0.70,0.24,0.22,0.16)},
   {name:"Stardew Valley",     type:"Indie",color:"#1de9b6", peak:89063,   yr:2016, data:genDecay(6, 0.55,0.06,0.36,0.31)},
   {name:"Valheim",            type:"Indie",color:"#00bfa5", peak:502387,  yr:2021, data:genDecay(7, 0.75,0.32,0.18,0.12)},
   {name:"Terraria",           type:"Indie",color:"#00897b", peak:489886,  yr:2011, data:genDecay(8, 0.50,0.05,0.42,0.38)},
@@ -184,13 +246,12 @@ window.loadRealData = async function() {
 
   if (bubbles) {
     DATA.bubbles = bubbles.map(function(d) {
-      return {
+      return window.enrichBubble({
         name:  d.name,
         type:  d.type,
-        // ── 正交分类：展示段(type) 之外，携带真实两维标签 ──
-        tier:         d.tier || (d.type === 'F2P' ? null : d.type) || 'Indie',
-        monetization: d.monetization || (d.f2p || d.type === 'F2P' ? 'F2P' : 'Premium'),
-        f2p:          d.f2p != null ? !!d.f2p : (d.monetization === 'F2P' || d.type === 'F2P'),
+        tier:         d.tier,
+        monetization: d.monetization,
+        f2p:          d.f2p,
         pr:    d.pos_rate  != null ? d.pos_rate  : d.pr,
         ccu:   d.peak_ccu  != null ? d.peak_ccu  : d.ccu,
         own:   d.owners_m  != null ? d.owners_m  : d.own,
@@ -200,7 +261,7 @@ window.loadRealData = async function() {
         dev:   d.developers || d.dev || [],
         tags:  d.top_tags  || d.tags || [],
         header_image: d.header_image || null,
-      };
+      });
     });
     console.log('[data] bubbles loaded (' + source + '), ' + DATA.bubbles.length + ' games');
   }
@@ -251,7 +312,7 @@ window.backgroundRefresh = function() {
       var lc = all.live_changes || {};
       console.log('[data] ✓ 后台爬取完成: ' + (lc.total_updated||0) + ' 款数据已更新');
 
-      // 热更新 DATA
+      // 热更新 DATA —— 与 loadRealData 走完全相同的映射，避免字段缺失
       DATA.market = all.market.map(function(d) {
         return Object.assign({}, d, {
           n:  d.n != null ? d.n : (d.total_releases || 0),
@@ -260,22 +321,15 @@ window.backgroundRefresh = function() {
           nb: d.nb != null ? d.nb : (d.n_aaa || 0),
           nf: d.nf != null ? d.nf : (d.n_f2p || 0),
           ev: d.ev != null ? d.ev : (d.event || null),
+          // CCU 份额字段：流图「CCU 份额」模式依赖，不能漏（否则刷新后塌成一条线）
+          ci: d.ci != null ? d.ci : 0,
+          ca: d.ca != null ? d.ca : 0,
+          cb: d.cb != null ? d.cb : 0,
+          cf: d.cf != null ? d.cf : 0,
         });
       });
-      DATA.bubbles = all.bubbles.map(function(d) {
-        return {
-          name: d.name, type: d.type,
-          pr:   d.pos_rate != null ? d.pos_rate : d.pr,
-          ccu:  d.peak_ccu != null ? d.peak_ccu : d.ccu,
-          own:  d.owners_m != null ? d.owners_m : d.own,
-          yr:   d.year != null ? d.year : d.yr,
-          price: d.price != null ? d.price : 0,
-          rc:   d.review_count != null ? d.review_count : (d.rc || 0),
-          dev:  d.developers || d.dev || [],
-          tags: d.top_tags || d.tags || [],
-          header_image: d.header_image || null,
-        };
-      });
+      // 统一走 _mapBubble → enrichBubble，保证 tier/f2p/monetization 齐全（否则散点筛选失效）
+      DATA.bubbles = all.bubbles.map(window._mapBubble);
       if (all.meta) DATA.meta = all.meta;
 
       // 重绘图表
@@ -349,20 +403,8 @@ window.refreshData = async function() {
 
       // 仅更新 bubbles 中的 CCU（不重载全量数据）
       if (all.bubbles) {
-        DATA.bubbles = all.bubbles.map(function(d) {
-          return {
-            name: d.name, type: d.type,
-            pr: d.pos_rate != null ? d.pos_rate : d.pr,
-            ccu: d.peak_ccu != null ? d.peak_ccu : d.ccu,
-            own: d.owners_m != null ? d.owners_m : d.own,
-            yr: d.year != null ? d.year : d.yr,
-            price: d.price != null ? d.price : 0,
-            rc: d.review_count != null ? d.review_count : (d.rc || 0),
-            dev: d.developers || d.dev || [],
-            tags: d.top_tags || d.tags || [],
-            header_image: d.header_image || null,
-          };
-        });
+        // 统一走 _mapBubble → enrichBubble，保证 tier/f2p 齐全（否则散点筛选失效）
+        DATA.bubbles = all.bubbles.map(window._mapBubble);
       }
       if (all.meta) {
         DATA.meta = all.meta;
@@ -396,20 +438,8 @@ window.refreshData = async function() {
     try {
       var bubbleData = await loadJSON('../data/processed/bubbles.json');
       if (bubbleData) {
-        DATA.bubbles = bubbleData.map(function(d) {
-          return {
-            name: d.name, type: d.type,
-            pr: d.pos_rate != null ? d.pos_rate : d.pr,
-            ccu: d.peak_ccu != null ? d.peak_ccu : d.ccu,
-            own: d.owners_m != null ? d.owners_m : d.own,
-            yr: d.year != null ? d.year : d.yr,
-            price: d.price != null ? d.price : 0,
-            rc: d.review_count != null ? d.review_count : (d.rc || 0),
-            dev: d.developers || d.dev || [],
-            tags: d.top_tags || d.tags || [],
-            header_image: d.header_image || null,
-          };
-        });
+        // 统一走 _mapBubble → enrichBubble，保证 tier/f2p 齐全
+        DATA.bubbles = bubbleData.map(window._mapBubble);
         if (window._scatterRedraw) window._scatterRedraw();
         status.textContent = "已从本地文件刷新";
       } else {

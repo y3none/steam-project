@@ -7,20 +7,65 @@ window.initScatter = function() {
   let GOD_CCU = 100000;
   let activeFilter = 'all', selected = null, yearFilter = null;
   let activeTag = null;
+  let classMode = 'tier';   // 'tier'=制作规模(Indie/AA/AAA) | 'mon'=商业模式(Premium/F2P/Hybrid)
   let searchMode = 'name';
   let searchTerm = '', hoverGame = null;
   let highlightQuadrant = false;
   let svg, g, xSc, ySc, rSc, iW, iH;
+
+  // ══ 正交分类轴 ════════════════════════════════
+  // 两条互不蕴含的轴：制作规模 tier ⊥ 商业模式 monetization。
+  // 当前“填色轴”由 classMode 决定；另一条轴用【描边样式】呈现，
+  // 因此每个气泡始终同时可读两条轴，不靠单一颜色硬区分。
+  const MON_VALUES = ['Premium', 'F2P', 'Hybrid'];
+  const FILTER_SETS = {
+    tier: [['all', '全部'], ['Indie', 'INDIE'], ['AA', 'AA'], ['AAA', 'AAA']],
+    mon:  [['all', '全部'], ['Premium', '买断制'], ['F2P', '免费F2P'], ['Hybrid', '混合模式']],
+  };
+  const TONE = {
+    Indie: 'indie', AA: 'aa', AAA: 'aaa',
+    Premium: 'premium', F2P: 'f2p', Hybrid: 'hybrid',
+  };
+  function axisForFilter(f) { return MON_VALUES.indexOf(f) >= 0 ? 'mon' : 'tier'; }
+  // 填色：tier 模式按规模档，mon 模式按商业模式
+  function bubbleFill(d) {
+    return classMode === 'mon' ? (MONC[d.monetization] || '#888') : (C[d.tier] || '#888');
+  }
+  // 描边：呈现“另一条轴”——
+  //   tier 模式 → 描边编码商业模式：买断=暗描边 / 免费=亮青环 / 混合=紫色虚线环
+  //   mon  模式 → 描边粗细编码规模：Indie 细 / AA 中 / AAA 粗
+  function bubbleStroke(d) {
+    if (highlightQuadrant && isGodQuadrant(d)) return '#fff';
+    if (classMode === 'mon') return d3.color(MONC[d.monetization] || '#888').darker(0.9);
+    if (d.monetization === 'F2P')    return '#9fe6ff';
+    if (d.monetization === 'Hybrid') return '#d8b6ff';
+    return d3.color(C[d.tier] || '#888').darker(0.8);
+  }
+  function bubbleStrokeW(d) {
+    if (highlightQuadrant && isGodQuadrant(d)) return 1.5;
+    if (classMode === 'mon') return d.tier === 'AAA' ? 2.4 : d.tier === 'AA' ? 1.5 : 0.7;
+    return d.monetization === 'Premium' ? 1 : 2;
+  }
+  function bubbleDash(d) {
+    if (classMode === 'tier' && d.monetization === 'Hybrid') return '3,2';
+    return null;
+  }
 
   const searchInput = document.getElementById('scatter-search');
   const searchResults = document.getElementById('search-results');
 
   // ══ TAG FILTER SYSTEM ══════════════════════════
 
+  // 商业模式已升级为独立分类轴(买断/F2P/混合)，因此「免费」这类标签在「玩法标签」
+  // 筛选里属于冗余维度，从标签统计中剔除，避免与商业模式轴重复。
+  const TAG_BLOCKLIST = new Set(
+      ['free to play', 'free-to-play', 'f2p', '免费', '免费游玩', '免费游戏']);
+
   function buildTagStats() {
     const counts = {};
     DATA.bubbles.forEach(d => {
       (d.tags || []).forEach(t => {
+        if (TAG_BLOCKLIST.has(String(t).trim().toLowerCase())) return;
         counts[t] = (counts[t] || 0) + 1;
       });
     });
@@ -55,6 +100,9 @@ window.initScatter = function() {
         activeTag = activeTag === tag ? null : tag;
         selected = null;
         hoverGame = null;
+        searchTerm = '';            // 清掉选中游戏遗留的搜索词，否则只剩该气泡不透明
+        searchInput.value = '';
+        closeDropdown();
         showDetailPanel(null);
         updateTagUI();
         draw();
@@ -73,6 +121,8 @@ window.initScatter = function() {
         activeTag = activeTag === tag ? null : tag;
         selected = null;
         hoverGame = null;
+        searchTerm = '';            // 同上：避免残留搜索词把其余气泡压暗
+        searchInput.value = '';
         showDetailPanel(null);
         updateTagUI();
         draw();
@@ -235,8 +285,8 @@ window.initScatter = function() {
                              d => `<div class="search-item" data-name="${
                                  d.name.replace(/"/g, '&quot;')}">
         <span class="search-item-name">${highlightChars(d.name, q)}</span>
-        <span class="search-item-type" style="color:${C[d.type] || '#888'}">${
-                                 d.type}</span>
+        <span class="search-item-type" style="color:${C[d.tier] || '#888'}">${
+                                 (d.tier || d.type)} · ${monLabel(d)}</span>
       </div>`).join('');
     searchResults.classList.add('open');
 
@@ -288,7 +338,7 @@ window.initScatter = function() {
           .attr('y', cy - r - 7)
           .attr('text-anchor', 'middle')
           .attr('fill', '#fff')
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .attr('font-weight', '700')
           .attr('font-family', '\'Space Mono\',monospace')
           .attr('pointer-events', 'none')
@@ -307,12 +357,9 @@ window.initScatter = function() {
     searchTerm = d.name;
     hoverGame = null;
     // Switch filter if needed
-    if (activeFilter !== 'all' && d.type !== activeFilter) {
+    if (activeFilter !== 'all' && !matchesFilter(d, activeFilter)) {
       activeFilter = 'all';
-      // highlightQuadrant = false;
-      document.querySelectorAll('[data-sf]')
-          .forEach(x => x.classList.remove('active'));
-      document.querySelector('[data-sf="all"]').classList.add('active');
+      syncFilterPills('all');
     }
     if (yearFilter && d.yr !== yearFilter) {
       // User clicked a dimmed bubble outside year filter — clear the filter
@@ -341,14 +388,112 @@ window.initScatter = function() {
     return d.pr > GOD_PR && d.ccu > GOD_CCU;
   }
 
+  // ── 动态筛选 pill：按当前分类轴渲染（规模 ⇄ 商业模式）──
+  const filterPillsWrap = document.getElementById('scatter-filter-pills');
+  const legendWrap = document.getElementById('scatter-legend');
+
+  function renderFilterPills() {
+    if (!filterPillsWrap) return;
+    filterPillsWrap.innerHTML = '';
+    FILTER_SETS[classMode].forEach(pair => {
+      const val = pair[0], label = pair[1];
+      const btn = document.createElement('button');
+      btn.className = 'pill' + (val === 'all' ? ' pill-all' : '');
+      btn.dataset.sf = val;
+      btn.textContent = label;
+      if (val === activeFilter) {
+        btn.classList.add('active');
+        if (TONE[val]) btn.dataset.tone = TONE[val];
+      }
+      btn.addEventListener('click', function() {
+        setFilter(val);
+        _selfEmit = true;
+        EVT.emit('yearSelect', null);
+        _selfEmit = false;
+      });
+      filterPillsWrap.appendChild(btn);
+    });
+  }
+
   function syncFilterPills(type) {
-    document.querySelectorAll('[data-sf]')
-        .forEach(x => x.classList.remove('active'));
-    const btn = document.querySelector('[data-sf="' + type + '"]');
-    if (btn) btn.classList.add('active');
+    if (!filterPillsWrap) return;
+    filterPillsWrap.querySelectorAll('.pill').forEach(x => {
+      const on = x.dataset.sf === type;
+      x.classList.toggle('active', on);
+      if (on && TONE[type]) x.dataset.tone = TONE[type];
+      else x.removeAttribute('data-tone');
+    });
+  }
+
+  function syncModeUI() {
+    document.querySelectorAll('[data-classmode]').forEach(b =>
+      b.classList.toggle('active', b.dataset.classmode === classMode));
+    const hint = document.getElementById('classmode-hint');
+    if (hint)
+      hint.textContent = classMode === 'mon'
+          ? '填色＝商业模式，描边粗细＝规模'
+          : '填色＝规模，描边＝商业模式';
+  }
+
+  function setMode(mode) {
+    if (mode === classMode) return;
+    classMode = mode;
+    activeFilter = 'all';
+    syncModeUI();
+    renderFilterPills();
+    renderLegend();
+    selected = null;
+    hoverGame = null;
+    searchTerm = '';
+    searchInput.value = '';
+    closeDropdown();
+    showDetailPanel(null);
+    draw();
+  }
+
+  // ── 双轴图例：填色轴(当前) + 描边轴(正交) + 大小 ──
+  function renderLegend() {
+    if (!legendWrap) return;
+    let colorTitle, colorItems, ringTitle, ringItems;
+    if (classMode === 'mon') {
+      colorTitle = '填色 · 商业模式';
+      colorItems = [[MONC.Premium, MON.Premium], [MONC.F2P, MON.F2P],
+                    [MONC.Hybrid, MON.Hybrid]];
+      ringTitle = '描边粗细 · 制作规模';
+      ringItems = [['border:0.7px solid #888', '独立 Indie'],
+                   ['border:1.5px solid #b9b9d8', '中型 AA'],
+                   ['border:2.4px solid #e6e6f5', '大作 AAA']];
+    } else {
+      colorTitle = '填色 · 制作规模';
+      colorItems = [[C.Indie, '独立 Indie'], [C.AA, '中型 AA'], [C.AAA, '大作 AAA']];
+      ringTitle = '描边 · 商业模式';
+      ringItems = [['border:1px solid #888', MON.Premium],
+                   ['border:2px solid #9fe6ff', MON.F2P],
+                   ['border:2px dashed #d8b6ff', MON.Hybrid]];
+    }
+    const dots = colorItems
+        .map(it => `<span class="sl-item"><span class="sl-dot" style="background:${
+            it[0]}"></span>${it[1]}</span>`).join('');
+    const rings = ringItems
+        .map(it => `<span class="sl-item"><span class="sl-ring" style="${
+            it[0]}"></span>${it[1]}</span>`).join('');
+    legendWrap.innerHTML =
+        `<div class="sl-group"><span class="sl-title">${colorTitle}</span>${dots}</div>` +
+        `<div class="sl-group"><span class="sl-title">${ringTitle}</span>${rings}</div>` +
+        `<div class="sl-group"><span class="sl-title">气泡大小</span><span class="sl-item">估算拥有量</span></div>`;
   }
 
   function setFilter(type) {
+    // 跨轴筛选值 → 自动切到对应分类轴
+    if (type && type !== 'all') {
+      const m = axisForFilter(type);
+      if (m !== classMode) {
+        classMode = m;
+        syncModeUI();
+        renderFilterPills();
+        renderLegend();
+      }
+    }
     activeFilter = type;
     syncFilterPills(type);
     selected = null;
@@ -369,17 +514,43 @@ window.initScatter = function() {
 
   // ══ DATA HELPERS ═══════════════════════════════
 
+  // 正交筛选：mon 模式按商业模式(Premium/F2P/Hybrid)，tier 模式按规模档(Indie/AA/AAA)
+  function matchesFilter(d, f) {
+    if (!f || f === 'all') return true;
+    if (MON_VALUES.indexOf(f) >= 0) return d.monetization === f;
+    return d.tier === f;
+  }
+
   function getFilteredData() {
     let data = DATA.bubbles;
     if (activeFilter !== 'all')
-      data = data.filter(d => d.type === activeFilter);
+      data = data.filter(d => matchesFilter(d, activeFilter));
     if (yearFilter) data = data.filter(d => d.yr === yearFilter);
     if (activeTag) data = data.filter(d => (d.tags || []).includes(activeTag));
     return data;
   }
 
+  // 选中态分层透明度：选中=1 / 同侪=0.4 / 其余=0.06
+  //   统一口径——只要存在任一筛选(规模/商业模式/年份/标签)，处于同一筛选集内的
+  //   气泡都算“同侪”→0.4；仅“全部”无筛选时才用聚光灯(0.06)，避免上百气泡同时变亮。
+  //   这样分类筛选、年份筛选、标签筛选及其组合的选中观感完全一致。
+  function inActiveFilterSet(d) {
+    return matchesFilter(d, activeFilter)
+        && (!yearFilter || d.yr === yearFilter)
+        && (!activeTag || (d.tags || []).includes(activeTag));
+  }
+  function hasActiveFilter() {
+    return (activeFilter && activeFilter !== 'all') || !!yearFilter || !!activeTag;
+  }
+  function selectionOpacity(d) {
+    if (d === selected) return 1;
+    if (highlightQuadrant) return isGodQuadrant(d) ? 0.4 : 0.06;
+    if (hasActiveFilter()) return inActiveFilterSet(d) ? 0.4 : 0.06;
+    return 0.06;   // 全部模式：聚光灯，仅选中高亮
+  }
+
   function bubbleOpacity(d) {
-    if (selected) return d === selected ? 1 : 0.06;
+    if (selected) return selectionOpacity(d);
     if (hoverGame) return d === hoverGame ? 1 : 0.12;
     if (searchTerm && searchMode === 'name')
       return fuzzyMatch(d.name, searchTerm) ? 0.75 : 0.08;
@@ -440,7 +611,7 @@ window.initScatter = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .attr('letter-spacing', '1')
         .text('STEAM 好评率 (%)');
     g.append('text')
@@ -450,7 +621,7 @@ window.initScatter = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .attr('letter-spacing', '1')
         .text('峰值在线人数（对数轴）');
 
@@ -504,7 +675,7 @@ window.initScatter = function() {
           .attr('class', 'god-quadrant-label-group');
       const tmpText = labelG.append('text')
           .attr('font-family', "'Noto Sans SC','Space Mono',monospace")
-          .attr('font-size', 10).attr('font-weight', '600')
+          .attr('font-size', 12).attr('font-weight', '600')
           .text(labelText);
       const tw = tmpText.node().getBBox().width;
       tmpText.remove();
@@ -520,7 +691,7 @@ window.initScatter = function() {
           .attr('text-anchor', 'middle')
           .attr('fill', 'rgba(255,200,60,0.9)')
           .attr('font-family', "'Noto Sans SC','Space Mono',monospace")
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .attr('font-weight', '600')
           .attr('letter-spacing', '0.5')
           .attr('pointer-events', 'none')
@@ -532,7 +703,7 @@ window.initScatter = function() {
           .attr('text-anchor', 'end')
           .attr('fill', 'rgba(29,233,182,0.12)')
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .text('高口碑 · 高人气 →');
     }
 
@@ -542,7 +713,7 @@ window.initScatter = function() {
           .attr('y', 14)
           .attr('fill', 'rgba(29,233,182,0.4)')
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .text('筛选：' + yearFilter + ' 年发布');
     }
 
@@ -559,7 +730,7 @@ window.initScatter = function() {
         .attr('cx', d => xSc(d.pr))
         .attr('cy', d => ySc(Math.max(1, d.ccu)))
         .attr('r', d => rFn(d))
-        .attr('fill', d => C[d.type] || '#888')
+        .attr('fill', bubbleFill)
         .attr('opacity', 0.04)
         .attr('stroke', 'none');
 
@@ -572,14 +743,10 @@ window.initScatter = function() {
                          .attr('cx', d => xSc(d.pr))
                          .attr('cy', d => ySc(Math.max(1, d.ccu)))
                          .attr('r', 0)
-                         .attr('fill', d => C[d.type] || '#888')
-                         .attr(
-                             'stroke',
-                             d => highlightQuadrant && isGodQuadrant(d)
-                                 ? '#fff' : d3.color(C[d.type] || '#888').darker(0.8))
-                         .attr(
-                             'stroke-width',
-                             d => highlightQuadrant && isGodQuadrant(d) ? 1.5 : 1)
+                         .attr('fill', bubbleFill)
+                         .attr('stroke', bubbleStroke)
+                         .attr('stroke-width', bubbleStrokeW)
+                         .attr('stroke-dasharray', bubbleDash)
                          .attr('filter',
                              d => highlightQuadrant && isGodQuadrant(d)
                                  ? 'url(#god-glow)' : null)
@@ -594,7 +761,12 @@ window.initScatter = function() {
                                            d => selected === d ? rFn(d) * 1.15 :
                                                                  rFn(d))
                                        .attr('opacity', bubbleOpacity)),
-            update => update.call(
+            update => update
+                          .attr('fill', bubbleFill)
+                          .attr('stroke', bubbleStroke)
+                          .attr('stroke-width', bubbleStrokeW)
+                          .attr('stroke-dasharray', bubbleDash)
+                          .call(
                 up =>
                     up.transition()
                         .duration(400)
@@ -619,8 +791,10 @@ window.initScatter = function() {
                     'r', rFn(d) * 1.12);
                 TIP.show(
                     `<strong>${d.name}</strong>
-            <div class="tip-row"><span class="tip-k">类型</span><span class="tip-v" style="color:${
-                        C[d.type]}">${TL[d.type]}</span></div>
+            <div class="tip-row"><span class="tip-k">制作规模</span><span class="tip-v" style="color:${
+                        C[d.tier] || '#888'}">${(TL[d.tier] || d.tier)}</span></div>
+            <div class="tip-row"><span class="tip-k">商业模式</span><span class="tip-v" style="color:${
+                        monColor(d)}">${monLabel(d)}</span></div>
             <div class="tip-row"><span class="tip-k">发行年</span><span class="tip-v">${
                         d.yr || '—'}</span></div>
             <div class="tip-row"><span class="tip-k">好评率</span><span class="tip-v">${
@@ -663,16 +837,11 @@ window.initScatter = function() {
               searchInput.value = d.name;
               searchTerm = d.name;
               closeDropdown();
-              // 象限模式下：选中的气泡 1.0，其他象限内气泡 0.4，象限外 0.04
-              const selectOpacity = dd => {
-                if (dd === d) return 1;
-                if (highlightQuadrant && isGodQuadrant(dd)) return 0.4;
-                return 0.06;
-              };
+              // 分层透明度：选中=1 / 同类(同筛选或象限内)=0.4 / 其余=0.06
               g.selectAll('.bub')
                   .transition()
                   .duration(300)
-                  .attr('opacity', selectOpacity)
+                  .attr('opacity', selectionOpacity)
                   .attr('r', dd => dd === d ? rSc(dd.own) * 1.18 : rSc(dd.own));
               // Show label only for selected
               g.selectAll('.sel-label,.sel-ring').remove();
@@ -683,7 +852,7 @@ window.initScatter = function() {
                   .attr('y', cy - r * 1.18 - 7)
                   .attr('text-anchor', 'middle')
                   .attr('fill', '#fff')
-                  .attr('font-size', 10)
+                  .attr('font-size', 12)
                   .attr('font-weight', '700')
                   .attr('font-family', '\'Space Mono\',monospace')
                   .attr('pointer-events', 'none')
@@ -710,7 +879,7 @@ window.initScatter = function() {
             .attr('y', cy - r * 1.15 - 7)
             .attr('text-anchor', 'middle')
             .attr('fill', '#fff')
-            .attr('font-size', 10)
+            .attr('font-size', 12)
             .attr('font-weight', '700')
             .attr('font-family', '\'Space Mono\',monospace')
             .attr('pointer-events', 'none')
@@ -770,7 +939,7 @@ window.initScatter = function() {
           `<div class="detail-empty"><div class="detail-empty-icon">◎</div><div class="detail-empty-text">点击任意气泡<br>查看游戏详情</div></div>`;
       return;
     }
-    const col = C[d.type] || '#888';
+    const col = bubbleFill(d);
     const imgUrl = d.header_image || d.img || '';
     const defaultImg = '../images/banner.png';
     const imgHtml = imgUrl ?
@@ -787,10 +956,12 @@ window.initScatter = function() {
     p.innerHTML = `
       ${imgHtml}
       <div class="detail-game-name">${d.name}</div>
-      <div class="detail-type" style="color:${col}">${
-        (TL[d.tier] || d.tier || TL[d.type] || d.type)}${
-        d.f2p ? ' · <span style="color:var(--f2p)">F2P</span>' : ' · 买断'} · ${
-        d.yr || '—'}</div>
+      <div class="detail-type">
+        <span style="color:${C[d.tier] || '#888'}">${(TL[d.tier] || d.tier)}</span>
+        <span style="color:var(--muted2)"> × </span>
+        <span style="color:${monColor(d)}">${monLabel(d)}</span>
+        <span style="color:var(--muted2)"> · ${d.yr || '—'}</span>
+      </div>
       <div class="detail-row"><span class="detail-key">好评率</span><span class="detail-val" style="color:${
         col}">${fmt.pct(d.pr)}</span></div>
       <div class="detail-row"><span class="detail-key">峰值在线</span><span class="detail-val">${
@@ -828,9 +999,10 @@ window.initScatter = function() {
 
   // ══ FILTER BUTTONS ═════════════════════════════
 
-  document.querySelectorAll('[data-sf]').forEach(b => {
+  // ══ CLASSIFICATION MODE TOGGLE (规模 ⇄ 商业模式) ═══
+  document.querySelectorAll('[data-classmode]').forEach(b => {
     b.addEventListener('click', function() {
-      setFilter(this.dataset.sf);
+      setMode(this.dataset.classmode);
       _selfEmit = true;
       EVT.emit('yearSelect', null);
       _selfEmit = false;
@@ -912,10 +1084,21 @@ window.initScatter = function() {
   populateYearDropdown();
   setupSearch();
   setupTagFilter();
+  syncModeUI();
+  renderFilterPills();
+  renderLegend();
   draw();
   window._scatterRedraw = draw;
   window._scatterApplyNarrative = function(opts) {
     if (opts.filter) {
+      // 叙事筛选值可能属于任一轴 → 自动切到对应轴并刷新 pill/图例
+      const m = axisForFilter(opts.filter);
+      if (opts.filter !== 'all' && m !== classMode) {
+        classMode = m;
+        syncModeUI();
+        renderFilterPills();
+        renderLegend();
+      }
       activeFilter = opts.filter;
       syncFilterPills(opts.filter);
       selected = null;

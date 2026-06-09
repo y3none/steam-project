@@ -60,7 +60,7 @@
     gtip.id = "genre-tip";
     gtip.style.cssText = "position:fixed;pointer-events:none;z-index:60;opacity:0;transition:opacity .12s;" +
       "background:#15151f;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;max-width:250px;" +
-      "box-shadow:0 12px 40px rgba(0,0,0,.6);font-size:13px;font-family:'Noto Sans SC',sans-serif;color:#e8e8f7";
+      "box-shadow:0 12px 40px rgba(0,0,0,.6);font-size:14px;font-family:'Noto Sans SC',sans-serif;color:#e8e8f7";
     document.body.appendChild(gtip);
     return gtip;
   }
@@ -84,6 +84,8 @@
     var wrap = document.getElementById("genre-inner");
     if (!wrap || !DATA_G) return;
     wrap.innerHTML = "";
+    var det = document.getElementById("genre-detail");   // 重绘/切规模时复位钉选详情
+    if (det) { det.style.display = "none"; det.innerHTML = ""; }
     var rows = DATA_G.genres.map(function (x) {
       var s = x.scopes[scope]; return s ? Object.assign({ tag: x.tag }, s) : null;
     }).filter(function (d) { return d && d.count; });
@@ -110,32 +112,70 @@
     var r = d3.scaleSqrt().domain([0, d3.max(rows, function(d){return d.total_owners_m;})]).range([4, 38]);
     var mx = d3.median(rows, function(d){return d.count;}), my = d3.median(rows, function(d){return d.mean_owners_m;});
 
-    // 象限底色（与对应文字同色，高透明度，可交互——点击切换）
-    var activeQ = null;   // 当前选中的象限名称，null=无
+    // ── 交互状态：高亮象限 activeQ + 钉选品类 selectedGenre（互斥）──
+    var activeQ = null;        // 当前高亮的象限名称
+    var selectedGenre = null;  // 当前钉选的品类气泡
     var tip = ensureTip();
-    function resetBubbles() {
-      activeQ = null;
-      tip.style.opacity = 0;
-      node.transition().duration(300).attr("opacity", 1);
-      node.select("circle").interrupt().transition().duration(300)
-        .attr("r", function(d){ return r(d.total_owners_m); })
-        .attr("fill-opacity", .75)
-        .attr("stroke", function(d){ return trendColor(d.trend); })
-        .attr("stroke-width", 1.2)
-        .attr("filter", null);
+
+    // 某气泡当前是否处于“高亮态”（选中的品类 / 选中象限内）
+    function isHot(d) {
+      if (selectedGenre) return d === selectedGenre;
+      if (activeQ) return quadrant(d, mx, my).name === activeQ;
+      return false;
     }
-    function highlightQuadrant(qn) {
-      activeQ = qn;
-      node.transition().duration(250).attr("opacity", function(d) {
-        return quadrant(d, mx, my).name === qn ? 1 : 0.1;
+    // 统一的气泡视觉刷新——所有交互(悬浮离开/点象限/点气泡/重置)都收敛到这里，杜绝状态打架
+    function applyBubbleState(dur) {
+      dur = dur || 250;
+      var dimmed = !!(selectedGenre || activeQ);
+      node.interrupt().transition().duration(dur).attr("opacity", function(d) {
+        if (!dimmed) return 1;
+        return isHot(d) ? 1 : (selectedGenre ? 0.12 : 0.1);
       });
-      node.select("circle").interrupt().transition().duration(250)
-        .attr("r", function(d){ return r(d.total_owners_m); })
-        .attr("fill-opacity", function(d) { return quadrant(d, mx, my).name === qn ? 1 : 0.2; })
-        .attr("stroke", function(d) { return quadrant(d, mx, my).name === qn ? "#fff" : trendColor(d.trend); })
-        .attr("stroke-width", function(d) { return quadrant(d, mx, my).name === qn ? 2 : 0.5; })
-        .attr("filter", function(d) { return quadrant(d, mx, my).name === qn ? "url(#genre-glow)" : null; });
+      node.select("circle").interrupt().transition().duration(dur)
+        .attr("r", function(d){ return r(d.total_owners_m) * (selectedGenre === d ? 1.18 : 1); })
+        .attr("fill-opacity", function(d){ return !dimmed ? .75 : (isHot(d) ? 1 : 0.2); })
+        .attr("stroke", function(d){ return isHot(d) ? "#fff" : trendColor(d.trend); })
+        .attr("stroke-width", function(d){ return isHot(d) ? 2 : (dimmed ? 0.5 : 1.2); })
+        .attr("filter", function(d){ return isHot(d) ? "url(#genre-glow)" : null; });
     }
+    function resetBubbles()        { activeQ = null; selectedGenre = null; tip.style.opacity = 0; showDetail(null); applyBubbleState(300); }
+    function highlightQuadrant(qn) { activeQ = qn; selectedGenre = null; tip.style.opacity = 0; showDetail(null); applyBubbleState(250); }
+    function selectGenre(d)        { selectedGenre = d; activeQ = null; tip.style.opacity = 0; showDetail(d); applyBubbleState(250); }
+
+    // 钉选详情卡（常驻，点 ✕ / 空白 / 再点同气泡 取消）
+    function showDetail(d) {
+      var box = document.getElementById("genre-detail");
+      if (!box) return;
+      if (!d) { box.style.display = "none"; box.innerHTML = ""; return; }
+      var q = quadrant(d, mx, my);
+      var advice = {
+        "蓝海机会": "需求高、对手还少 —— 当前最值得切入的方向。",
+        "红海热门": "需求旺但竞争激烈 —— 蛋糕大，但必须靠差异化才能突围。",
+        "小众/未验证": "供需都偏低 —— 小而美或尚未被市场验证，适合低成本试水。",
+        "过度饱和": "对手多、平均回报低 —— 典型红海，谨慎进入。"
+      }[q.name] || "";
+      var trendTxt = d.trend > 0.05 ? "近三年升温 ↑" : d.trend < -0.05 ? "近三年降温 ↓" : "热度平稳 →";
+      box.style.display = "";
+      box.innerHTML =
+        '<div class="gd-head">' +
+          '<span class="gd-tag">' + d.tag + '</span>' +
+          '<span class="gd-badge" style="color:' + q.col + ';border-color:' + q.col + '66;background:' + q.col + '1a">' + q.name + '</span>' +
+          '<span class="gd-trend" style="color:' + trendColor(d.trend) + '">' + trendTxt + '</span>' +
+          '<button class="gd-close" id="gd-close" title="取消选中">✕</button>' +
+        '</div>' +
+        '<div class="gd-stats">' +
+          gdStat("供给·竞争", d.count.toLocaleString() + " 款") +
+          gdStat("需求·均拥有", fmtOwn(d.mean_owners_m)) +
+          gdStat("典型结局·中位", fmtOwn(d.median_owners_m)) +
+          gdStat("突围概率·命中≥1M", Math.round(d.hit_rate * 100) + "%") +
+          (d.median_pos != null ? gdStat("中位好评率", Math.round(d.median_pos * 100) + "%") : "") +
+          gdStat("市场总盘", Math.round(d.total_owners_m) + "M") +
+        '</div>' +
+        '<div class="gd-advice">▸ ' + advice + '</div>';
+      var c = document.getElementById("gd-close");
+      if (c) c.addEventListener("click", function(e){ e.stopPropagation(); resetBubbles(); });
+    }
+
     var qDefs = [
       { fill: "rgba(29,233,182,.06)",  rx: 0,     ry: 0,     rw: x(mx),     rh: y(my),     qn: "蓝海机会" },
       { fill: "rgba(255,213,79,.06)",  rx: x(mx), ry: 0,     rw: iW-x(mx),  rh: y(my),     qn: "红海热门" },
@@ -162,19 +202,21 @@
     g.append("line").attr("x1",0).attr("x2",iW).attr("y1",y(my)).attr("y2",y(my))
       .attr("stroke","#ffd54f").attr("stroke-width",1.5).attr("stroke-dasharray","6,4")
       .attr("class","genre-ref-line");
-    // 象限标签
-    var QL = "font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:1px";
-    g.append("text").attr("x",6).attr("y",13).attr("style",QL).attr("fill","#1de9b6").text("◤ 蓝海机会");
-    g.append("text").attr("x",iW-6).attr("y",13).attr("text-anchor","end").attr("style",QL).attr("fill","#ffd54f").text("红海热门 ◥");
-    g.append("text").attr("x",6).attr("y",iH-6).attr("style",QL).attr("fill","#50506a").text("◣ 小众/未验证");
-    g.append("text").attr("x",iW-6).attr("y",iH-6).attr("text-anchor","end").attr("style",QL).attr("fill","#ff5252").text("过度饱和 ◢");
+    // 象限标签（带该象限品类数）
+    var qCount = {"蓝海机会":0,"红海热门":0,"小众/未验证":0,"过度饱和":0};
+    rows.forEach(function(d){ var n = quadrant(d, mx, my).name; if (qCount[n] != null) qCount[n]++; });
+    var QL = "font-family:'Space Mono',monospace;font-size:16px;font-weight:700;letter-spacing:1px";
+    g.append("text").attr("x",6).attr("y",14).attr("style",QL).attr("fill","#1de9b6").text("◤ 蓝海机会 · " + qCount["蓝海机会"]);
+    g.append("text").attr("x",iW-6).attr("y",14).attr("text-anchor","end").attr("style",QL).attr("fill","#ffd54f").text("红海热门 · " + qCount["红海热门"] + " ◥");
+    g.append("text").attr("x",6).attr("y",iH-6).attr("style",QL).attr("fill","#6a6a90").text("◣ 小众/未验证 · " + qCount["小众/未验证"]);
+    g.append("text").attr("x",iW-6).attr("y",iH-6).attr("text-anchor","end").attr("style",QL).attr("fill","#ff5252").text("过度饱和 · " + qCount["过度饱和"] + " ◢");
 
     // 轴
     g.append("g").attr("transform","translate(0,"+iH+")").call(d3.axisBottom(x).ticks(5,"~s"))
       .call(styleAxis);
     g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(function(d){return d>=1?d+"M":(d*1000)+"k";}))
       .call(styleAxis);
-    var AT = "fill:#8e8eb4;font-family:'Space Mono',monospace;font-size:12.5px";
+    var AT = "fill:#9a9ac0;font-family:'Space Mono',monospace;font-size:13.5px";
     g.append("text").attr("x",iW).attr("y",iH+40).attr("text-anchor","end").attr("style",AT).text("供给：在售游戏数（对数）→ 越右竞争越激烈");
     g.append("text").attr("transform","rotate(-90)").attr("x",0).attr("y",-44).attr("text-anchor","end").attr("style",AT).text("需求：平均拥有量（对数）→ 越上市场回报越高");
 
@@ -194,10 +236,11 @@
     rows.slice().sort(function(a,b){return b.total_owners_m-a.total_owners_m;}).slice(0,11).forEach(function(d){ labeled[d.tag]=1; });
     node.filter(function(d){return labeled[d.tag];}).append("text").attr("text-anchor","middle")
       .attr("dy", function(d){return -r(d.total_owners_m)-4;}).attr("fill","#e8e8f0")
-      .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",11.5).attr("pointer-events","none")
+      .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",13).attr("pointer-events","none")
       .text(function(d){return d.tag;}).attr("opacity",0).transition().delay(550).duration(380).attr("opacity",1);
 
     node.on("mouseenter", function (ev, d) {
+      if (selectedGenre) return;  // 已钉选时，悬浮不打断当前高亮
       // 放大当前气泡，其余变暗
       d3.select(this).select("circle")
         .interrupt()
@@ -205,12 +248,12 @@
         .attr("r", r(d.total_owners_m) * 1.2)
         .attr("fill-opacity", 1);
       node.filter(function(dd) { return dd !== d; }).transition().duration(150)
-        .attr("opacity", 0.12);
+        .attr("opacity", activeQ ? function(dd){ return quadrant(dd, mx, my).name === activeQ ? 1 : 0.1; } : 0.12);
     }).on("mousemove", function (ev, d) {
       var q = quadrant(d, mx, my);
       tip.innerHTML =
-        '<div style="font-weight:700;font-size:14px;margin-bottom:6px">' + d.tag + '</div>' +
-        '<div style="font-family:\'Space Mono\',monospace;font-size:12px;padding:2px 8px;border-radius:5px;display:inline-block;margin-bottom:8px;background:' + q.col + '22;color:' + q.col + ';border:1px solid ' + q.col + '55">' + q.name + '</div>' +
+        '<div style="font-weight:700;font-size:15px;margin-bottom:6px">' + d.tag + '</div>' +
+        '<div style="font-family:\'Space Mono\',monospace;font-size:13px;padding:2px 9px;border-radius:5px;display:inline-block;margin-bottom:8px;background:' + q.col + '22;color:' + q.col + ';border:1px solid ' + q.col + '55">' + q.name + '</div>' +
         row("供给(竞争)", d.count.toLocaleString() + " 款") +
         row("均拥有量·定位纵轴", fmtOwn(d.mean_owners_m)) +
         row("中位拥有量·典型", fmtOwn(d.median_owners_m)) +
@@ -218,22 +261,18 @@
         row("命中率(≥1M)", Math.round(d.hit_rate*100) + "%") +
         (d.median_pos != null ? row("中位好评率", Math.round(d.median_pos*100) + "%") : "") +
         row("市场总规模", Math.round(d.total_owners_m) + "M") +
-        rowC("趋势", (d.trend>0?"升温 +":"") + d.trend.toFixed(2), trendColor(d.trend));
+        rowC("趋势", (d.trend>0?"升温 +":"") + d.trend.toFixed(2), trendColor(d.trend)) +
+        '<div style="margin-top:7px;font-size:11px;color:#6a6a90">点击钉选 · 查看决策建议 ↓</div>';
       tip.style.left = Math.min(ev.clientX + 16, window.innerWidth - 270) + "px";
       tip.style.top = (ev.clientY + 14) + "px";
       tip.style.opacity = 1;
     }).on("mouseleave", function (ev, d) {
       tip.style.opacity = 0;
-      // 恢复：如果有活跃象限则回到象限高亮状态，否则全部恢复
-      d3.select(this).select("circle")
-        .transition().duration(250)
-        .attr("r", r(d.total_owners_m))
-        .attr("fill-opacity", activeQ ? (quadrant(d, mx, my).name === activeQ ? 1 : 0.2) : .75)
-        .attr("stroke", activeQ ? (quadrant(d, mx, my).name === activeQ ? "#fff" : trendColor(d.trend)) : trendColor(d.trend))
-        .attr("stroke-width", activeQ ? (quadrant(d, mx, my).name === activeQ ? 2 : 0.5) : 1.2)
-        .attr("filter", activeQ ? (quadrant(d, mx, my).name === activeQ ? "url(#genre-glow)" : null) : null);
-      node.filter(function(dd) { return dd !== d; }).transition().duration(250)
-        .attr("opacity", activeQ ? function(dd) { return quadrant(dd, mx, my).name === activeQ ? 1 : 0.1; } : 1);
+      applyBubbleState(250);  // 统一恢复：自动尊重 selectedGenre / activeQ，不再各自为政
+    }).on("click", function (ev, d) {
+      ev.stopPropagation();   // 关键：阻止冒泡到 svg 的 resetBubbles，否则“点击=重置”
+      if (selectedGenre === d) resetBubbles();
+      else selectGenre(d);
     });
 
     // ── "解读" annotation overlay ──
@@ -246,7 +285,7 @@
         .style("pointer-events", "none");
       g.append("text").attr("x", 6).attr("y", 34)
         .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 12).attr("font-weight", "600")
+        .attr("font-size", 13).attr("font-weight", "600")
         .attr("pointer-events", "none").text("需求高·对手少");
       // 过度饱和：标签在象限内部、"过度饱和"文字上方
       g.append("rect").attr("x", x(mx)).attr("y", y(my)).attr("width", iW-x(mx)).attr("height", iH-y(my))
@@ -256,12 +295,12 @@
       g.append("text").attr("x", iW - 6).attr("y", iH - 24)
         .attr("text-anchor", "end")
         .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 12).attr("font-weight", "600")
+        .attr("font-size", 13).attr("font-weight", "600")
         .attr("pointer-events", "none").text("慎入");
       // Bottom annotation text
       g.append("text").attr("x", iW / 2).attr("y", iH + 16).attr("text-anchor", "middle")
         .attr("fill", "rgba(255,255,255,0.5)").attr("font-family", "'Noto Sans SC',sans-serif")
-        .attr("font-size", 12).attr("pointer-events", "none")
+        .attr("font-size", 13).attr("pointer-events", "none")
         .text("气泡越大 = 市场越大，颜色越暖 = 近年越多人涌入");
     }
 
@@ -270,8 +309,9 @@
 
   function row(k, v) { return '<div style="display:flex;justify-content:space-between;gap:14px;margin:2px 0;color:#8080a0"><span>' + k + '</span><b style="color:#e8e8f0;font-family:\'Space Mono\',monospace">' + v + '</b></div>'; }
   function rowC(k, v, c) { return '<div style="display:flex;justify-content:space-between;gap:14px;margin:2px 0;color:#8080a0"><span>' + k + '</span><b style="color:' + c + ';font-family:\'Space Mono\',monospace">' + v + '</b></div>'; }
+  function gdStat(k, v) { return '<div class="gd-stat"><span>' + k + '</span><b>' + v + '</b></div>'; }
   function styleAxis(sel) {
-    sel.selectAll("text").attr("fill", "#a2a2c8").attr("font-family", "'Space Mono',monospace").attr("font-size", "11.5px");
+    sel.selectAll("text").attr("fill", "#a2a2c8").attr("font-family", "'Space Mono',monospace").attr("font-size", "13px");
     sel.selectAll("line,path").attr("stroke", "rgba(255,255,255,.08)");
   }
 
@@ -281,7 +321,7 @@
     leg.innerHTML = "";
     var src = (DATA_G && DATA_G._fallback) ? "内嵌示例数据（运行 07_genre_opportunity.py 生成真实数据）" : "STEAMSPY tags 聚合 · 均拥有量=市场回报（中位数因 SteamSpy 区间估算几乎无区分度）";
     var wrap = document.createElement("div");
-    wrap.style.cssText = "display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.62);font-size:12px;flex-wrap:wrap";
+    wrap.style.cssText = "display:flex;align-items:center;gap:14px;color:rgba(255,255,255,.7);font-size:13px;flex-wrap:wrap";
     // "解读" button
     var btn = document.createElement("button");
     btn.className = "pill" + (showAnnotation ? " active" : "");
@@ -289,11 +329,19 @@
     btn.style.cssText = "flex-shrink:0";
     btn.addEventListener("click", function() {
       showAnnotation = !showAnnotation;
-      // Re-render the chart to show/hide annotation
       render();
     });
     wrap.appendChild(btn);
+    // 常驻编码说明：气泡大小 + 颜色（无需点“解读”即可看懂）
+    var enc = document.createElement("span");
+    enc.style.cssText = "display:inline-flex;align-items:center;gap:6px;white-space:nowrap";
+    enc.innerHTML =
+      '<svg width="46" height="16" style="vertical-align:middle"><circle cx="6" cy="8" r="3" fill="#6a6a8a"/><circle cx="22" cy="8" r="5" fill="#6a6a8a"/><circle cx="39" cy="8" r="7" fill="#6a6a8a"/></svg>' +
+      '气泡=市场总盘　|　' +
+      '<span style="color:#2864e6">■</span>降温 → <span style="color:#6a6a8a">■</span>平稳 → <span style="color:#f05028">■</span>升温';
+    wrap.appendChild(enc);
     var srcSpan = document.createElement("span");
+    srcSpan.style.cssText = "opacity:.7";
     srcSpan.textContent = src;
     wrap.appendChild(srcSpan);
     leg.appendChild(wrap);

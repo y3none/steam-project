@@ -80,7 +80,7 @@
       <div class="section-meta">
         <div class="section-tag">Market Share · 2004–2024</div>
         <div class="section-title">市场格局演变</div>
-        <div class="section-desc">各类型游戏发布数量占比的二十年流动 · 悬停查看年度数据 · <strong style="color:var(--indie)">点击年份</strong>联动下方散点图</div>
+        <div class="section-desc">二十年里，谁在给 Steam 供货？平台几度开闸，独立游戏从配角变成绝对主角。<strong style="color:var(--indie)">悬停</strong>看逐年结构，<strong style="color:var(--indie)">点击年份</strong>联动下方散点图。</div>
       </div>
       <div class="section-controls">
         <button class="pill active" data-sm="count">发布数量</button>
@@ -101,8 +101,8 @@
     <div class="insight">
       <div class="insight-icon">//</div>
       <div class="insight-text" id="insight-stream">
-        <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏年发布量首次超越 AA+3A 之和；
-        <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 4,000 <em>跳升至 7,000（+75%）</em>；
+        <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，推动独立游戏年发布量在次年首次超越 AA+3A 之和；
+        <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 5,472 <em>跳升至 7,600（+39%）</em>；
         <span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。
         <br><br>
         <strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——2024年平均每天有 52 款新游戏上架，
@@ -118,7 +118,7 @@
       <div class="section-meta">
         <div class="section-tag">Reputation × Popularity × Scale</div>
         <div class="section-title">口碑 · 人气 · 规模</div>
-        <div class="section-desc">好评率 vs 峰值在线人数（对数轴） · 气泡半径 = 估算拥有人数 · <strong style="color:var(--text)">点击气泡</strong>查看详情</div>
+        <div class="section-desc">数量爆炸之后，质量被稀释了吗？横轴=好评率，纵轴=峰值在线（对数），气泡大小=估算拥有量。<strong style="color:var(--text)">点击气泡</strong>看单款详情。</div>
       </div>
       <div class="section-controls">
         <div class="scatter-controls-wrapper">
@@ -131,23 +131,29 @@
               </div>
               <button class="pill active" data-search-mode="name">按游戏名</button>
               <button class="pill" data-search-mode="tag">按标签</button>
-              <button class="pill" data-sf="Indie">INDIE</button>
-              <button class="pill" data-sf="AA">AA</button>
-              <button class="pill" data-sf="AAA">AAA</button>
-              <button class="pill" data-sf="F2P">F2P</button>
               <select class="year-select" id="scatter-year-select">
                 <option value="">全部年份</option>
               </select>
+            </div>
+            <div class="scatter-row">
+              <span class="axis-label">分类维度</span>
+              <button class="pill classmode-btn active" data-classmode="tier">制作规模</button>
+              <button class="pill classmode-btn" data-classmode="mon">商业模式</button>
+              <span class="pill-sep">·</span>
+              <span class="axis-hint" id="classmode-hint">填色＝规模，描边＝商业模式</span>
+              <div class="filter-pills" id="scatter-filter-pills">
+                <!-- pills rendered by scatter.js per classification mode -->
+              </div>
             </div>
             <div class="scatter-row" id="tag-filter-bar">
               <!-- Dynamic tag buttons injected by scatter.js -->
             </div>
           </div>
-          <button class="pill pill-all active" data-sf="all">ALL</button>
         </div>
       </div>
     </div>
     <div class="chart-box">
+      <div class="scatter-legend" id="scatter-legend"></div>
       <div class="scatter-wrap">
         <div class="chart-inner" id="scatter-inner" style="flex:1">
           <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
@@ -163,8 +169,8 @@
     <div class="insight">
       <div class="insight-icon">//</div>
       <div class="insight-text" id="insight-scatter">
-        独立游戏平均好评率（约75%）已与3A大作（约74%）<em>几乎持平</em>——口碑差距在2013年曾超过15个百分点。
-        右上"神作象限"（好评率>90% & CCU>100k）中，独立游戏数量已首次超越3A大作（2022年起）。
+        独立游戏顶尖作品的好评率已与3A大作并肩，但<em>整体中位</em>仍被海量长尾拉低——天花板追平，差距在地板。
+        右上"神作象限"（好评率>90% & 高峰值在线）里，独立佳作与3A大作同台竞技。
         <br><br>
         <strong>值得注意的模式：</strong>图中可见独立游戏的分布呈"倒L型"——多数集中在<em>高好评但低人气</em>区域，
         说明独立游戏的质量天花板已经打破，但<em>市场注意力的分配仍然极度不均</em>。
@@ -180,7 +186,7 @@
       <div class="section-meta">
         <div class="section-tag">Player Retention · 0–24 Months</div>
         <div class="section-title">首周断崖 vs 长尾缓降</div>
-        <div class="section-desc" id="decay-desc">发布后各月归一化在线人数（% of 首月峰值） · <strong style="color:var(--text)">点击图例</strong>高亮单条曲线</div>
+        <div class="section-desc" id="decay-desc">上架只是开始——游戏发布后还能活多久？纵轴=各月在线 / 首月峰值。<strong style="color:var(--text)">点击图例</strong>高亮单条曲线。</div>
       </div>
       <div class="section-controls">
         <button class="pill active" data-dm="individual">单款游戏</button>
@@ -223,7 +229,7 @@
       <div class="section-meta">
         <div class="section-tag">Data Pipeline & Classification</div>
         <div class="section-title">数据方法论</div>
-        <div class="section-desc">从采集到可视化的完整数据管线 · 分类标准 · 局限性说明</div>
+        <div class="section-desc">上面这些结论是怎么得出来的？从采集、清洗到分类与可视化的完整管线，以及它的边界在哪里。</div>
       </div>
     </div>
     <div class="chart-box">
@@ -248,7 +254,7 @@
       <div class="section-meta">
         <div class="section-tag">The Complete Story · 三因一果</div>
         <div class="section-title">为什么独立游戏能崛起</div>
-        <div class="section-desc">把前三个视图的发现汇聚成一句结论 · 数字均由数据实时计算</div>
+        <div class="section-desc">把前三幕的线索拧成一句话——独立游戏为什么能崛起。所有数字均由数据实时计算。</div>
       </div>
     </div>
     <div class="chart-box">
@@ -265,7 +271,7 @@
       <div class="section-meta">
         <div class="section-tag">Genre Opportunity · 蓝海 vs 红海</div>
         <div class="section-title">该做一款什么游戏</div>
-        <div class="section-desc">把结论交到开发者手里：按玩法品类铺开 <strong style="color:var(--indie)">供给（竞争）</strong> × <strong style="color:var(--text)">需求（均拥有量）</strong> · 左上=蓝海机会 · <strong style="color:var(--text)">选你的工作室规模</strong>，地图重算成你这个段位的真实结局</div>
+        <div class="section-desc">故事讲完，把结论交到开发者手里：按玩法品类铺开 <strong style="color:var(--indie)">供给（竞争）</strong> × <strong style="color:var(--text)">需求（均拥有量）</strong>，左上=蓝海机会。<strong style="color:var(--text)">点击气泡</strong>看决策建议，<strong style="color:var(--text)">选你的工作室规模</strong>，地图重算成你这个段位的真实结局。</div>
       </div>
       <div class="section-controls">
         <button class="pill active" data-gs="All">全部规模</button>
@@ -279,6 +285,7 @@
       <div class="chart-inner" id="genre-inner">
         <div class="loading-wrap"><div class="spinner"></div>LOADING DATA</div>
       </div>
+      <div class="genre-detail" id="genre-detail" style="display:none"></div>
       <div class="decay-legend" id="genre-legend"></div>
     </div>
     <div class="insight">

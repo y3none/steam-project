@@ -158,7 +158,7 @@ window.initStream = function() {
         .attr("x", -noDataW/2 - 4).attr("y", iH / 2)
         .attr("fill", "rgba(255,255,255,0.35)")
         .attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 10)
+        .attr("font-size", 12)
         .attr("font-weight", "bold")
         .attr("writing-mode", "vertical-rl")
         .attr("text-anchor", "middle")
@@ -168,7 +168,7 @@ window.initStream = function() {
         .attr("x", 4).attr("y", iH - 6)
         .attr("fill", "rgba(255,255,255,0.2)")
         .attr("font-family", "'Space Mono',monospace")
-        .attr("font-size", 8)
+        .attr("font-size", 10)
         .text("数据来源: SteamCharts.com 月均在线（2012.7起）");
     }
 
@@ -205,7 +205,7 @@ window.initStream = function() {
 
     // Mode label
     g.append("text").attr("x",iW).attr("y",-6).attr("text-anchor","end")
-      .attr("fill","rgba(255,255,255,0.15)").attr("font-family","'Space Mono',monospace").attr("font-size",9)
+      .attr("fill","rgba(255,255,255,0.15)").attr("font-family","'Space Mono',monospace").attr("font-size",11)
       .text(mode==="ccu" ? "MODE: AVG. ONLINE SHARE" : "MODE: RELEASE COUNT");
 
     // Grow animation: reveal from left to right

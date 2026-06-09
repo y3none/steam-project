@@ -248,19 +248,54 @@ F2P_TITLES = {
     "Fall Guys", "MultiVersus",
 }
 
+# 明确的 Hybrid 名单（买断进入 + 强内购驱动；价格/标签可能漏判，手动补上）
+HYBRID_TITLES = {
+    "Grand Theft Auto V", "GTA V", "PUBG: BATTLEGROUNDS", "PUBG",
+    "PLAYERUNKNOWN'S BATTLEGROUNDS", "Rust", "Dead by Daylight",
+    "Sea of Thieves", "Monster Hunter: World", "Monster Hunter Rise",
+}
+
+
+def _has_iap_signal(row: dict) -> bool:
+    """
+    是否存在“内购 / 微交易”信号。
+    最可靠的来源是 Steam Store 的 categories 字段里的 "In-App Purchases"
+    （仅 02_fetch_steam_store.py 抓过的子集才有），其次退而求其次看社区标签。
+    覆盖率有限：未经 Store 富集的记录通常无此字段 → 默认无内购 → 记为 Premium，
+    宁可漏判 Hybrid 也不凭空捏造（与“数据诚实”原则一致）。
+    """
+    cats = row.get("categories", []) or []
+    if isinstance(cats, str):
+        cats = [cats]
+    cats_l = " ".join(str(c) for c in cats).lower()
+    if "in-app purchase" in cats_l or "in app purchase" in cats_l:
+        return True
+    tags = row.get("tags", {}) or {}
+    if isinstance(tags, dict):
+        for k in tags:
+            kl = str(k).lower()
+            if "microtransaction" in kl or "in-app purchase" in kl:
+                return True
+    return False
+
 
 def classify_monetization(row: dict) -> str:
     """
-    判断游戏的【商业模式 monetization】：F2P / Premium
-    —— 与制作规模档 tier 正交：AAA 也可以是 F2P（原神），Indie 也可以是 F2P。
+    判断游戏的【商业模式 monetization】，三值，与制作规模档 tier 正交：
+        F2P     免费制：免费进入 + 内购驱动（原神/CS2/Apex 也可是 AAA）
+        Hybrid  混合制：买断进入但同时有显著内购/微交易（GTA V Shark Cards、PUBG 饰品）
+        Premium 买断制：一次性付费，无（或可忽略的）内购
 
-    F2P 判定 = 免费进入 + 内购驱动，需要 tags/genres 中有明确的 Free to Play 信号。
-    只 price==0 但无 F2P 标签 → 视为限免/慈善包/早期免费的【买断制】游戏，记为 Premium，
-    避免把临时免费的独立买断游戏误判成 F2P。
+    判定顺序：手动名单 > F2P(免费+F2P信号) > Hybrid(付费+内购信号) > Premium。
+    【诚实边界】Hybrid 依赖 categories 里的 "In-App Purchases" 信号，仅 Store 富集子集可得；
+    其余记录无此信号时一律归 Premium，因此全量数据里 Hybrid 占比是“下界”而非真实占比，
+    需在方法论中注明，不可解读为“市场上混合模式很少”。
     """
     name = str(row.get("name", "")).strip()
     if name in F2P_TITLES:
         return "F2P"
+    if name in HYBRID_TITLES:
+        return "Hybrid"
 
     is_free = row.get("is_free", False)
     price   = row.get("price_usd", 0) or 0
@@ -276,6 +311,9 @@ def classify_monetization(row: dict) -> str:
     )
     if has_f2p_tag and (is_free or price == 0):
         return "F2P"
+    # 付费进入但有内购信号 → 混合制
+    if (price > 0 and not is_free) and _has_iap_signal(row):
+        return "Hybrid"
     return "Premium"
 
 

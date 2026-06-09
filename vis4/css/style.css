@@ -170,7 +170,7 @@ body::before {
   align-items: center;
   gap: 7px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12.5px;
   letter-spacing: 1px;
   color: var(--muted);
 }
@@ -180,7 +180,7 @@ body::before {
 }
 .legend-source {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted2);
   letter-spacing: 0.5px;
 }
@@ -214,7 +214,7 @@ body::before {
 .section-meta {}
 .section-tag {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--indie);
@@ -228,7 +228,7 @@ body::before {
   line-height: 1.2;
 }
 .section-desc {
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--muted);
   margin-top: 5px;
   line-height: 1.6;
@@ -443,7 +443,7 @@ svg { width: 100%; display: block; overflow: visible; }
   padding-top: 2px;
 }
 .insight-text {
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--muted);
   line-height: 1.85;
 }
@@ -493,7 +493,7 @@ svg { width: 100%; display: block; overflow: visible; }
   color: var(--border2);
   line-height: 1;
 }
-.detail-empty-text { font-size: 11px; color: var(--muted); line-height: 1.8; }
+.detail-empty-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
 .detail-game-name {
   font-size: 15px;
   font-weight: 700;
@@ -503,7 +503,7 @@ svg { width: 100%; display: block; overflow: visible; }
 }
 .detail-type {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
   margin-bottom: 16px;
@@ -517,8 +517,8 @@ svg { width: 100%; display: block; overflow: visible; }
   font-size: 13px;
 }
 .detail-row:last-of-type { border-bottom: none; }
-.detail-key { color: var(--muted); font-size: 12.5px; }
-.detail-val { color: var(--text); font-family: var(--mono); font-size: 13px; }
+.detail-key { color: var(--muted); font-size: 13px; }
+.detail-val { color: var(--text); font-family: var(--mono); font-size: 13.5px; }
 .detail-tags {
   display: flex;
   flex-wrap: wrap;
@@ -595,7 +595,7 @@ svg { width: 100%; display: block; overflow: visible; }
 }
 .dl-group-label {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 3px;
@@ -628,7 +628,7 @@ svg { width: 100%; display: block; overflow: visible; }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   cursor: pointer;
   transition: color 0.15s;
@@ -672,6 +672,63 @@ svg { width: 100%; display: block; overflow: visible; }
   align-self: center;
 }
 
+/* ── 正交分类：维度切换 + 动态筛选 pill ── */
+.axis-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.axis-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--muted2);
+  flex-shrink: 0;
+}
+.classmode-btn.active { background: var(--text); border-color: var(--text); color: #000; }
+.filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+/* 筛选 pill 高亮色随分类轴语义变化（由 scatter.js 给 .active 加 data-tone） */
+.filter-pills .pill.active[data-tone="indie"]   { background: var(--indie); border-color: var(--indie); color:#000; }
+.filter-pills .pill.active[data-tone="aa"]      { background: var(--aa);    border-color: var(--aa);    color:#000; }
+.filter-pills .pill.active[data-tone="aaa"]     { background: var(--aaa);   border-color: var(--aaa);   color:#fff; }
+.filter-pills .pill.active[data-tone="premium"] { background:#9a9ab8; border-color:#9a9ab8; color:#000; }
+.filter-pills .pill.active[data-tone="f2p"]     { background:#4dabf7; border-color:#4dabf7; color:#000; }
+.filter-pills .pill.active[data-tone="hybrid"]  { background:#c08cff; border-color:#c08cff; color:#000; }
+
+/* ── 散点专属：双轴图例（填色轴 + 描边轴） ── */
+.scatter-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 8px 4px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.sl-group { display: flex; align-items: center; gap: 10px; }
+.sl-group + .sl-group { border-left: 1px solid var(--border2); padding-left: 18px; }
+.sl-title { color: var(--muted2); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.sl-item { display: flex; align-items: center; gap: 6px; }
+.sl-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  box-sizing: border-box;
+}
+.sl-ring {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: transparent;
+  box-sizing: border-box;
+}
+
 /* ── Tag Filter ── */
 #sec-scatter { position: relative; }
 .tag-dropdown {
@@ -702,7 +759,7 @@ svg { width: 100%; display: block; overflow: visible; }
 .tag-dropdown-item .tag-count { opacity: 0.4; font-size: 9px; }
 
 /* ── D3 SHARED ── */
-.axis text { fill: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+.axis text { fill: var(--muted); font-family: var(--mono); font-size: 13px; }
 .axis path, .axis line { stroke: var(--border2); }
 .grid line { stroke: var(--border); stroke-dasharray: 2,4; opacity: 0.7; }
 .grid path { stroke: none; }
@@ -735,9 +792,9 @@ svg { width: 100%; display: block; overflow: visible; }
   border-bottom: 1px solid var(--border);
 }
 .tip-row { display: flex; justify-content: space-between; gap: 20px; }
-.tip-k { color: var(--muted); font-size: 12px; }
-.tip-v { font-family: var(--mono); font-size: 12px; }
-.tip-event { margin-top: 6px; font-size: 11px; color: var(--indie); font-family: var(--mono); }
+.tip-k { color: var(--muted); font-size: 13px; }
+.tip-v { font-family: var(--mono); font-size: 13px; }
+.tip-event { margin-top: 6px; font-size: 12px; color: var(--indie); font-family: var(--mono); }
 
 /* ── TIMELINE EVENTS ── */
 .ev-line {
@@ -1310,3 +1367,23 @@ body.tour-active #tour-launch { display: none; }
 #synthesis-inner.syn-played .syn-flow > *:nth-child(6) { animation-delay: 0.78s; }
 #synthesis-inner.syn-played .syn-flow > *:nth-child(7) { animation-delay: 0.90s; }
 #synthesis-inner.syn-played .syn-tension { animation-delay: 1.15s; }
+/* ── 机会地图：钉选详情卡 + 编码图例 ── */
+.genre-detail {
+  margin-top: 12px;
+  padding: 13px 16px;
+  background: rgba(20,20,30,0.6);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  animation: gd-in .2s ease;
+}
+@keyframes gd-in { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform:none; } }
+.gd-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.gd-tag { font-size:16px; font-weight:700; color: var(--bright); }
+.gd-badge { font-family: var(--mono); font-size:12.5px; padding:2px 9px; border-radius:5px; border:1px solid; }
+.gd-trend { font-family: var(--mono); font-size:12.5px; }
+.gd-close { margin-left:auto; background:none; border:none; color: var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:3px 7px; border-radius:5px; }
+.gd-close:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.gd-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap:4px 20px; }
+.gd-stat { display:flex; justify-content:space-between; gap:10px; font-size:13px; color: var(--muted); border-bottom:1px dashed rgba(255,255,255,0.06); padding:3px 0; }
+.gd-stat b { color: var(--text); font-family: var(--mono); font-weight:700; }
+.gd-advice { margin-top:11px; font-size:14px; color: var(--indie); line-height:1.55; }

@@ -168,7 +168,7 @@ function drawPipeline() {
           .attr('dominant-baseline', 'middle')
           .attr('fill', '#e8e8f0')
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 13)
+          .attr('font-size', 14)
           .attr('font-weight', '600')
           .text(line);
     });
@@ -180,7 +180,7 @@ function drawPipeline() {
         .attr('text-anchor', 'middle')
         .attr('fill', s.color)
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 11)
+        .attr('font-size', 12)
         .attr('font-weight', '500')
         .text(s.sub);
   });

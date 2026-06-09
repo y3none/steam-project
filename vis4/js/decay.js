@@ -140,7 +140,7 @@ window.initDecay = function() {
             .attr('y', ySc(pct) + 3)
             .attr('fill', 'rgba(255,255,255,0.18)')
             .attr('font-family', '\'Space Mono\',monospace')
-            .attr('font-size', 9)
+            .attr('font-size', 11)
             .text((pct * 100) + '%');
       });
 
@@ -181,7 +181,7 @@ window.initDecay = function() {
           .attr('text-anchor', 'middle')
           .attr('fill', ms.color)
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .attr('font-weight', 'bold')
           .text(ms.label);
       g.append('text')
@@ -190,7 +190,7 @@ window.initDecay = function() {
           .attr('text-anchor', 'middle')
           .attr('fill', ms.color)
           .attr('font-family', 'var(--sans)')
-          .attr('font-size', 8)
+          .attr('font-size', 10)
           .text(ms.note);
     });
 
@@ -211,7 +211,7 @@ window.initDecay = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text('发布后月数');
 
     var line = d3.line()
@@ -448,7 +448,7 @@ window.initDecay = function() {
           .attr('y', l.adjustedY + 3)
           .attr('fill', d.color)
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 9)
+          .attr('font-size', 11)
           .attr('opacity', isActive ? 0.7 : 0)
           .style('pointer-events', 'none')
           .attr('data-name', d.name)
@@ -640,7 +640,7 @@ window.initDecay = function() {
         .attr('y', ySc(1) + 3)
         .attr('fill', 'rgba(255,255,255,0.25)')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 9)
+        .attr('font-size', 11)
         .text('首年基准 100%');
 
     // Axes
@@ -662,7 +662,7 @@ window.initDecay = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text('游戏年龄（发布后年数）');
     g.append('text')
         .attr('transform', 'rotate(-90)')
@@ -671,7 +671,7 @@ window.initDecay = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text(yLabel);
 
     var line = d3.line()
@@ -817,7 +817,7 @@ window.initDecay = function() {
           .attr('y', ySc(lastVal) + 4)
           .attr('fill', d.color)
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .attr('font-weight', 'bold')
           .attr('opacity', aggHighlighted ? (d.type === aggHighlighted ? 1 : 0.07) : 1)
           .text(style.label + ' ' + Math.round(lastVal * 100) + '%');
@@ -829,7 +829,7 @@ window.initDecay = function() {
         .attr('y', 14)
         .attr('fill', 'rgba(255,255,255,0.28)')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text(
             '总体视角 · 仅活跃游戏（已排除死游戏）· 指标: ' +
             (usePrimary === 'playtime' ? '中位游戏时长' :
@@ -955,7 +955,7 @@ window.initDecay = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text('游戏年龄（发布后年数）');
     g.append('text')
         .attr('transform', 'rotate(-90)')
@@ -964,7 +964,7 @@ window.initDecay = function() {
         .attr('text-anchor', 'middle')
         .attr('fill', '#6060a0')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text('存活率（近期仍活跃）');
 
     var line = d3.line()
@@ -1008,7 +1008,7 @@ window.initDecay = function() {
           .attr('y', ySc(lastVal) + 4)
           .attr('fill', d.color)
           .attr('font-family', '\'Space Mono\',monospace')
-          .attr('font-size', 10)
+          .attr('font-size', 12)
           .attr('font-weight', 'bold')
           .text(style.label + ' ' + Math.round(lastVal * 100) + '%');
 
@@ -1038,7 +1038,7 @@ window.initDecay = function() {
         .attr('y', 14)
         .attr('fill', 'rgba(255,255,255,0.3)')
         .attr('font-family', '\'Space Mono\',monospace')
-        .attr('font-size', 10)
+        .attr('font-size', 12)
         .text(
             '存活率 = 近期仍活跃的游戏占比 · 曲线越低=越多同龄游戏已无人在线');
 
@@ -1202,7 +1202,7 @@ window.initDecay = function() {
                      .attr('y', -36)
                      .attr('text-anchor', 'middle')
                      .attr('font-family', '\'Space Mono\',monospace')
-                     .attr('font-size', 10)
+                     .attr('font-size', 12)
                      .attr('font-weight', '600')
                      .attr('fill', 'rgba(255,210,80,0.9)')
                      .attr('letter-spacing', '0.5');
