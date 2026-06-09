@@ -53,39 +53,27 @@ function createNarrativeController(opts) {
 
   section.addEventListener('pointerdown', function(e) {
     if (!active || e.target === btn || btn.contains(e.target)) return;
+    // 点击气泡（.bub）不退出叙事模式，只有点空白区域才退出
+    if (e.target.closest('.bub')) return;
     deactivate();
   });
 
   // ── Scroll trigger ──
-  // Check if section is already in viewport (scatter.js already applied state)
-  var rect = section.getBoundingClientRect();
-  var alreadyVisible = rect.top < window.innerHeight && rect.bottom > 0;
+  // 不自动激活：按钮仅在用户主动点击时才激活叙事模式
+  // （移除原来的「section 已在视口时自动激活」逻辑）
+  var scrollTriggered = false;
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (!e.isIntersecting || scrollTriggered) return;
+      scrollTriggered = true;
+      // 只标记 insight 为已揭示，不自动激活叙事按钮
+      var insight = document.getElementById(opts.insightId);
+      if (insight) insight.classList.add('narrative-reveal');
+      observer.disconnect();
+    });
+  }, { threshold: 0.15 });
 
-  if (alreadyVisible) {
-    // Section already visible → scatter.js already drew with narrative state
-    // Just mark the button active and start the auto-reset timer
-    active = true;
-    btn.classList.add('active');
-    btn.innerHTML = '■ ' + label;
-    resetTimer = setTimeout(deactivate, DURATION);
-    var insight = document.getElementById(opts.insightId);
-    if (insight) insight.classList.add('narrative-reveal');
-  } else {
-    // Section below fold → use observer
-    var scrollTriggered = false;
-    var observer = new IntersectionObserver(function(entries) {
-      entries.forEach(function(e) {
-        if (!e.isIntersecting || scrollTriggered) return;
-        scrollTriggered = true;
-        activate(true);
-        var insight = document.getElementById(opts.insightId);
-        if (insight) insight.classList.add('narrative-reveal');
-        observer.disconnect();
-      });
-    }, { threshold: 0.15 });  // lower threshold → fires earlier → less visible flash
-
-    observer.observe(section);
-  }
+  observer.observe(section);
 }
 
 function initScatterNarrative() {

@@ -1,14 +1,5 @@
 [
   {
-    "appid": "252490",
-    "name": "Rust",
-    "type": "Indie",
-    "peak_ccu": 143870,
-    "year": 2018,
-    "steamdb_url": "https://steamdb.info/app/252490/charts/",
-    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
-  },
-  {
     "appid": "431960",
     "name": "Wallpaper Engine",
     "type": "Indie",
@@ -21,7 +12,7 @@
     "appid": "413150",
     "name": "Stardew Valley",
     "type": "Indie",
-    "peak_ccu": 50662,
+    "peak_ccu": 57197,
     "year": 2016,
     "steamdb_url": "https://steamdb.info/app/413150/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
@@ -30,34 +21,34 @@
     "appid": "1366800",
     "name": "Crosshair X",
     "type": "Indie",
-    "peak_ccu": 41428,
+    "peak_ccu": 44780,
     "year": 2020,
     "steamdb_url": "https://steamdb.info/app/1366800/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
-    "appid": "322330",
-    "name": "Don't Starve Together",
+    "appid": "227300",
+    "name": "Euro Truck Simulator 2",
     "type": "Indie",
-    "peak_ccu": 30542,
-    "year": 2016,
-    "steamdb_url": "https://steamdb.info/app/322330/charts/",
+    "peak_ccu": 35128,
+    "year": 2012,
+    "steamdb_url": "https://steamdb.info/app/227300/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
-    "appid": "553850",
-    "name": "HELLDIVERS™ 2",
-    "type": "AA",
-    "peak_ccu": 53399,
+    "appid": "526870",
+    "name": "Satisfactory",
+    "type": "Indie",
+    "peak_ccu": 32081,
     "year": 2024,
-    "steamdb_url": "https://steamdb.info/app/553850/charts/",
+    "steamdb_url": "https://steamdb.info/app/526870/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
     "appid": "381210",
     "name": "Dead by Daylight",
     "type": "AA",
-    "peak_ccu": 44886,
+    "peak_ccu": 64263,
     "year": 2016,
     "steamdb_url": "https://steamdb.info/app/381210/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
@@ -72,21 +63,39 @@
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
-    "appid": "2878980",
-    "name": "NBA 2K25",
+    "appid": "289070",
+    "name": "Sid Meier’s Civilization® VI",
     "type": "AA",
-    "peak_ccu": 27486,
-    "year": 2024,
-    "steamdb_url": "https://steamdb.info/app/2878980/charts/",
+    "peak_ccu": 30227,
+    "year": 2016,
+    "steamdb_url": "https://steamdb.info/app/289070/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
     "appid": "218620",
     "name": "PAYDAY 2",
     "type": "AA",
-    "peak_ccu": 27254,
+    "peak_ccu": 28571,
     "year": 2013,
     "steamdb_url": "https://steamdb.info/app/218620/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "284160",
+    "name": "BeamNG.drive",
+    "type": "AA",
+    "peak_ccu": 25940,
+    "year": 2015,
+    "steamdb_url": "https://steamdb.info/app/284160/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
+    "appid": "359550",
+    "name": "Tom Clancy's Rainbow Six® Siege X",
+    "type": "AAA",
+    "peak_ccu": 74206,
+    "year": 2015,
+    "steamdb_url": "https://steamdb.info/app/359550/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
@@ -99,15 +108,6 @@
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
-    "appid": "1938090",
-    "name": "Call of Duty®",
-    "type": "AAA",
-    "peak_ccu": 67419,
-    "year": 2022,
-    "steamdb_url": "https://steamdb.info/app/1938090/charts/",
-    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
-  },
-  {
     "appid": "1086940",
     "name": "Baldur's Gate 3",
     "type": "AAA",
@@ -117,28 +117,28 @@
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
-    "appid": "359550",
-    "name": "Tom Clancy's Rainbow Six® Siege X",
+    "appid": "1938090",
+    "name": "Call of Duty®",
     "type": "AAA",
-    "peak_ccu": 51847,
-    "year": 2015,
-    "steamdb_url": "https://steamdb.info/app/359550/charts/",
+    "peak_ccu": 34188,
+    "year": 2022,
+    "steamdb_url": "https://steamdb.info/app/1938090/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
-    "appid": "2252570",
-    "name": "Football Manager 2024",
+    "appid": "4000",
+    "name": "Garry's Mod",
     "type": "AAA",
-    "peak_ccu": 47931,
-    "year": 2023,
-    "steamdb_url": "https://steamdb.info/app/2252570/charts/",
+    "peak_ccu": 31072,
+    "year": 2006,
+    "steamdb_url": "https://steamdb.info/app/4000/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
     "appid": "730",
     "name": "Counter-Strike 2",
     "type": "F2P",
-    "peak_ccu": 1013936,
+    "peak_ccu": 1086495,
     "year": 2012,
     "steamdb_url": "https://steamdb.info/app/730/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
@@ -147,7 +147,7 @@
     "appid": "570",
     "name": "Dota 2",
     "type": "F2P",
-    "peak_ccu": 623941,
+    "peak_ccu": 603179,
     "year": 2013,
     "steamdb_url": "https://steamdb.info/app/570/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
@@ -162,21 +162,21 @@
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   },
   {
+    "appid": "2694490",
+    "name": "Path of Exile 2",
+    "type": "F2P",
+    "peak_ccu": 274559,
+    "year": 2024,
+    "steamdb_url": "https://steamdb.info/app/2694490/charts/",
+    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
+  },
+  {
     "appid": "1172470",
     "name": "Apex Legends™",
     "type": "F2P",
     "peak_ccu": 124262,
     "year": 2020,
     "steamdb_url": "https://steamdb.info/app/1172470/charts/",
-    "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
-  },
-  {
-    "appid": "2767030",
-    "name": "Marvel Rivals",
-    "type": "F2P",
-    "peak_ccu": 106611,
-    "year": 2024,
-    "steamdb_url": "https://steamdb.info/app/2767030/charts/",
     "note": "请从SteamDB手动记录各月CCU，填入decay_manual.json"
   }
 ]

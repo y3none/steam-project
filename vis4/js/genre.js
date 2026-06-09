@@ -28,7 +28,9 @@
       var tag=a[0],c=a[1],o=a[2],tot=a[3],h=a[4],pos=a[5],tr=a[6];
       var scopes = {};
       for (var s in MULT) { var m = MULT[s];
-        scopes[s] = { count: Math.max(8, Math.round(c*m.c)), median_owners_m: +(o*m.o).toFixed(3),
+        var med = +(o*m.o).toFixed(3);
+        scopes[s] = { count: Math.max(8, Math.round(c*m.c)), median_owners_m: med,
+          mean_owners_m: +(med * 2.5).toFixed(4),
           total_owners_m: +(tot*m.t).toFixed(1), hit_rate: Math.min(.6, +(h*m.h).toFixed(3)),
           median_pos: pos, trend: Math.max(-.6, Math.min(.6, tr + (s==="F2P"?-.05:s==="Indie"?.03:0))) };
       }
@@ -49,6 +51,7 @@
   }
 
   var DATA_G = null, scope = "All", gtip = null;
+  var showAnnotation = false; // "解读" annotation state
 
   function ensureTip() {
     if (gtip) return gtip;
@@ -63,18 +66,18 @@
 
   function trendColor(t) {
     var x = Math.max(-.4, Math.min(.4, t)) / 0.4;       // -1..1
-    var cool=[61,127,255], mid=[106,106,138], hot=[255,107,61];
+    var cool=[40,100,230], mid=[106,106,138], hot=[240,80,40];
     var a = x < 0 ? cool : hot, k = Math.abs(x);
     return "rgb(" + Math.round(mid[0]+(a[0]-mid[0])*k) + "," + Math.round(mid[1]+(a[1]-mid[1])*k) + "," + Math.round(mid[2]+(a[2]-mid[2])*k) + ")";
   }
   function quadrant(d, mx, my) {
-    var hiSup = d.count >= mx, hiDem = d.median_owners_m >= my;
+    var hiSup = d.count >= mx, hiDem = d.mean_owners_m >= my;
     if (hiDem && !hiSup) return { name: "蓝海机会", col: "#1de9b6" };
     if (hiDem && hiSup)  return { name: "红海热门", col: "#ffd54f" };
     if (!hiDem && !hiSup) return { name: "小众/未验证", col: "#8080a0" };
     return { name: "过度饱和", col: "#ff5252" };
   }
-  function fmtOwn(v) { return v >= 1 ? v.toFixed(2) + "M" : Math.round(v*1000) + "k"; }
+  function fmtOwn(v) { if (v == null || isNaN(v)) return "—"; return v >= 1 ? v.toFixed(2) + "M" : Math.round(v*1000) + "k"; }
 
   function render() {
     var wrap = document.getElementById("genre-inner");
@@ -87,6 +90,12 @@
     var W = wrap.clientWidth || 720, H = Math.max(330, Math.min(460, W * 0.5));
     var M = { t: 24, r: 26, b: 50, l: 58 }, iW = W - M.l - M.r, iH = H - M.t - M.b;
     var svg = d3.select(wrap).append("svg").attr("viewBox", "0 0 " + W + " " + H).attr("height", H).style("width", "100%");
+    // Glow filter for highlighted bubbles
+    var defs = svg.append("defs");
+    var gf = defs.append("filter").attr("id", "genre-glow");
+    gf.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "blur");
+    gf.append("feMerge").selectAll("feMergeNode")
+      .data(["blur", "SourceGraphic"]).join("feMergeNode").attr("in", function(d){ return d; });
     var g = svg.append("g").attr("transform", "translate(" + M.l + "," + M.t + ")");
 
     if (!rows.length) {
@@ -96,18 +105,64 @@
     }
 
     var x = d3.scaleLog().domain([d3.min(rows, function(d){return d.count;})*0.8, d3.max(rows, function(d){return d.count;})*1.15]).range([0, iW]);
-    var y = d3.scaleLog().domain([Math.max(0.005, d3.min(rows, function(d){return d.median_owners_m;})*0.8), d3.max(rows, function(d){return d.median_owners_m;})*1.2]).range([iH, 0]);
+    var y = d3.scaleLog().domain([Math.max(0.005, d3.min(rows, function(d){return d.mean_owners_m;})*0.7), d3.max(rows, function(d){return d.mean_owners_m;})*1.3]).range([iH, 0]);
     var r = d3.scaleSqrt().domain([0, d3.max(rows, function(d){return d.total_owners_m;})]).range([4, 38]);
-    var mx = d3.median(rows, function(d){return d.count;}), my = d3.median(rows, function(d){return d.median_owners_m;});
+    var mx = d3.median(rows, function(d){return d.count;}), my = d3.median(rows, function(d){return d.mean_owners_m;});
 
-    // 象限底色
-    g.append("rect").attr("x",0).attr("y",0).attr("width",x(mx)).attr("height",y(my)).attr("fill","rgba(29,233,182,.045)");
-    g.append("rect").attr("x",x(mx)).attr("y",y(my)).attr("width",iW-x(mx)).attr("height",iH-y(my)).attr("fill","rgba(255,82,82,.045)");
-    // 中位分隔线
-    g.append("line").attr("x1",x(mx)).attr("x2",x(mx)).attr("y1",0).attr("y2",iH).attr("stroke","rgba(255,255,255,.08)").attr("stroke-dasharray","3,4");
-    g.append("line").attr("x1",0).attr("x2",iW).attr("y1",y(my)).attr("y2",y(my)).attr("stroke","rgba(255,255,255,.08)").attr("stroke-dasharray","3,4");
+    // 象限底色（与对应文字同色，高透明度，可交互——点击切换）
+    var activeQ = null;   // 当前选中的象限名称，null=无
+    var tip = ensureTip();
+    function resetBubbles() {
+      activeQ = null;
+      tip.style.opacity = 0;
+      node.transition().duration(300).attr("opacity", 1);
+      node.select("circle").interrupt().transition().duration(300)
+        .attr("r", function(d){ return r(d.total_owners_m); })
+        .attr("fill-opacity", .75)
+        .attr("stroke", function(d){ return trendColor(d.trend); })
+        .attr("stroke-width", 1.2)
+        .attr("filter", null);
+    }
+    function highlightQuadrant(qn) {
+      activeQ = qn;
+      node.transition().duration(250).attr("opacity", function(d) {
+        return quadrant(d, mx, my).name === qn ? 1 : 0.1;
+      });
+      node.select("circle").interrupt().transition().duration(250)
+        .attr("r", function(d){ return r(d.total_owners_m); })
+        .attr("fill-opacity", function(d) { return quadrant(d, mx, my).name === qn ? 1 : 0.2; })
+        .attr("stroke", function(d) { return quadrant(d, mx, my).name === qn ? "#fff" : trendColor(d.trend); })
+        .attr("stroke-width", function(d) { return quadrant(d, mx, my).name === qn ? 2 : 0.5; })
+        .attr("filter", function(d) { return quadrant(d, mx, my).name === qn ? "url(#genre-glow)" : null; });
+    }
+    var qDefs = [
+      { fill: "rgba(29,233,182,.06)",  rx: 0,     ry: 0,     rw: x(mx),     rh: y(my),     qn: "蓝海机会" },
+      { fill: "rgba(255,213,79,.06)",  rx: x(mx), ry: 0,     rw: iW-x(mx),  rh: y(my),     qn: "红海热门" },
+      { fill: "rgba(80,80,106,.06)",   rx: 0,     ry: y(my), rw: x(mx),     rh: iH-y(my),  qn: "小众/未验证" },
+      { fill: "rgba(255,82,82,.06)",   rx: x(mx), ry: y(my), rw: iW-x(mx),  rh: iH-y(my),  qn: "过度饱和" },
+    ];
+    qDefs.forEach(function(qd) {
+      g.append("rect")
+        .attr("x", qd.rx).attr("y", qd.ry).attr("width", qd.rw).attr("height", qd.rh)
+        .attr("fill", qd.fill)
+        .style("cursor", "pointer")
+        .on("click", function(ev) {
+          ev.stopPropagation();
+          if (activeQ === qd.qn) { resetBubbles(); }
+          else { highlightQuadrant(qd.qn); }
+        });
+    });
+    // 点击 SVG 空白区域 → 重置
+    svg.on("click", function() { resetBubbles(); });
+    // 中位参考线（与结论数字同色 #ffd54f + 呼吸动画）
+    g.append("line").attr("x1",x(mx)).attr("x2",x(mx)).attr("y1",0).attr("y2",iH)
+      .attr("stroke","#ffd54f").attr("stroke-width",1.5).attr("stroke-dasharray","6,4")
+      .attr("class","genre-ref-line");
+    g.append("line").attr("x1",0).attr("x2",iW).attr("y1",y(my)).attr("y2",y(my))
+      .attr("stroke","#ffd54f").attr("stroke-width",1.5).attr("stroke-dasharray","6,4")
+      .attr("class","genre-ref-line");
     // 象限标签
-    var QL = "font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:1px";
+    var QL = "font-family:'Space Mono',monospace;font-size:14px;font-weight:700;letter-spacing:1px";
     g.append("text").attr("x",6).attr("y",13).attr("style",QL).attr("fill","#1de9b6").text("◤ 蓝海机会");
     g.append("text").attr("x",iW-6).attr("y",13).attr("text-anchor","end").attr("style",QL).attr("fill","#ffd54f").text("红海热门 ◥");
     g.append("text").attr("x",6).attr("y",iH-6).attr("style",QL).attr("fill","#50506a").text("◣ 小众/未验证");
@@ -120,13 +175,17 @@
       .call(styleAxis);
     var AT = "fill:#50506a;font-family:'Space Mono',monospace;font-size:11px";
     g.append("text").attr("x",iW).attr("y",iH+40).attr("text-anchor","end").attr("style",AT).text("供给：在售游戏数（对数）→ 越右竞争越激烈");
-    g.append("text").attr("transform","rotate(-90)").attr("x",0).attr("y",-44).attr("text-anchor","end").attr("style",AT).text("需求：中位拥有量（对数）→ 越上典型结局越好");
+    g.append("text").attr("transform","rotate(-90)").attr("x",0).attr("y",-44).attr("text-anchor","end").attr("style",AT).text("需求：平均拥有量（对数）→ 越上市场回报越高");
 
-    // 气泡
+    // 气泡 — 用 mean_owners_m 定位 Y，加轻微抖动避免重叠
     var node = g.selectAll(".gbub").data(rows).join("g").attr("class","gbub")
-      .attr("transform", function(d){ return "translate(" + x(d.count) + "," + y(d.median_owners_m) + ")"; })
+      .attr("transform", function(d,i){
+        var jx = (Math.sin(i * 7.13) * 0.5 + 0.5 - 0.5) * (iW / rows.length * 0.4);
+        var jy = (Math.cos(i * 11.07) * 0.5 + 0.5 - 0.5) * (iH / rows.length * 0.3);
+        return "translate(" + (x(d.count) + jx) + "," + (y(d.mean_owners_m) + jy) + ")";
+      })
       .style("cursor","pointer");
-    node.append("circle").attr("r",0).attr("fill", function(d){return trendColor(d.trend);}).attr("fill-opacity",.55)
+    node.append("circle").attr("r",0).attr("fill", function(d){return trendColor(d.trend);}).attr("fill-opacity",.75)
       .attr("stroke", function(d){return trendColor(d.trend);}).attr("stroke-width",1.2)
       .transition().duration(650).delay(function(d,i){return i*20;}).attr("r", function(d){return r(d.total_owners_m);});
 
@@ -137,13 +196,22 @@
       .attr("font-family","'Noto Sans SC',sans-serif").attr("font-size",10).attr("pointer-events","none")
       .text(function(d){return d.tag;}).attr("opacity",0).transition().delay(550).duration(380).attr("opacity",1);
 
-    var tip = ensureTip();
-    node.on("mousemove", function (ev, d) {
+    node.on("mouseenter", function (ev, d) {
+      // 放大当前气泡，其余变暗
+      d3.select(this).select("circle")
+        .interrupt()
+        .transition().duration(150).ease(d3.easeCubicOut)
+        .attr("r", r(d.total_owners_m) * 1.2)
+        .attr("fill-opacity", 1);
+      node.filter(function(dd) { return dd !== d; }).transition().duration(150)
+        .attr("opacity", 0.12);
+    }).on("mousemove", function (ev, d) {
       var q = quadrant(d, mx, my);
       tip.innerHTML =
         '<div style="font-weight:700;font-size:14px;margin-bottom:6px">' + d.tag + '</div>' +
         '<div style="font-family:\'Space Mono\',monospace;font-size:11px;padding:2px 8px;border-radius:5px;display:inline-block;margin-bottom:8px;background:' + q.col + '22;color:' + q.col + ';border:1px solid ' + q.col + '55">' + q.name + '</div>' +
         row("供给(竞争)", d.count.toLocaleString() + " 款") +
+        row("均拥有量", fmtOwn(d.mean_owners_m)) +
         row("中位拥有量", fmtOwn(d.median_owners_m)) +
         row("命中率(≥1M)", Math.round(d.hit_rate*100) + "%") +
         (d.median_pos != null ? row("中位好评率", Math.round(d.median_pos*100) + "%") : "") +
@@ -152,8 +220,48 @@
       tip.style.left = Math.min(ev.clientX + 16, window.innerWidth - 270) + "px";
       tip.style.top = (ev.clientY + 14) + "px";
       tip.style.opacity = 1;
-      d3.select(this).select("circle").attr("fill-opacity", .85);
-    }).on("mouseleave", function () { tip.style.opacity = 0; d3.select(this).select("circle").attr("fill-opacity", .55); });
+    }).on("mouseleave", function (ev, d) {
+      tip.style.opacity = 0;
+      // 恢复：如果有活跃象限则回到象限高亮状态，否则全部恢复
+      d3.select(this).select("circle")
+        .transition().duration(250)
+        .attr("r", r(d.total_owners_m))
+        .attr("fill-opacity", activeQ ? (quadrant(d, mx, my).name === activeQ ? 1 : 0.2) : .75)
+        .attr("stroke", activeQ ? (quadrant(d, mx, my).name === activeQ ? "#fff" : trendColor(d.trend)) : trendColor(d.trend))
+        .attr("stroke-width", activeQ ? (quadrant(d, mx, my).name === activeQ ? 2 : 0.5) : 1.2)
+        .attr("filter", activeQ ? (quadrant(d, mx, my).name === activeQ ? "url(#genre-glow)" : null) : null);
+      node.filter(function(dd) { return dd !== d; }).transition().duration(250)
+        .attr("opacity", activeQ ? function(dd) { return quadrant(dd, mx, my).name === activeQ ? 1 : 0.1; } : 1);
+    });
+
+    // ── "解读" annotation overlay ──
+    if (showAnnotation) {
+      // Highlight 蓝海机会 (top-left) and 过度饱和 (bottom-right)
+      // 蓝海：标签在象限内部、"蓝海机会"文字下方
+      g.append("rect").attr("x", 0).attr("y", 0).attr("width", x(mx)).attr("height", y(my))
+        .attr("fill", "#1de9b6").attr("fill-opacity", 0.12)
+        .attr("stroke", "#1de9b6").attr("stroke-width", 2).attr("stroke-dasharray", "6,4")
+        .style("pointer-events", "none");
+      g.append("text").attr("x", 6).attr("y", 34)
+        .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
+        .attr("font-size", 11).attr("font-weight", "600")
+        .attr("pointer-events", "none").text("需求高·对手少");
+      // 过度饱和：标签在象限内部、"过度饱和"文字上方
+      g.append("rect").attr("x", x(mx)).attr("y", y(my)).attr("width", iW-x(mx)).attr("height", iH-y(my))
+        .attr("fill", "#ff5252").attr("fill-opacity", 0.12)
+        .attr("stroke", "#ff5252").attr("stroke-width", 2).attr("stroke-dasharray", "6,4")
+        .style("pointer-events", "none");
+      g.append("text").attr("x", iW - 6).attr("y", iH - 24)
+        .attr("text-anchor", "end")
+        .attr("fill", "#ffffff").attr("font-family", "'Space Mono',monospace")
+        .attr("font-size", 11).attr("font-weight", "600")
+        .attr("pointer-events", "none").text("慎入");
+      // Bottom annotation text
+      g.append("text").attr("x", iW / 2).attr("y", iH + 16).attr("text-anchor", "middle")
+        .attr("fill", "rgba(255,255,255,0.5)").attr("font-family", "'Noto Sans SC',sans-serif")
+        .attr("font-size", 11).attr("pointer-events", "none")
+        .text("气泡越大 = 市场越大，颜色越暖 = 近年越多人涌入");
+    }
 
     buildLegend(rows);
   }
@@ -169,12 +277,24 @@
     var leg = document.getElementById("genre-legend");
     if (!leg) return;
     leg.innerHTML = "";
-    var note = document.createElement("div");
-    note.className = "dl-type-header";
-    note.style.cssText = "color:rgba(255,255,255,.45);font-size:11px;margin-bottom:4px";
-    var src = (DATA_G && DATA_G._fallback) ? "内嵌示例数据（运行 07_genre_opportunity.py 生成真实数据）" : "STEAMSPY tags 聚合 · 中位拥有量=典型结局（非均值）";
-    note.innerHTML = "读法：<b style='color:#1de9b6'>左上=蓝海机会</b>（需求高·对手少），<b style='color:#ff5252'>右下=过度饱和</b>（慎入）；气泡越大=市场越大，颜色越暖=近年越多人涌入。 · " + src;
-    leg.appendChild(note);
+    var src = (DATA_G && DATA_G._fallback) ? "内嵌示例数据（运行 07_genre_opportunity.py 生成真实数据）" : "STEAMSPY tags 聚合 · 均拥有量=市场回报（中位数因 SteamSpy 区间估算几乎无区分度）";
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.45);font-size:11px;flex-wrap:wrap";
+    // "解读" button
+    var btn = document.createElement("button");
+    btn.className = "pill" + (showAnnotation ? " active" : "");
+    btn.textContent = showAnnotation ? "✕ 关闭解读" : "▶ 解读";
+    btn.style.cssText = "flex-shrink:0";
+    btn.addEventListener("click", function() {
+      showAnnotation = !showAnnotation;
+      // Re-render the chart to show/hide annotation
+      render();
+    });
+    wrap.appendChild(btn);
+    var srcSpan = document.createElement("span");
+    srcSpan.textContent = src;
+    wrap.appendChild(srcSpan);
+    leg.appendChild(wrap);
   }
 
   function syncPills() {
