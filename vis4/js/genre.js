@@ -280,6 +280,7 @@ function render() {
   function resetBubbles() {
     activeQ = null;
     selectedGenre = null;
+    highlightBlueOcean = false;
     tip.style.opacity = 0;
     showDetail(null);
     applyBubbleState(300);
@@ -736,16 +737,6 @@ function render() {
         .attr('font-weight', '600')
         .attr('pointer-events', 'none')
         .text('慎入');
-    // 蓝海模式额外提示
-    g.append('text')
-        .attr('x', iW / 2)
-        .attr('y', iH + 16)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'rgba(255,255,255,0.5)')
-        .attr('font-family', '\'Noto Sans SC\',sans-serif')
-        .attr('font-size', 13)
-        .attr('pointer-events', 'none')
-        .text('气泡越大 = 市场越大，颜色越暖 = 近年越多人涌入');
   }
 
   buildLegend(rows);
