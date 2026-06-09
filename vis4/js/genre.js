@@ -122,14 +122,12 @@ function fmtOwn(v) {
   return v >= 1 ? v.toFixed(2) + 'M' : Math.round(v * 1000) + 'k';
 }
 
+
 function render() {
   var wrap = document.getElementById('genre-inner');
   if (!wrap || !DATA_G) return;
-  var lockH = wrap.offsetHeight;
-  if (lockH > 0) wrap.style.minHeight = lockH + 'px';
   wrap.innerHTML = '';
-  var det =
-      document.getElementById('genre-detail');  // 重绘/切规模时复位钉选详情
+  var det = document.getElementById('genre-detail');
   if (det) {
     det.style.display = 'none';
     det.innerHTML = '';
@@ -144,6 +142,7 @@ function render() {
                  });
 
   var W = wrap.clientWidth || 720, H = Math.max(330, Math.min(460, W * 0.5));
+  _renderedW = W;
   var M = {t: 24, r: 26, b: 50, l: 58}, iW = W - M.l - M.r, iH = H - M.t - M.b;
   var svg = d3.select(wrap)
                 .append('svg')
@@ -487,6 +486,12 @@ function render() {
       .attr('style', AT)
       .text('需求：平均拥有量（对数）→ 越上市场回报越高');
 
+  // 确定性抖动：基于数据值（非数组索引），同一气泡无论渲染几次偏移量不变
+  function dataJitter(d) {
+    var h = 0;
+    for (var k = 0; k < d.tag.length; k++) h = h * 31 + d.tag.charCodeAt(k);
+    return h;
+  }
   // 气泡 — 用 mean_owners_m 定位 Y，加轻微抖动避免重叠
   var node = g.selectAll('.gbub')
                  .data(rows)
@@ -496,11 +501,10 @@ function render() {
                  })
                  .attr(
                      'transform',
-                     function(d, i) {
-                       var jx = (Math.sin(i * 7.13) * 0.5 + 0.5 - 0.5) *
-                           (iW / rows.length * 0.4);
-                       var jy = (Math.cos(i * 11.07) * 0.5 + 0.5 - 0.5) *
-                           (iH / rows.length * 0.3);
+                     function(d) {
+                       var h = dataJitter(d);
+                       var jx = Math.sin(h * 0.0013) * (iW * 0.012);
+                       var jy = Math.cos(h * 0.0021) * (iH * 0.012);
                        return 'translate(' + (x(d.count) + jx) + ',' +
                            (y(d.mean_owners_m) + jy) + ')';
                      })
@@ -740,7 +744,7 @@ function render() {
   }
 
   buildLegend(rows);
-  wrap.style.minHeight = '';
+
 }
 
 function row(k, v) {
@@ -876,9 +880,7 @@ window.initGenre = function() {
 
 // 供导览 / 联动调用：切换工作室规模、narrative 高亮
 window._genreSetScope = setScope;
-window._genreRedraw = function() {
-  if (DATA_G) render();
-};
+window._genreRedraw = function() { if (DATA_G) render(); };
 window._genreApplyNarrative = function(opts) {
   if (opts && opts.highlightBlueOcean != null)
     highlightBlueOcean = opts.highlightBlueOcean;
