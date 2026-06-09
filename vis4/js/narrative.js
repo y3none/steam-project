@@ -20,13 +20,21 @@ function createNarrativeController(opts) {
   var sep = document.createElement('span');
   sep.className = 'pill-sep';
   sep.textContent = '|';
-  controls.appendChild(sep);
-
   var btn = document.createElement('button');
   btn.className = 'pill';
   btn.innerHTML = '▶ ' + label;
   btn.title = opts.tooltip || '';
-  controls.appendChild(btn);
+
+  // Insert sep + btn BEFORE the "全部" button if present (scatter section),
+  // so the order becomes: ... | 聚焦 Indie  全部
+  var allBtn = controls.querySelector('#scatter-all-btn');
+  if (allBtn) {
+    controls.insertBefore(btn, allBtn);
+    controls.insertBefore(sep, btn);
+  } else {
+    controls.appendChild(sep);
+    controls.appendChild(btn);
+  }
 
   function activate(autoReset) {
     if (active) return;

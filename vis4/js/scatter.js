@@ -7,7 +7,8 @@ window.initScatter = function() {
   let GOD_CCU = 100000;
   let activeFilter = 'all', selected = null, yearFilter = null;
   let activeTag = null;
-  let classMode = 'tier';   // 'tier'=制作规模(Indie/AA/AAA) | 'mon'=商业模式(Premium/F2P/Hybrid)
+  let classMode = 'tier';  // 'tier'=制作规模(Indie/AA/AAA) |
+                           // 'mon'=商业模式(Premium/F2P/Hybrid)
   let searchMode = 'name';
   let searchTerm = '', hoverGame = null;
   let highlightQuadrant = false;
@@ -20,30 +21,42 @@ window.initScatter = function() {
   const MON_VALUES = ['Premium', 'F2P', 'Hybrid'];
   const FILTER_SETS = {
     tier: [['all', '全部'], ['Indie', 'INDIE'], ['AA', 'AA'], ['AAA', 'AAA']],
-    mon:  [['all', '全部'], ['Premium', '买断制'], ['F2P', '免费F2P'], ['Hybrid', '混合模式']],
+    mon: [
+      ['all', '全部'], ['Premium', '买断制'], ['F2P', '免费F2P'],
+      ['Hybrid', '混合模式']
+    ],
   };
   const TONE = {
-    Indie: 'indie', AA: 'aa', AAA: 'aaa',
-    Premium: 'premium', F2P: 'f2p', Hybrid: 'hybrid',
+    Indie: 'indie',
+    AA: 'aa',
+    AAA: 'aaa',
+    Premium: 'premium',
+    F2P: 'f2p',
+    Hybrid: 'hybrid',
   };
-  function axisForFilter(f) { return MON_VALUES.indexOf(f) >= 0 ? 'mon' : 'tier'; }
+  function axisForFilter(f) {
+    return MON_VALUES.indexOf(f) >= 0 ? 'mon' : 'tier';
+  }
   // 填色：tier 模式按规模档，mon 模式按商业模式
   function bubbleFill(d) {
-    return classMode === 'mon' ? (MONC[d.monetization] || '#888') : (C[d.tier] || '#888');
+    return classMode === 'mon' ? (MONC[d.monetization] || '#888') :
+                                 (C[d.tier] || '#888');
   }
   // 描边：呈现“另一条轴”——
   //   tier 模式 → 描边编码商业模式：买断=暗描边 / 免费=亮青环 / 混合=紫色虚线环
   //   mon  模式 → 描边粗细编码规模：Indie 细 / AA 中 / AAA 粗
   function bubbleStroke(d) {
     if (highlightQuadrant && isGodQuadrant(d)) return '#fff';
-    if (classMode === 'mon') return d3.color(MONC[d.monetization] || '#888').darker(0.9);
-    if (d.monetization === 'F2P')    return '#9fe6ff';
+    if (classMode === 'mon')
+      return d3.color(MONC[d.monetization] || '#888').darker(0.9);
+    if (d.monetization === 'F2P') return '#9fe6ff';
     if (d.monetization === 'Hybrid') return '#d8b6ff';
     return d3.color(C[d.tier] || '#888').darker(0.8);
   }
   function bubbleStrokeW(d) {
     if (highlightQuadrant && isGodQuadrant(d)) return 1.5;
-    if (classMode === 'mon') return d.tier === 'AAA' ? 2.4 : d.tier === 'AA' ? 1.5 : 0.7;
+    if (classMode === 'mon')
+      return d.tier === 'AAA' ? 2.4 : d.tier === 'AA' ? 1.5 : 0.7;
     return d.monetization === 'Premium' ? 1 : 2;
   }
   function bubbleDash(d) {
@@ -100,7 +113,7 @@ window.initScatter = function() {
         activeTag = activeTag === tag ? null : tag;
         selected = null;
         hoverGame = null;
-        searchTerm = '';            // 清掉选中游戏遗留的搜索词，否则只剩该气泡不透明
+        searchTerm = '';  // 清掉选中游戏遗留的搜索词，否则只剩该气泡不透明
         searchInput.value = '';
         closeDropdown();
         showDetailPanel(null);
@@ -121,7 +134,7 @@ window.initScatter = function() {
         activeTag = activeTag === tag ? null : tag;
         selected = null;
         hoverGame = null;
-        searchTerm = '';            // 同上：避免残留搜索词把其余气泡压暗
+        searchTerm = '';  // 同上：避免残留搜索词把其余气泡压暗
         searchInput.value = '';
         showDetailPanel(null);
         updateTagUI();
@@ -395,7 +408,48 @@ window.initScatter = function() {
   function renderFilterPills() {
     if (!filterPillsWrap) return;
     filterPillsWrap.innerHTML = '';
+
+    // ALL button: placed in the first scatter-row (same row as "聚焦 Indie"),
+    // on the far right — same vertical position
+    const firstRow = document.querySelector(
+        '#sec-scatter .scatter-controls-left .scatter-row');
+    let allBtn = document.getElementById('scatter-all-btn');
+    if (!allBtn && firstRow) {
+      allBtn = document.createElement('button');
+      allBtn.id = 'scatter-all-btn';
+      allBtn.className = 'pill pill-all';
+      allBtn.dataset.sf = 'all';
+      allBtn.textContent = '全部';
+      allBtn.addEventListener('click', function() {
+        setFilter('all');
+        _selfEmit = true;
+        EVT.emit('yearSelect', null);
+        _selfEmit = false;
+      });
+      firstRow.appendChild(allBtn);
+    }
+    if (allBtn) {
+      const isActive = activeFilter === 'all';
+      allBtn.classList.toggle('active', isActive);
+      allBtn.style.cssText = 'flex-shrink:0;font-size:12px;padding:5px 14px;' +
+          'font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;' +
+          'border-radius:2px;cursor:pointer;font-weight:700;' +
+          'background:#6060a0;' +
+          'border:1px solid #6060a0;' +
+          'color:#fff;' +
+          'transition:border-color .15s,box-shadow .15s,background .15s;';
+      allBtn.onmouseenter = function() {
+        allBtn.style.borderColor = '#9090d0';
+        allBtn.style.boxShadow = '0 0 0 2px rgba(96,96,160,0.35)';
+      };
+      allBtn.onmouseleave = function() {
+        allBtn.style.borderColor = '#6060a0';
+        allBtn.style.boxShadow = 'none';
+      };
+    }
+
     FILTER_SETS[classMode].forEach(pair => {
+      if (pair[0] === 'all') return;  // ALL is outside, skip here
       const val = pair[0], label = pair[1];
       const btn = document.createElement('button');
       btn.className = 'pill' + (val === 'all' ? ' pill-all' : '');
@@ -417,22 +471,28 @@ window.initScatter = function() {
 
   function syncFilterPills(type) {
     if (!filterPillsWrap) return;
+    const allBtn = document.getElementById('scatter-all-btn');
+    if (allBtn) allBtn.classList.toggle('active', type === 'all');
     filterPillsWrap.querySelectorAll('.pill').forEach(x => {
       const on = x.dataset.sf === type;
       x.classList.toggle('active', on);
-      if (on && TONE[type]) x.dataset.tone = TONE[type];
-      else x.removeAttribute('data-tone');
+      if (on && TONE[type])
+        x.dataset.tone = TONE[type];
+      else
+        x.removeAttribute('data-tone');
     });
   }
 
   function syncModeUI() {
-    document.querySelectorAll('[data-classmode]').forEach(b =>
-      b.classList.toggle('active', b.dataset.classmode === classMode));
+    document.querySelectorAll('[data-classmode]')
+        .forEach(
+            b => b.classList.toggle(
+                'active', b.dataset.classmode === classMode));
     const hint = document.getElementById('classmode-hint');
     if (hint)
-      hint.textContent = classMode === 'mon'
-          ? '填色＝商业模式，描边粗细＝规模'
-          : '填色＝规模，描边＝商业模式';
+      hint.textContent = classMode === 'mon' ?
+          '填色＝商业模式，描边粗细＝规模' :
+          '填色＝规模，描边＝商业模式';
   }
 
   function setMode(mode) {
@@ -457,29 +517,44 @@ window.initScatter = function() {
     let colorTitle, colorItems, ringTitle, ringItems;
     if (classMode === 'mon') {
       colorTitle = '填色 · 商业模式';
-      colorItems = [[MONC.Premium, MON.Premium], [MONC.F2P, MON.F2P],
-                    [MONC.Hybrid, MON.Hybrid]];
+      colorItems = [
+        [MONC.Premium, MON.Premium], [MONC.F2P, MON.F2P],
+        [MONC.Hybrid, MON.Hybrid]
+      ];
       ringTitle = '描边粗细 · 制作规模';
-      ringItems = [['border:0.7px solid #888', '独立 Indie'],
-                   ['border:1.5px solid #b9b9d8', '中型 AA'],
-                   ['border:2.4px solid #e6e6f5', '大作 AAA']];
+      ringItems = [
+        ['border:0.7px solid #888', '独立 Indie'],
+        ['border:1.5px solid #b9b9d8', '中型 AA'],
+        ['border:2.4px solid #e6e6f5', '大作 AAA']
+      ];
     } else {
       colorTitle = '填色 · 制作规模';
-      colorItems = [[C.Indie, '独立 Indie'], [C.AA, '中型 AA'], [C.AAA, '大作 AAA']];
+      colorItems =
+          [[C.Indie, '独立 Indie'], [C.AA, '中型 AA'], [C.AAA, '大作 AAA']];
       ringTitle = '描边 · 商业模式';
-      ringItems = [['border:1px solid #888', MON.Premium],
-                   ['border:2px solid #9fe6ff', MON.F2P],
-                   ['border:2px dashed #d8b6ff', MON.Hybrid]];
+      ringItems = [
+        ['border:1px solid #888', MON.Premium],
+        ['border:2px solid #9fe6ff', MON.F2P],
+        ['border:2px dashed #d8b6ff', MON.Hybrid]
+      ];
     }
-    const dots = colorItems
-        .map(it => `<span class="sl-item"><span class="sl-dot" style="background:${
-            it[0]}"></span>${it[1]}</span>`).join('');
-    const rings = ringItems
-        .map(it => `<span class="sl-item"><span class="sl-ring" style="${
-            it[0]}"></span>${it[1]}</span>`).join('');
-    legendWrap.innerHTML =
-        `<div class="sl-group"><span class="sl-title">${colorTitle}</span>${dots}</div>` +
-        `<div class="sl-group"><span class="sl-title">${ringTitle}</span>${rings}</div>` +
+    const dots =
+        colorItems
+            .map(
+                it =>
+                    `<span class="sl-item"><span class="sl-dot" style="background:${
+                        it[0]}"></span>${it[1]}</span>`)
+            .join('');
+    const rings =
+        ringItems
+            .map(
+                it => `<span class="sl-item"><span class="sl-ring" style="${
+                    it[0]}"></span>${it[1]}</span>`)
+            .join('');
+    legendWrap.innerHTML = `<div class="sl-group"><span class="sl-title">${
+                               colorTitle}</span>${dots}</div>` +
+        `<div class="sl-group"><span class="sl-title">${ringTitle}</span>${
+                               rings}</div>` +
         `<div class="sl-group"><span class="sl-title">气泡大小</span><span class="sl-item">估算拥有量</span></div>`;
   }
 
@@ -514,7 +589,8 @@ window.initScatter = function() {
 
   // ══ DATA HELPERS ═══════════════════════════════
 
-  // 正交筛选：mon 模式按商业模式(Premium/F2P/Hybrid)，tier 模式按规模档(Indie/AA/AAA)
+  // 正交筛选：mon 模式按商业模式(Premium/F2P/Hybrid)，tier
+  // 模式按规模档(Indie/AA/AAA)
   function matchesFilter(d, f) {
     if (!f || f === 'all') return true;
     if (MON_VALUES.indexOf(f) >= 0) return d.monetization === f;
@@ -535,18 +611,19 @@ window.initScatter = function() {
   //   气泡都算“同侪”→0.4；仅“全部”无筛选时才用聚光灯(0.06)，避免上百气泡同时变亮。
   //   这样分类筛选、年份筛选、标签筛选及其组合的选中观感完全一致。
   function inActiveFilterSet(d) {
-    return matchesFilter(d, activeFilter)
-        && (!yearFilter || d.yr === yearFilter)
-        && (!activeTag || (d.tags || []).includes(activeTag));
+    return matchesFilter(d, activeFilter) &&
+        (!yearFilter || d.yr === yearFilter) &&
+        (!activeTag || (d.tags || []).includes(activeTag));
   }
   function hasActiveFilter() {
-    return (activeFilter && activeFilter !== 'all') || !!yearFilter || !!activeTag;
+    return (activeFilter && activeFilter !== 'all') || !!yearFilter ||
+        !!activeTag;
   }
   function selectionOpacity(d) {
     if (d === selected) return 1;
     if (highlightQuadrant) return isGodQuadrant(d) ? 0.4 : 0.06;
     if (hasActiveFilter()) return inActiveFilterSet(d) ? 0.4 : 0.06;
-    return 0.06;   // 全部模式：聚光灯，仅选中高亮
+    return 0.06;  // 全部模式：聚光灯，仅选中高亮
   }
 
   function bubbleOpacity(d) {
@@ -555,7 +632,7 @@ window.initScatter = function() {
     if (searchTerm && searchMode === 'name')
       return fuzzyMatch(d.name, searchTerm) ? 0.75 : 0.08;
     // 象限模式下，show 列表已仅含神作气泡，直接高亮
-    if (highlightQuadrant) return 1;
+    if (highlightQuadrant) return isGodQuadrant(d) ? 1 : 0.3;
     return d.ccu > 100000 ? 0.85 : 0.65;
   }
 
@@ -630,18 +707,23 @@ window.initScatter = function() {
       // Glow filter for god-quadrant bubbles
       const defs = svg.append('defs');
       const glowFilter = defs.append('filter').attr('id', 'god-glow');
-      glowFilter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
-      glowFilter.append('feMerge').selectAll('feMergeNode')
-          .data(['blur', 'SourceGraphic']).join('feMergeNode')
+      glowFilter.append('feGaussianBlur')
+          .attr('stdDeviation', '3')
+          .attr('result', 'blur');
+      glowFilter.append('feMerge')
+          .selectAll('feMergeNode')
+          .data(['blur', 'SourceGraphic'])
+          .join('feMergeNode')
           .attr('in', d => d);
 
-      const qx = xSc(GOD_PR);           // x position of vertical line (pr=90)
-      const qy = ySc(GOD_CCU);          // y position of horizontal line (ccu threshold)
+      const qx = xSc(GOD_PR);   // x position of vertical line (pr=90)
+      const qy = ySc(GOD_CCU);  // y position of horizontal line (ccu threshold)
 
       // Right-upper region: subtle colored fill (no rect border)
       g.append('rect')
           .attr('class', 'god-quadrant-bg')
-          .attr('x', qx).attr('y', ySc(4800000))
+          .attr('x', qx)
+          .attr('y', ySc(4800000))
           .attr('width', xSc(100) - qx)
           .attr('height', qy - ySc(4800000))
           .attr('fill', 'rgba(255, 200, 60, 0.05)')
@@ -650,8 +732,10 @@ window.initScatter = function() {
       // Horizontal dashed line at GOD_CCU threshold
       g.append('line')
           .attr('class', 'god-threshold-line')
-          .attr('x1', 0).attr('y1', qy)
-          .attr('x2', iW).attr('y2', qy)
+          .attr('x1', 0)
+          .attr('y1', qy)
+          .attr('x2', iW)
+          .attr('y2', qy)
           .attr('stroke', '#ffd54f')
           .attr('stroke-width', 1.5)
           .attr('stroke-dasharray', '6,4')
@@ -660,8 +744,10 @@ window.initScatter = function() {
       // Vertical dashed line at GOD_PR (90%)
       g.append('line')
           .attr('class', 'god-threshold-line')
-          .attr('x1', qx).attr('y1', 0)
-          .attr('x2', qx).attr('y2', iH)
+          .attr('x1', qx)
+          .attr('y1', 0)
+          .attr('x2', qx)
+          .attr('y2', iH)
           .attr('stroke', '#ffd54f')
           .attr('stroke-width', 1.5)
           .attr('stroke-dasharray', '6,4')
@@ -670,27 +756,34 @@ window.initScatter = function() {
       // Label badge: horizontally centered within the quadrant region
       const labelCx = (qx + xSc(100)) / 2;  // quadrant center-x
       const labelText = '神作象限 · 好评率 > 90% 且 在线 > ' + fmt.ccu(GOD_CCU);
-      const labelG = g.append('g')
-          .attr('transform', `translate(${labelCx}, ${ySc(4800000) + 14})`)
-          .attr('class', 'god-quadrant-label-group');
-      const tmpText = labelG.append('text')
-          .attr('font-family', "'Noto Sans SC','Space Mono',monospace")
-          .attr('font-size', 12).attr('font-weight', '600')
-          .text(labelText);
+      const labelG =
+          g.append('g')
+              .attr('transform', `translate(${labelCx}, ${ySc(4800000) + 14})`)
+              .attr('class', 'god-quadrant-label-group');
+      const tmpText =
+          labelG.append('text')
+              .attr('font-family', '\'Noto Sans SC\',\'Space Mono\',monospace')
+              .attr('font-size', 12)
+              .attr('font-weight', '600')
+              .text(labelText);
       const tw = tmpText.node().getBBox().width;
       tmpText.remove();
       labelG.append('rect')
-          .attr('x', -(tw + 28) / 2).attr('y', -13)
-          .attr('width', tw + 28).attr('height', 22)
+          .attr('x', -(tw + 28) / 2)
+          .attr('y', -13)
+          .attr('width', tw + 28)
+          .attr('height', 22)
           .attr('rx', 11)
           .attr('fill', 'rgba(255,200,60,0.12)')
-          .attr('stroke', 'rgba(255,200,60,0.6)').attr('stroke-width', 1)
+          .attr('stroke', 'rgba(255,200,60,0.6)')
+          .attr('stroke-width', 1)
           .attr('pointer-events', 'none');
       labelG.append('text')
-          .attr('x', 0).attr('y', 2)
+          .attr('x', 0)
+          .attr('y', 2)
           .attr('text-anchor', 'middle')
           .attr('fill', 'rgba(255,200,60,0.9)')
-          .attr('font-family', "'Noto Sans SC','Space Mono',monospace")
+          .attr('font-family', '\'Noto Sans SC\',\'Space Mono\',monospace')
           .attr('font-size', 12)
           .attr('font-weight', '600')
           .attr('letter-spacing', '0.5')
@@ -719,7 +812,8 @@ window.initScatter = function() {
 
     const show = getFilteredData();
     // 象限模式：只有神作气泡作为前景，其余全部变暗
-    const visibleShow = highlightQuadrant ? show.filter(d => isGodQuadrant(d)) : show;
+    const visibleShow =
+        highlightQuadrant ? show.filter(d => isGodQuadrant(d)) : show;
     const hide = DATA.bubbles.filter(d => !visibleShow.includes(d));
 
     // Background dimmed
@@ -747,9 +841,11 @@ window.initScatter = function() {
                          .attr('stroke', bubbleStroke)
                          .attr('stroke-width', bubbleStrokeW)
                          .attr('stroke-dasharray', bubbleDash)
-                         .attr('filter',
-                             d => highlightQuadrant && isGodQuadrant(d)
-                                 ? 'url(#god-glow)' : null)
+                         .attr(
+                             'filter',
+                             d => highlightQuadrant && isGodQuadrant(d) ?
+                                 'url(#god-glow)' :
+                                 null)
                          .attr('opacity', 0)
                          .style('cursor', 'pointer')
                          .call(
@@ -761,19 +857,21 @@ window.initScatter = function() {
                                            d => selected === d ? rFn(d) * 1.15 :
                                                                  rFn(d))
                                        .attr('opacity', bubbleOpacity)),
-            update => update
-                          .attr('fill', bubbleFill)
-                          .attr('stroke', bubbleStroke)
-                          .attr('stroke-width', bubbleStrokeW)
-                          .attr('stroke-dasharray', bubbleDash)
-                          .call(
-                up =>
-                    up.transition()
-                        .duration(400)
-                        .attr('cx', d => xSc(d.pr))
-                        .attr('cy', d => ySc(Math.max(1, d.ccu)))
-                        .attr('r', d => selected === d ? rFn(d) * 1.15 : rFn(d))
-                        .attr('opacity', bubbleOpacity)),
+            update =>
+                update.attr('fill', bubbleFill)
+                    .attr('stroke', bubbleStroke)
+                    .attr('stroke-width', bubbleStrokeW)
+                    .attr('stroke-dasharray', bubbleDash)
+                    .call(
+                        up => up.transition()
+                                  .duration(400)
+                                  .attr('cx', d => xSc(d.pr))
+                                  .attr('cy', d => ySc(Math.max(1, d.ccu)))
+                                  .attr(
+                                      'r',
+                                      d => selected === d ? rFn(d) * 1.15 :
+                                                            rFn(d))
+                                  .attr('opacity', bubbleOpacity)),
             exit => exit.call(
                 ex => ex.transition()
                           .duration(300)
@@ -792,7 +890,8 @@ window.initScatter = function() {
                 TIP.show(
                     `<strong>${d.name}</strong>
             <div class="tip-row"><span class="tip-k">制作规模</span><span class="tip-v" style="color:${
-                        C[d.tier] || '#888'}">${(TL[d.tier] || d.tier)}</span></div>
+                        C[d.tier] ||
+                        '#888'}">${(TL[d.tier] || d.tier)}</span></div>
             <div class="tip-row"><span class="tip-k">商业模式</span><span class="tip-v" style="color:${
                         monColor(d)}">${monLabel(d)}</span></div>
             <div class="tip-row"><span class="tip-k">发行年</span><span class="tip-v">${
@@ -826,7 +925,8 @@ window.initScatter = function() {
               closeDropdown();
               g.selectAll('.sel-label,.sel-ring').remove();
               g.selectAll('.bub')
-                  .transition().duration(300)
+                  .transition()
+                  .duration(300)
                   .attr('opacity', bubbleOpacity)
                   .attr('r', dd => rSc(dd.own));
               showDetailPanel(null);
@@ -922,7 +1022,8 @@ window.initScatter = function() {
         closeDropdown();
         g.selectAll('.sel-label,.sel-ring').remove();
         g.selectAll('.bub')
-            .transition().duration(300)
+            .transition()
+            .duration(300)
             .attr('opacity', bubbleOpacity)
             .attr('r', dd => rSc(dd.own));
         showDetailPanel(null);
@@ -957,7 +1058,8 @@ window.initScatter = function() {
       ${imgHtml}
       <div class="detail-game-name">${d.name}</div>
       <div class="detail-type">
-        <span style="color:${C[d.tier] || '#888'}">${(TL[d.tier] || d.tier)}</span>
+        <span style="color:${C[d.tier] || '#888'}">${
+        (TL[d.tier] || d.tier)}</span>
         <span style="color:var(--muted2)"> × </span>
         <span style="color:${monColor(d)}">${monLabel(d)}</span>
         <span style="color:var(--muted2)"> · ${d.yr || '—'}</span>
