@@ -1026,24 +1026,28 @@ svg { width: 100%; display: block; overflow: visible; }
   flex-shrink: 0;
 }
 .refresh-btn {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: var(--muted);
+  background: #6060a0;
+  border: 1.5px solid #6060a0;
+  color: #fff;
   font-family: "Space Mono", monospace;
   font-size: 11px;
-  letter-spacing: 0.05em;
+  letter-spacing: 1px;
   padding: 5px 14px 5px 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
-  transition: all 0.25s;
+  font-weight: 700;
+  border-radius: 2px;
+  text-transform: uppercase;
+  transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .refresh-btn:hover {
-  border-color: var(--indie);
-  color: var(--indie);
-  background: rgba(29,233,182,0.08);
+  border-color: #9090d0;
+  color: #fff;
+  background: #6060a0;
+  box-shadow: 0 0 0 2px rgba(96,96,160,0.35);
 }
 .refresh-btn:active { transform: scale(0.97); }
 .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
