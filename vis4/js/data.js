@@ -133,16 +133,27 @@ function genDecay(seed, a, b, c, floor) {
   v[0]=1.0; return v.map(x=>Math.round(x*1e4)/1e4);
 }
 DATA.decay = [
-  {name:"GTA V",              type:"AAA",  color:"#ff5252", peak:364548,  yr:2015, data:genDecay(1, 0.90,0.58,0.05,0.04)},
-  {name:"Cyberpunk 2077",     type:"AAA",  color:"#ff7070", peak:1054388, yr:2020, data:genDecay(2, 0.88,0.72,0.04,0.03)},
-  {name:"Hogwarts Legacy",    type:"AAA",  color:"#ff9090", peak:879308,  yr:2023, data:genDecay(3, 0.92,0.82,0.03,0.02)},
-  {name:"Black Myth: Wukong", type:"AAA",  color:"#ff8a80", peak:2416376, yr:2024, data:genDecay(4, 0.85,0.55,0.08,0.06)},
-  {name:"No Man's Sky",       type:"AA",   color:"#ffd54f", peak:212321,  yr:2016, data:genDecay(5, 0.70,0.24,0.22,0.16)},
-  {name:"Stardew Valley",     type:"Indie",color:"#1de9b6", peak:89063,   yr:2016, data:genDecay(6, 0.55,0.06,0.36,0.31)},
-  {name:"Valheim",            type:"Indie",color:"#00bfa5", peak:502387,  yr:2021, data:genDecay(7, 0.75,0.32,0.18,0.12)},
-  {name:"Terraria",           type:"Indie",color:"#00897b", peak:489886,  yr:2011, data:genDecay(8, 0.50,0.05,0.42,0.38)},
-  {name:"Hades",              type:"Indie",color:"#80cbc4", peak:100654,  yr:2020, data:genDecay(9, 0.65,0.14,0.29,0.24)},
-  {name:"DOTA 2",             type:"F2P",  color:"#69f0ae", peak:1291328, yr:2013, data:genDecay(10,0.28,0.03,0.68,0.64)},
+  // ── 名称需与 bubbles 数据（Steam Store 名称）一致 ──
+  // AAA 单机
+  {name:"Grand Theft Auto V Legacy",type:"AAA",color:"#ff6b6b",peak:364548, yr:2015,data:genDecay(1, 0.90,0.58,0.05,0.04)},
+  {name:"Cyberpunk 2077",          type:"AAA",color:"#ff9a9a",peak:1054388,yr:2020,data:genDecay(2, 0.88,0.72,0.04,0.03)},
+  {name:"Hogwarts Legacy",         type:"AAA",color:"#ffbaba",peak:879308, yr:2023,data:genDecay(3, 0.92,0.82,0.03,0.02)},
+  {name:"Black Myth: Wukong",      type:"AAA",color:"#ffe66d",peak:2416376,yr:2024,data:genDecay(4, 0.85,0.55,0.08,0.06)},
+  {name:"ELDEN RING",              type:"AAA",color:"#ff8080",peak:953426, yr:2022,data:genDecay(11,0.88,0.65,0.06,0.05)},
+  {name:"Baldur's Gate 3",         type:"AAA",color:"#ffd700",peak:875343, yr:2023,data:genDecay(12,0.70,0.24,0.22,0.16)},
+  // AA
+  {name:"Rust",                    type:"AA", color:"#ffc107",peak:245924, yr:2018,data:genDecay(15,0.75,0.35,0.30,0.25)},
+  {name:"Warframe",                type:"AA", color:"#ffab00",peak:145747, yr:2013,data:genDecay(19,0.40,0.08,0.55,0.48)},
+  // Indie
+  {name:"Stardew Valley",          type:"Indie",color:"#4ecdc4",peak:89063, yr:2016,data:genDecay(6, 0.55,0.06,0.36,0.31)},
+  {name:"Valheim",                 type:"Indie",color:"#45b7aa",peak:502387,yr:2021,data:genDecay(7, 0.75,0.32,0.18,0.12)},
+  {name:"Terraria",                type:"Indie",color:"#26a99a",peak:489886,yr:2011,data:genDecay(8, 0.50,0.05,0.42,0.38)},
+  {name:"Hades",                   type:"Indie",color:"#a8e6cf",peak:100654,yr:2020,data:genDecay(9, 0.65,0.14,0.29,0.24)},
+  // F2P / 持续运营
+  {name:"Counter-Strike 2",        type:"F2P",color:"#66bb6a",peak:1811425,yr:2012,data:genDecay(18,0.20,0.02,0.75,0.70)},
+  {name:"Dota 2",                   type:"F2P",color:"#88ccaa",peak:1291328,yr:2013,data:genDecay(10,0.28,0.03,0.68,0.64)},
+  {name:"PUBG: BATTLEGROUNDS",      type:"F2P",color:"#ff4c4c",peak:3257248,yr:2017,data:genDecay(13,0.82,0.30,0.45,0.40)},
+  {name:"Apex Legends™",            type:"F2P",color:"#ff7c7c",peak:509744, yr:2019,data:genDecay(16,0.80,0.28,0.50,0.45)},
 ];
 
 // ════════════════════════════════════════════════

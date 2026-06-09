@@ -538,8 +538,8 @@ function render() {
   // 标注【全部】品类（旧版只标市场总盘前 11，导致多数气泡无文字）。
   // 为避免叠字：① 加深色描边光晕(paint-order)保证重叠时仍可读；
   //            ② 按索引奇偶在气泡上/下交错放置，错开相邻标签；
-  //            ③ 入场后跑一次贪心碰撞检测：按市场总盘从大到小依次放置，
-  //               尝试上下左右四个候选位置，全冲突则隐藏次要标签。
+  //            ③ 在不可见时跑贪心碰撞检测确定最终位置，再渐入——避免二次跳动。
+  // Phase 1: 创建文字元素（不可见，不做动画）
   node.append('text')
       .attr('class', 'genre-label')
       .attr('text-anchor', 'middle')
@@ -552,29 +552,35 @@ function render() {
       .attr('fill', function(d) {
         return highlightBlueOcean && isBlueOcean(d, mx, my) ? '#1de9b6' : '#e8e8f0';
       })
-      .attr('stroke', '#0a0a12')          // 深色光晕，压在其它气泡/标签上仍清晰
+      .attr('stroke', '#0a0a12')
       .attr('stroke-width', 3)
       .attr('stroke-linejoin', 'round')
-      .attr('paint-order', 'stroke')      // 先描边后填字 → 文字在光晕之上
+      .attr('paint-order', 'stroke')
       .attr('font-family', '\'Noto Sans SC\',sans-serif')
       .attr('font-size', 11.5)
       .attr('pointer-events', 'none')
       .text(function(d) {
         return d.tag;
       })
+      .attr('opacity', 0);
+
+  // Phase 2: 标签仍不可见时完成碰撞检测与布局，避免可见跳动
+  resolveLabelCollisions();
+
+  // Phase 3: 记录碰撞后的目标透明度，重置为 0 后做入场渐显
+  var targetOps = [];
+  node.select('text.genre-label').each(function() {
+    targetOps.push(parseFloat(d3.select(this).attr('opacity')));
+  });
+  node.select('text.genre-label')
       .attr('opacity', 0)
       .transition()
       .delay(function(d, i) {
         return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 + i * 20 : 550;
       })
       .duration(380)
-      .attr('opacity', function(d) {
-        if (!highlightBlueOcean) return 1;
-        return isBlueOcean(d, mx, my) ? 1 : 0.2;
-      })
-      .on('end', function(d, i) {
-        // 末个标签入场后跑一次贪心碰撞检测（重绘时也会因 selection 重建而再次触发）
-        if (i === rows.length - 1) resolveLabelCollisions();
+      .attr('opacity', function(d, i) {
+        return targetOps[i];
       });
 
   // 贪心碰撞：按市场总盘从大到小排序，依次尝试 4 个候选位置；全冲突则隐藏
