@@ -225,7 +225,7 @@ bash scripts/weekly_update.sh
 python server.py --host 0.0.0.0 --port 8000
 ```
 
-浏览器打开 **http://localhost:8000/vis4/** 即可。
+浏览器打开 **http://localhost:8000/** 即可。
 
 启动时控制台会输出类似：
 
