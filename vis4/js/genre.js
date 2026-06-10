@@ -122,14 +122,12 @@ function fmtOwn(v) {
   return v >= 1 ? v.toFixed(2) + 'M' : Math.round(v * 1000) + 'k';
 }
 
+
 function render() {
   var wrap = document.getElementById('genre-inner');
   if (!wrap || !DATA_G) return;
-  var lockH = wrap.offsetHeight;
-  if (lockH > 0) wrap.style.minHeight = lockH + 'px';
   wrap.innerHTML = '';
-  var det =
-      document.getElementById('genre-detail');  // 重绘/切规模时复位钉选详情
+  var det = document.getElementById('genre-detail');
   if (det) {
     det.style.display = 'none';
     det.innerHTML = '';
@@ -144,6 +142,7 @@ function render() {
                  });
 
   var W = wrap.clientWidth || 720, H = Math.max(330, Math.min(460, W * 0.5));
+  _renderedW = W;
   var M = {t: 24, r: 26, b: 50, l: 58}, iW = W - M.l - M.r, iH = H - M.t - M.b;
   var svg = d3.select(wrap)
                 .append('svg')
@@ -487,6 +486,12 @@ function render() {
       .attr('style', AT)
       .text('需求：平均拥有量（对数）→ 越上市场回报越高');
 
+  // 确定性抖动：基于数据值（非数组索引），同一气泡无论渲染几次偏移量不变
+  function dataJitter(d) {
+    var h = 0;
+    for (var k = 0; k < d.tag.length; k++) h = h * 31 + d.tag.charCodeAt(k);
+    return h;
+  }
   // 气泡 — 用 mean_owners_m 定位 Y，加轻微抖动避免重叠
   var node = g.selectAll('.gbub')
                  .data(rows)
@@ -496,11 +501,10 @@ function render() {
                  })
                  .attr(
                      'transform',
-                     function(d, i) {
-                       var jx = (Math.sin(i * 7.13) * 0.5 + 0.5 - 0.5) *
-                           (iW / rows.length * 0.4);
-                       var jy = (Math.cos(i * 11.07) * 0.5 + 0.5 - 0.5) *
-                           (iH / rows.length * 0.3);
+                     function(d) {
+                       var h = dataJitter(d);
+                       var jx = Math.sin(h * 0.0013) * (iW * 0.012);
+                       var jy = Math.cos(h * 0.0021) * (iH * 0.012);
                        return 'translate(' + (x(d.count) + jx) + ',' +
                            (y(d.mean_owners_m) + jy) + ')';
                      })
@@ -534,8 +538,8 @@ function render() {
   // 标注【全部】品类（旧版只标市场总盘前 11，导致多数气泡无文字）。
   // 为避免叠字：① 加深色描边光晕(paint-order)保证重叠时仍可读；
   //            ② 按索引奇偶在气泡上/下交错放置，错开相邻标签；
-  //            ③ 入场后跑一次贪心碰撞检测：按市场总盘从大到小依次放置，
-  //               尝试上下左右四个候选位置，全冲突则隐藏次要标签。
+  //            ③ 在不可见时跑贪心碰撞检测确定最终位置，再渐入——避免二次跳动。
+  // Phase 1: 创建文字元素（不可见，不做动画）
   node.append('text')
       .attr('class', 'genre-label')
       .attr('text-anchor', 'middle')
@@ -548,29 +552,35 @@ function render() {
       .attr('fill', function(d) {
         return highlightBlueOcean && isBlueOcean(d, mx, my) ? '#1de9b6' : '#e8e8f0';
       })
-      .attr('stroke', '#0a0a12')          // 深色光晕，压在其它气泡/标签上仍清晰
+      .attr('stroke', '#0a0a12')
       .attr('stroke-width', 3)
       .attr('stroke-linejoin', 'round')
-      .attr('paint-order', 'stroke')      // 先描边后填字 → 文字在光晕之上
+      .attr('paint-order', 'stroke')
       .attr('font-family', '\'Noto Sans SC\',sans-serif')
       .attr('font-size', 11.5)
       .attr('pointer-events', 'none')
       .text(function(d) {
         return d.tag;
       })
+      .attr('opacity', 0);
+
+  // Phase 2: 标签仍不可见时完成碰撞检测与布局，避免可见跳动
+  resolveLabelCollisions();
+
+  // Phase 3: 记录碰撞后的目标透明度，重置为 0 后做入场渐显
+  var targetOps = [];
+  node.select('text.genre-label').each(function() {
+    targetOps.push(parseFloat(d3.select(this).attr('opacity')));
+  });
+  node.select('text.genre-label')
       .attr('opacity', 0)
       .transition()
       .delay(function(d, i) {
         return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 + i * 20 : 550;
       })
       .duration(380)
-      .attr('opacity', function(d) {
-        if (!highlightBlueOcean) return 1;
-        return isBlueOcean(d, mx, my) ? 1 : 0.2;
-      })
-      .on('end', function(d, i) {
-        // 末个标签入场后跑一次贪心碰撞检测（重绘时也会因 selection 重建而再次触发）
-        if (i === rows.length - 1) resolveLabelCollisions();
+      .attr('opacity', function(d, i) {
+        return targetOps[i];
       });
 
   // 贪心碰撞：按市场总盘从大到小排序，依次尝试 4 个候选位置；全冲突则隐藏
@@ -740,7 +750,7 @@ function render() {
   }
 
   buildLegend(rows);
-  wrap.style.minHeight = '';
+
 }
 
 function row(k, v) {
@@ -876,9 +886,7 @@ window.initGenre = function() {
 
 // 供导览 / 联动调用：切换工作室规模、narrative 高亮
 window._genreSetScope = setScope;
-window._genreRedraw = function() {
-  if (DATA_G) render();
-};
+window._genreRedraw = function() { if (DATA_G) render(); };
 window._genreApplyNarrative = function(opts) {
   if (opts && opts.highlightBlueOcean != null)
     highlightBlueOcean = opts.highlightBlueOcean;

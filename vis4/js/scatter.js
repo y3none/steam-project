@@ -1050,7 +1050,10 @@ window.initScatter = function() {
         `<img class="detail-header-img" src="${defaultImg}" alt="default">`;
 
     // Check if this game exists in decay data
-    const hasDecay = DATA.decay.some(x => x.name === d.name);
+    // 名称匹配：先精确，再模糊（去掉 ™/® 等商标符号，忽略大小写与冒号后缀）
+    const normName = s => s.replace(/[™®©]/g, '').replace(/:\s*.+$/, '').toLowerCase().trim();
+    const hasDecay = DATA.decay.some(x => x.name === d.name || normName(x.name) === normName(d.name));
+    const decayMatch = hasDecay ? DATA.decay.find(x => x.name === d.name || normName(x.name) === normName(d.name)) : null;
     const decayBtnHtml = hasDecay ?
         `<button class="detail-decay-btn" id="btn-jump-decay">📉 查看生命周期曲线 ↓</button>` :
         '';
@@ -1088,8 +1091,8 @@ window.initScatter = function() {
     const jumpBtn = document.getElementById('btn-jump-decay');
     if (jumpBtn) {
       jumpBtn.addEventListener('click', function() {
-        // Emit event for decay.js to highlight this game
-        EVT.emit('decayHighlight', d.name);
+        // Emit event with the matched decay name (not bubble name) for exact lookup
+        EVT.emit('decayHighlight', decayMatch ? decayMatch.name : d.name);
         // Scroll to decay section
         const decaySection = document.getElementById('decay-inner') ||
             document.querySelector('[data-view="decay"]');
