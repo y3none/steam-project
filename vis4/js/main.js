@@ -205,23 +205,33 @@ function updateInsights() {
   // ── Insight 1: Stream Graph (market) ──
   var insight1 = document.getElementById('insight-stream');
   if (insight1 && lastYear) {
-    var dailyNew = lastYear.n ? Math.round(lastYear.n / 365) : 52;
+    // var dailyNew = lastYear.n ? Math.round(lastYear.n / 365) : 52;
     var yr2017 = market.find(function(d) { return d.year === 2017; });
     var yr2016 = market.find(function(d) { return d.year === 2016; });
     var directCount = yr2017 ? fmt.num(yr2017.ni) : '7,600';
     var preCount = yr2016 ? fmt.num(yr2016.ni) : '5,472';
     var jumpPct = yr2016 && yr2017 ? Math.round((yr2017.ni - yr2016.ni) / yr2016.ni * 100) : 39;
+    var dailyNew = lastYear.n ? Math.round(lastYear.n / 365) : 52;
 
     var html1 =
-      '<span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，推动独立游戏年发布量在次年首次超越 AA+3A 之和；' +
-      '<span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 ' + preCount +
-      ' <em>跳升至 ' + directCount + '（+' + jumpPct + '%）</em>；' +
+      '<span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏涌入加速，占比持续攀升；' +
+      '<span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，独立年发布量再上一个台阶；' +
       '<span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。' +
       '<br><br>' +
       '<strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——' +
-      lastYear.year + '年平均每天有 ' + dailyNew + ' 款新游戏上架，' +
+      lastYear.year + '年平均每天有约 ' + dailyNew + ' 款新游戏上架，' +
       '单款游戏的中位曝光机会反而低于2014年。数量增长并不等于生态健康，这一矛盾贯穿独立游戏崛起的全过程。';
     insight1.dataset.typewriterHtml = html1;
+    // var html1 =
+    //   '<span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，推动独立游戏年发布量在次年首次超越 AA+3A 之和；' +
+    //   '<span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 ' + preCount +
+    //   ' <em>跳升至 ' + directCount + '（+' + jumpPct + '%）</em>；' +
+    //   '<span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。' +
+    //   '<br><br>' +
+    //   '<strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——' +
+    //   lastYear.year + '年平均每天有 ' + dailyNew + ' 款新游戏上架，' +
+    //   '单款游戏的中位曝光机会反而低于2014年。数量增长并不等于生态健康，这一矛盾贯穿独立游戏崛起的全过程。';
+    // insight1.dataset.typewriterHtml = html1;
   }
 
   // ── Insight 2: Scatter (quality) ──
