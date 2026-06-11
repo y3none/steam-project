@@ -188,6 +188,8 @@ window.initTour = function() {
 
   // ── 状态机 ──────────────────────────────────────
   let idx = 0, playing = false, timer = null, active = false;
+  let stepStartTime = 0;      // 当前步骤开始播放的时间戳（用于计算暂停时剩余时长）
+  let remainingAtPause = null; // 暂停时剩余的步骤时长（ms），resume 时只重启定时器不重播动画
   const $ = id => bar.querySelector(id);
 
   function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
@@ -227,6 +229,7 @@ window.initTour = function() {
   function goTo(i, keepPlaying) {
     clearTimer();
     clearAnim();
+    remainingAtPause = null; // 切换步骤时重置
     idx = Math.max(0, Math.min(steps.length - 1, i));
     const s = steps[idx];
     // 先渲染字幕条（更新文案 → offsetHeight 反映当前步高度），再据此计算预留空间滚动
@@ -260,7 +263,9 @@ window.initTour = function() {
       else setDotFill(curDot, 0);
     }
     if (willPlay) {
+      stepStartTime = Date.now();
       timer = setTimeout(() => {
+        stepStartTime = 0;
         if (idx < steps.length - 1) {
           goTo(idx + 1, true);
         } else {
@@ -276,11 +281,50 @@ window.initTour = function() {
     playing = p;
     $("#tour-play").textContent = p ? "⏸" : "▶";
     if (p) {
-      goTo(idx, true);
+      // ── 恢复播放 ──
+      if (remainingAtPause != null) {
+        // 从暂停恢复：只重启定时器，不重播动画，不重新滚动
+        const remaining = remainingAtPause;
+        remainingAtPause = null;
+        stepStartTime = Date.now();
+        const curDot = progEl.querySelector(".tour-dot.current");
+        // 恢复时从冻结位置继续动画到 100%，不重置到 0
+        const fill = curDot && curDot.querySelector(".tour-dot-fill");
+        if (fill) {
+          fill.style.transition = "width " + remaining + "ms linear";
+          fill.style.width = "100%";
+        }
+        if (remaining > 0) {
+          timer = setTimeout(() => {
+            stepStartTime = 0;
+            if (idx < steps.length - 1) {
+              goTo(idx + 1, true);
+            } else {
+              const dot = progEl.querySelector(".tour-dot.current");
+              if (dot) setDotFill(dot, 100);
+              setPlaying(false);
+            }
+          }, remaining);
+        } else {
+          // 剩余时间已耗尽，直接进下一步
+          if (idx < steps.length - 1) goTo(idx + 1, true);
+          else setPlaying(false);
+        }
+      } else {
+        // 非暂停恢复（首次播放/点击进度点/切换步骤）：正常执行完整动画
+        goTo(idx, true);
+      }
     } else {
+      // ── 暂停 ──
       clearTimer();
       clearAnim(); // 取消本章节排队中的分阶段动画，否则暂停后仍会继续触发
       freezeCurrentFill(); // 暂停时把倒计时绿条冻结在当前位置，给出明确反馈
+      // 记录剩余时长，供恢复时使用
+      if (stepStartTime > 0) {
+        const elapsed = Date.now() - stepStartTime;
+        remainingAtPause = Math.max(0, steps[idx].dur - elapsed);
+        stepStartTime = 0;
+      }
     }
   }
 
