@@ -112,15 +112,22 @@ window.initTour = function() {
       sel: "#sec-genre", centerSel: ".chart-box", chapter: "尾声 · 给从业者", title: "那，该做一款什么游戏？",
       text: "我们把结论交回开发者手里：按玩法品类铺开供给与需求，左上角是需求高、对手少的蓝海。切到「独立」——地图重算成你这个段位的真实机会。这才是这套系统的落点：不止说明过去，更指向该做什么。",
       dur: 7500,
-      action() { window._genreSetScope && window._genreSetScope("Indie"); },
-      // 动态：全貌 → 点亮蓝海 → 切到独立段位；每次重算后重新居中
+      action() { window._genreNarrative && window._genreNarrative({ scope: "Indie", highlightBlueOcean: true, animate: false }); },
+      // 动态：入场动画只播一次（全貌）→ 点亮蓝海(瞬时) → 切到独立(瞬时重算)；
+      // 后两拍用 animate:false，避免气泡入场被反复重播（此前会连播多遍）。每次重算后重新居中。
       anim(A) {
-        A.later(() => A.genre({ highlightBlueOcean: false }), 0);
-        if (window._genreSetScope) {
-          A.later(function () { window._genreSetScope("All"); recenterGenre(); }, 200);
-          A.later(() => A.genre({ highlightBlueOcean: true }), 1500);
-          A.later(function () { window._genreSetScope("Indie"); recenterGenre(); }, 3000);
-        }
+        A.later(function () {
+          window._genreNarrative && window._genreNarrative({ scope: "All", highlightBlueOcean: false });
+          recenterGenre();
+        }, 0);
+        A.later(function () {
+          window._genreNarrative && window._genreNarrative({ highlightBlueOcean: true, animate: false });
+          recenterGenre();
+        }, 1500);
+        A.later(function () {
+          window._genreNarrative && window._genreNarrative({ scope: "Indie", animate: false });
+          recenterGenre();
+        }, 3000);
       },
     },
   ];
@@ -160,7 +167,7 @@ window.initTour = function() {
     dot.className = "tour-dot";
     dot.dataset.i = i;
     dot.innerHTML = '<span class="tour-dot-fill"></span>';
-    dot.addEventListener("click", () => goTo(i));
+    dot.addEventListener("click", () => goTo(i, true)); // 点击进度点 = 从该章节开始播放
     progEl.appendChild(dot);
   });
 
@@ -188,16 +195,53 @@ window.initTour = function() {
 
   // ── 状态机 ──────────────────────────────────────
   let idx = 0, playing = false, timer = null, active = false;
-  let stepStartTime = 0;      // 当前步骤开始播放的时间戳（用于计算暂停时剩余时长）
-  let remainingAtPause = null; // 暂停时剩余的步骤时长（ms），resume 时只重启定时器不重播动画
+  let stepDeadline = 0;       // 当前步骤自动推进的绝对截止时刻（ms 时间戳）；0 表示未在计时
+  let remainingAtPause = null; // 暂停时记录的步骤剩余时长（ms），resume 时据此重启倒计时
   const $ = id => bar.querySelector(id);
 
   function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
 
-  // 章节内动态序列：用可取消的定时器编排分阶段呈现
-  let animTimers = [];
-  function later(fn, ms) { const id = setTimeout(fn, ms); animTimers.push(id); return id; }
-  function clearAnim() { animTimers.forEach(clearTimeout); animTimers = []; }
+  // 章节内动态序列：可暂停 / 恢复的定时器编排
+  // 每个待触发动作记成 { fn, fireAt, timerId }。暂停时冻结其剩余延迟并保留在队列，
+  // 恢复时按剩余延迟重新排程——这样在小章节内暂停后，尚未触发的分阶段动画能接着播完，
+  // 而不是被丢弃、把图卡在暂停那一刻的中间态。
+  let animQueue = []; // 尚未触发的动作队列
+  function armItem(item) {
+    const wait = Math.max(0, item.fireAt - Date.now());
+    item.timerId = setTimeout(() => {
+      animQueue = animQueue.filter(q => q !== item); // 触发后出队
+      try { item.fn(); } catch (e) { console.warn("[tour]", e); }
+    }, wait);
+  }
+  function later(fn, ms) {
+    const item = { fn, fireAt: Date.now() + ms, timerId: null, remaining: null };
+    animQueue.push(item);
+    armItem(item);
+    return item;
+  }
+  // 彻底清空（切换 / 退出步骤时用）：连同未触发的队列一起丢弃
+  function clearAnim() {
+    animQueue.forEach(it => clearTimeout(it.timerId));
+    animQueue = [];
+  }
+  // 暂停：停掉活跃定时器，但把每个未触发动作的「剩余延迟」记下来，保留在队列
+  function freezeAnim() {
+    const now = Date.now();
+    animQueue.forEach(it => {
+      clearTimeout(it.timerId);
+      it.remaining = Math.max(0, it.fireAt - now);
+      it.timerId = null;
+    });
+  }
+  // 恢复：按冻结时记录的剩余延迟重新排程，把没播完的分阶段动画接着播完
+  function resumeAnim() {
+    const now = Date.now();
+    animQueue.forEach(it => {
+      it.fireAt = now + (it.remaining != null ? it.remaining : 0);
+      it.remaining = null;
+      armItem(it);
+    });
+  }
   // 供各章节 anim() 调用的便捷别名
   const A = {
     stream: y => window._streamSelectYear && window._streamSelectYear(y),
@@ -248,7 +292,7 @@ window.initTour = function() {
       }
     }
     // 等滚动落定再触发：非 reduced-motion 且该章有 anim() → 播放动态序列；否则直接到终态
-    // 用 later() 入队，确保暂停时 clearAnim() 能取消这次延迟触发
+    // 用 later() 入队：暂停时随队列一起冻结（含这次 450ms 延迟触发），恢复时接着排程
     later(() => {
       try {
         if (!RM && s.anim) s.anim(A);
@@ -258,14 +302,18 @@ window.initTour = function() {
     // 当前进度点：播放中→倒计时动画；暂停→置空或冻结
     const curDot = progEl.querySelector(".tour-dot.current");
     const willPlay = (keepPlaying ?? playing);
+    // 让 playing 与播放/暂停按钮始终跟导航后的真实状态一致，
+    // 修复「跳章后内容在播、按钮却停在暂停态」的错配。
+    playing = willPlay;
+    $("#tour-play").textContent = willPlay ? "⏸" : "▶";
     if (curDot) {
       if (willPlay) setDotFill(curDot, null, s.dur);
       else setDotFill(curDot, 0);
     }
     if (willPlay) {
-      stepStartTime = Date.now();
+      stepDeadline = Date.now() + s.dur;
       timer = setTimeout(() => {
-        stepStartTime = 0;
+        stepDeadline = 0;
         if (idx < steps.length - 1) {
           goTo(idx + 1, true);
         } else {
@@ -283,20 +331,23 @@ window.initTour = function() {
     if (p) {
       // ── 恢复播放 ──
       if (remainingAtPause != null) {
-        // 从暂停恢复：只重启定时器，不重播动画，不重新滚动
+        // 从暂停恢复：重启步骤倒计时 + 续播未完成的分阶段动画（不从头重播、不重新滚动）
         const remaining = remainingAtPause;
         remainingAtPause = null;
-        stepStartTime = Date.now();
+        stepDeadline = Date.now() + remaining;
+        resumeAnim(); // 把暂停时冻结、尚未触发的章节内动态序列接着排程播完
+        window._decaySweepResume && window._decaySweepResume(); // 续跑被冻结的留存图时间游标扫描
         const curDot = progEl.querySelector(".tour-dot.current");
         // 恢复时从冻结位置继续动画到 100%，不重置到 0
         const fill = curDot && curDot.querySelector(".tour-dot-fill");
         if (fill) {
+          void fill.offsetWidth; // 强制重排：让上一句冻结的宽度落定，下面的 transition 才会真正过渡而非瞬跳
           fill.style.transition = "width " + remaining + "ms linear";
           fill.style.width = "100%";
         }
         if (remaining > 0) {
           timer = setTimeout(() => {
-            stepStartTime = 0;
+            stepDeadline = 0;
             if (idx < steps.length - 1) {
               goTo(idx + 1, true);
             } else {
@@ -317,13 +368,13 @@ window.initTour = function() {
     } else {
       // ── 暂停 ──
       clearTimer();
-      clearAnim(); // 取消本章节排队中的分阶段动画，否则暂停后仍会继续触发
+      freezeAnim(); // 冻结本章节排队中的分阶段动画（保留剩余延迟），恢复时接着播完
+      window._decaySweepPause && window._decaySweepPause(); // 冻结正在进行的留存图时间游标扫描
       freezeCurrentFill(); // 暂停时把倒计时绿条冻结在当前位置，给出明确反馈
-      // 记录剩余时长，供恢复时使用
-      if (stepStartTime > 0) {
-        const elapsed = Date.now() - stepStartTime;
-        remainingAtPause = Math.max(0, steps[idx].dur - elapsed);
-        stepStartTime = 0;
+      // 据绝对截止时刻记录剩余时长，供恢复时使用（同一章节多次暂停也不漂移）
+      if (stepDeadline > 0) {
+        remainingAtPause = Math.max(0, stepDeadline - Date.now());
+        stepDeadline = 0;
       }
     }
   }

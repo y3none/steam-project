@@ -84,6 +84,7 @@ function normalize(raw) {
 
 var DATA_G = null, scope = 'All', gtip = null;
 var highlightBlueOcean = false;  // 蓝海高亮模式（叙事联动）
+var suppressEntranceOnce = false;  // 一次性：true 时本次 render 不播放气泡入场（直接到终态），用于导览内连续切换状态时避免反复重播入场
 var showAnnotation = false;  // "解读" annotation state
 
 function isBlueOcean(d, mx, my) {
@@ -124,6 +125,8 @@ function fmtOwn(v) {
 
 
 function render() {
+  var animateEntrance = !suppressEntranceOnce;  // 本次是否播放气泡入场
+  suppressEntranceOnce = false;                 // 一次性，立即复位，避免影响后续正常渲染
   var wrap = document.getElementById('genre-inner');
   if (!wrap || !DATA_G) return;
   wrap.innerHTML = '';
@@ -509,7 +512,7 @@ function render() {
                            (y(d.mean_owners_m) + jy) + ')';
                      })
                  .style('cursor', 'pointer');
-  node.append('circle')
+  var circ = node.append('circle')
       .attr('r', 0)
       .attr(
           'fill',
@@ -522,18 +525,25 @@ function render() {
           function(d) {
             return trendColor(d.trend);
           })
-      .attr('stroke-width', 1.2)
-      .transition()
-      .duration(650)
-      .delay(function(d, i) {
-        return i * 20;
-      })
-      .attr('r', function(d) {
-        return r(d.total_owners_m);
-      })
-      .on('end', function(d, i) {
-        if (highlightBlueOcean && i === rows.length - 1) applyBubbleState(0);
-      });
+      .attr('stroke-width', 1.2);
+  if (animateEntrance) {
+    circ.transition()
+        .duration(650)
+        .delay(function(d, i) {
+          return i * 20;
+        })
+        .attr('r', function(d) {
+          return r(d.total_owners_m);
+        })
+        .on('end', function(d, i) {
+          if (highlightBlueOcean && i === rows.length - 1) applyBubbleState(0);
+        });
+  } else {
+    // 不播入场：直接到终态半径，并立即应用蓝海高亮（静态 render 同步完成、无闪烁）
+    circ.attr('r', function(d) {
+      return r(d.total_owners_m);
+    });
+  }
 
   // 标注【全部】品类（旧版只标市场总盘前 11，导致多数气泡无文字）。
   // 为避免叠字：① 加深色描边光晕(paint-order)保证重叠时仍可读；
@@ -572,16 +582,23 @@ function render() {
   node.select('text.genre-label').each(function() {
     targetOps.push(parseFloat(d3.select(this).attr('opacity')));
   });
-  node.select('text.genre-label')
-      .attr('opacity', 0)
-      .transition()
-      .delay(function(d, i) {
-        return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 + i * 20 : 550;
-      })
-      .duration(380)
-      .attr('opacity', function(d, i) {
-        return targetOps[i];
-      });
+  var lbl = node.select('text.genre-label').attr('opacity', 0);
+  if (animateEntrance) {
+    lbl.transition()
+        .delay(function(d, i) {
+          return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 + i * 20 : 550;
+        })
+        .duration(380)
+        .attr('opacity', function(d, i) {
+          return targetOps[i];
+        });
+  } else {
+    lbl.attr('opacity', function(d, i) {
+      return targetOps[i];
+    });
+  }
+  // 静态渲染（不播入场）时，入场结束回调不会触发，需立即应用蓝海高亮的暗化
+  if (!animateEntrance && highlightBlueOcean) applyBubbleState(0);
 
   // 贪心碰撞：按市场总盘从大到小排序，依次尝试 4 个候选位置；全冲突则隐藏
   function resolveLabelCollisions() {
@@ -887,6 +904,20 @@ window.initGenre = function() {
 // 供导览 / 联动调用：切换工作室规模、narrative 高亮
 window._genreSetScope = setScope;
 window._genreRedraw = function() { if (DATA_G) render(); };
+// 导览专用合并入口：一次设置 规模(scope) / 蓝海高亮(highlightBlueOcean) 并渲染。
+// animate:false 时本次不重播气泡入场（静态 render 同步完成、无闪烁），
+// 用于章节内「全部→点亮蓝海→切独立」的连续状态切换——入场只在第一拍播一次。
+window._genreNarrative = function(opts) {
+  opts = opts || {};
+  if (!DATA_G) return;
+  if (opts.scope && MULT[opts.scope]) scope = opts.scope;
+  if (opts.highlightBlueOcean != null) highlightBlueOcean = opts.highlightBlueOcean;
+  if (opts.animate === false) suppressEntranceOnce = true;
+  syncPills();
+  var sy = window.scrollY;
+  render();
+  requestAnimationFrame(function() { window.scrollTo(0, sy); });
+};
 window._genreApplyNarrative = function(opts) {
   if (opts && opts.highlightBlueOcean != null)
     highlightBlueOcean = opts.highlightBlueOcean;

@@ -15,6 +15,9 @@ window.initDecay = function() {
   let svg, g, xSc, ySc;
   let firstDraw = true;
   let _iW = 0, _iH = 0, sweepRAF = null;  // 几何缓存 + 时间游标扫描的 rAF 句柄
+  // 时间游标扫描的可暂停状态：{ durMs, startTs, render, paused, elapsed }
+  // 暂停时记录已扫描时长 elapsed 并停掉 rAF；恢复时把 startTs 回拨，让扫描从断点续跑。
+  let sweepCtx = null;
 
   const TYPE_STYLE = {
     AAA:     {dash: null,  width: 2.5, label: '3A大作'},
@@ -1195,6 +1198,7 @@ window.initDecay = function() {
       cancelAnimationFrame(sweepRAF);
       sweepRAF = null;
     }
+    sweepCtx = null; // 丢弃可暂停状态，避免残留导致误恢复
     if (g) g.selectAll('.sweep-layer').remove();
   }
 
@@ -1271,8 +1275,9 @@ window.initDecay = function() {
                      .attr('letter-spacing', '0.5');
 
     var start = performance.now();
-    function frame(now) {
-      var p = Math.min((now - start) / durMs, 1);
+    // 把每一帧的绘制逻辑抽成 render(p)，p∈[0,1] 为扫描进度；
+    // 通过 sweepCtx 持有进度状态，便于暂停（冻结 elapsed）与恢复（回拨 startTs）。
+    function render(p) {
       var mF = p * 24, m = Math.round(mF), x = xSc(mF);
       cur.attr('x1', x).attr('x2', x);
       var iv = avgAt(indie, mF), av = avgAt(aaa, mF);
@@ -1287,12 +1292,39 @@ window.initDecay = function() {
             Math.round(av * 100) + '%    差 ' + (gap >= 0 ? '+' : '') + gap +
             '%');
       }
-      if (p < 1)
-        sweepRAF = requestAnimationFrame(frame);
-      else
-        sweepRAF = null;  // 结束后保留终态（差距最大处）
     }
-    sweepRAF = requestAnimationFrame(frame);
+    sweepCtx = { durMs: durMs, startTs: start, render: render, paused: false, elapsed: 0 };
+    sweepRAF = requestAnimationFrame(sweepTick);
+  }
+
+  // 单帧推进：进度到 1 收尾。暂停/结束时把 rAF 句柄与 ctx 清干净。
+  function sweepTick(now) {
+    if (!sweepCtx || sweepCtx.paused) { sweepRAF = null; return; }
+    var p = Math.min((now - sweepCtx.startTs) / sweepCtx.durMs, 1);
+    sweepCtx.render(p);
+    if (p < 1) {
+      sweepRAF = requestAnimationFrame(sweepTick);
+    } else {
+      sweepRAF = null;  // 结束后保留终态（差距最大处）
+      sweepCtx = null;
+    }
+  }
+
+  // 暂停时间游标扫描：冻结已扫描时长，停掉 rAF（终态画面保留在断点）
+  function pauseSweep() {
+    if (!sweepCtx || sweepCtx.paused || !sweepRAF) return;
+    sweepCtx.elapsed = performance.now() - sweepCtx.startTs;
+    sweepCtx.paused = true;
+    cancelAnimationFrame(sweepRAF);
+    sweepRAF = null;
+  }
+
+  // 恢复时间游标扫描：把 startTs 回拨 elapsed，让扫描从断点继续到第 24 月
+  function resumeSweep() {
+    if (!sweepCtx || !sweepCtx.paused) return;
+    sweepCtx.paused = false;
+    sweepCtx.startTs = performance.now() - sweepCtx.elapsed;
+    if (!sweepRAF) sweepRAF = requestAnimationFrame(sweepTick);
   }
 
   // Load aggregate data
@@ -1392,6 +1424,9 @@ window.initDecay = function() {
     draw();  // 重绘到个体+对比，刷新 g / xSc / ySc / 几何
     runSweep(durMs || 4500);
   };
+  // 供导览暂停/恢复联动：冻结 / 续跑正在进行的时间游标扫描（无扫描时为安全空操作）
+  window._decaySweepPause = function() { pauseSweep(); };
+  window._decaySweepResume = function() { resumeSweep(); };
 
   // Cross-view linkage: scatter → decay
   EVT.on('decayHighlight', function(name) {
