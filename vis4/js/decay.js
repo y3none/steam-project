@@ -356,24 +356,22 @@ window.initDecay = function() {
                     .style('pointer-events', 'none');
 
     if (firstDraw) {
-      paths.each(function() {
-        var totalLen = this.getTotalLength();
-        d3.select(this)
-            .attr('stroke-dasharray', totalLen)
-            .attr('stroke-dashoffset', totalLen)
-            .transition()
-            .duration(1200)
-            .delay(function(_, i) {
-              return i * 80;
-            })
-            .ease(d3.easeCubicInOut)
-            .attr('stroke-dashoffset', 0)
-            .on('end', function() {
-              var d = d3.select(this).datum();
-              var s = TYPE_STYLE[gameKey(d)];
-              d3.select(this).attr('stroke-dasharray', s ? s.dash : null);
-            });
-      });
+      // 逐条错落描边入场：stagger 必须用 paths 选择集自身的索引 i。
+      // 旧写法把 transition 放在 paths.each 内对单元素 d3.select(this) 调用，i 恒为 0
+      // → 所有曲线同时开画、没有错落，看着一闪而过像 bug。改为选择集级链式调用。
+      paths
+          .attr('stroke-dasharray', function() { return this.getTotalLength(); })
+          .attr('stroke-dashoffset', function() { return this.getTotalLength(); })
+          .transition()
+          .duration(1100)
+          .delay(function(_, i) { return i * 55; })
+          .ease(d3.easeCubicInOut)
+          .attr('stroke-dashoffset', 0)
+          .on('end', function() {
+            var d = d3.select(this).datum();
+            var s = TYPE_STYLE[gameKey(d)];
+            d3.select(this).attr('stroke-dasharray', s ? s.dash : null);
+          });
       firstDraw = false;
     } else {
       paths
@@ -1406,12 +1404,19 @@ window.initDecay = function() {
   };
 
   window._decayApplyNarrative = function(opts) {
+    var changed = false;
     if (opts.compareIndieAAA) {
+      if (!narrativeCompare) changed = true;
       narrativeCompare = true;
       highlighted = null;
       switchToIndividualMode();
     }
-    if (opts.compareIndieAAA === false) narrativeCompare = false;
+    if (opts.compareIndieAAA === false) {
+      if (narrativeCompare) changed = true;
+      narrativeCompare = false;
+    }
+    // 状态无变化时不重绘：避免把「进入视口时触发的描边入场」当场截断（导览首拍即此情形）。
+    if (!changed) return;
     firstDraw = false;
     draw();
   };

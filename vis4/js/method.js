@@ -27,13 +27,13 @@ window.initMethod = function() {
           分类沿<strong>两个相互独立的维度</strong>展开，互不蕴含——
           <em>AAA 也可以是 F2P</em>（如《原神》《Apex》《CS2》），独立游戏同样可以 F2P。<br>
           <strong>① 规模档 tier（制作 / 发行投入）</strong><br>
-          &nbsp;&nbsp;<strong>AAA</strong>：发行商 ∈ 已知大厂名单（30 家，含 Valve/Blizzard/Rockstar 等）且 owners ≥ 0.5M<br>
+          &nbsp;&nbsp;<strong>AAA</strong>：发行商 ∈ 已知大厂名单（29 家，含 Valve/Blizzard/Rockstar 等）且 owners ≥ 0.5M<br>
           &nbsp;&nbsp;<strong>Indie</strong>：Indie 标签投票 > 0 或 genre 含 "Indie"，且无 AAA 发行商信号<br>
           &nbsp;&nbsp;<strong>AA</strong>：无 Indie 信号 + owners ≥ 0.5M 或 price ≥ $9.99 的中间地带<br>
           <strong>② 商业模式 monetization（与规模档正交）</strong><br>
           &nbsp;&nbsp;<strong>F2P</strong>：免费进入 + tags/genres 含 "Free to Play"（仅 price=0 而无 F2P 信号视为限免买断，记为 Premium）<br>
           &nbsp;&nbsp;<strong>Premium</strong>：买断制 / 付费进入<br>
-          <strong>手动覆盖</strong>：60+ 款已知游戏按业界共识标注两个维度（如 Black Myth: Wukong → AAA·Premium；原神 → AAA·F2P）<br>
+          <strong>手动覆盖</strong>：54 款已知游戏手动标注规模档，另有 F2P / Hybrid 商业模式补正名单（如 Black Myth: Wukong → AAA·Premium；原神 → AAA·F2P）<br>
           <span style="color:var(--aa)">⚠</span> 堆叠图 / 散点 / 衰减视图中的 “F2P” 是<strong>商业模式分段</strong>（与规模档可重叠），并非第四个规模档；
           机会矩阵与散点详情会同时给出 tier 与 monetization 两维真值。
         </div>
@@ -42,7 +42,7 @@ window.initMethod = function() {
         <div class="method-cell-title">数据清洗与处理</div>
         <div class="method-cell-body">
           <strong>Owners</strong>：Kaggle 返回区间（"0 - 20000"），取中值并转换为百万单位<br>
-          <strong>年份</strong>：解析多种日期格式（"Feb 26, 2016" / "2016-02-26"），保留 2004–2025<br>
+          <strong>年份</strong>：解析多种日期格式（"Feb 26, 2016" / "2016-02-26"），保留 2004–2024（2025 为残缺年份，预处理已排除）<br>
           <strong>评价过滤</strong>：视图二要求评价数 ≥ 10 条，好评率 = positive/(positive+negative)×100<br>
           <strong>本地数据库</strong>：<code>game_db.json</code> 累积所有来源数据，appid 为主键，只增不减<br>
           <strong>处理结果</strong>：持久化至 <code>data/processed/</code>（4 个 JSON），前后端均可读取
@@ -55,8 +55,9 @@ window.initMethod = function() {
           <strong>视图二</strong>：气泡散点，X → 好评率，Y → 峰值在线 CCU（对数轴），半径 → owners（<code>scalePow(0.35)</code>）<br>
           <strong>视图三</strong>：衰减折线，归一化 CCU（首月=100%），24个月跨度，关键时间节点标注<br>
           <strong>视图五 · 结论</strong>：三因一果汇聚（数量 × 顶尖口碑 × 长尾留存 → 收入），数字由 <code>DATA</code> 实时计算<br>
+          <strong>视图六 · 机会地图</strong>：按玩法品类铺开供给（竞争）× 需求（均拥有量），左上=蓝海；可按工作室规模（Indie/AA/AAA）与商业模式重算，色温=近年发行动量<br>
           <strong>跨视图联动</strong>：河流图点击年份 ↔ 散点图年份下拉（双向同步），散点图 → 衰减曲线下钻；联动触发时接收方视图<em>脉冲高亮 + 来源 chip</em><br>
-          <strong>自动导览</strong>：一键按叙事顺序播放五段，复用各视图 narrative 接口，供演示/答辩；尊重系统“减少动态效果”偏好<br>
+          <strong>自动导览</strong>：一键按叙事顺序串联六个视图，复用各视图 narrative 接口，供演示/答辩；尊重系统“减少动态效果”偏好<br>
           <strong>实时数据</strong>：页面秒开 → 后台异步爬取 Steam API → 图表热更新 + CCU 涨跌 Ticker
         </div>
       </div>
@@ -72,7 +73,7 @@ window.initMethod = function() {
     </div>
     <div class="method-note">
       <strong>数据局限性声明：</strong>
-      SteamSpy 数据自 2018 年后误差约 ±20%（Valve 隐藏了精确 owners 数据）；
+      SteamSpy 2018 年后为算法估算（Valve 隐藏精确 owners），叠加区间取中值，单款 owners 误差可达数十个百分点（参见上方局限性说明的 ±40% 量级）；
       Kaggle price 为当前售价而非首发价，影响基于价格的分类准确度；
       CCU 在线占比数据仅覆盖 2012 年至今（SteamCharts 起始年份），2012 年前无公开 CCU 历史数据；
       分类规则对边缘游戏（如大厂发行的小型实验项目）可能存在争议；

@@ -145,7 +145,6 @@ function render() {
                  });
 
   var W = wrap.clientWidth || 720, H = Math.max(330, Math.min(460, W * 0.5));
-  _renderedW = W;
   var M = {t: 24, r: 26, b: 50, l: 58}, iW = W - M.l - M.r, iH = H - M.t - M.b;
   var svg = d3.select(wrap)
                 .append('svg')
@@ -300,6 +299,14 @@ function render() {
     tip.style.opacity = 0;
     showDetail(d);
     applyBubbleState(250);
+  }
+  // 退出蓝海讲解态（导览结束后用户开始交互时）：清掉高亮 + 旁注，即时重绘成完整可交互地图，
+  // 之后悬浮 / 点击恢复正常——否则地图会一直锁在「只剩左上角蓝海高亮」。
+  function exitNarrative() {
+    highlightBlueOcean = false;
+    if (window._genreCaption) window._genreCaption(null);
+    suppressEntranceOnce = true; // 即时重绘，不重播入场
+    render();
   }
 
   // 钉选详情卡（常驻，点 ✕ / 空白 / 再点同气泡 取消）
@@ -567,7 +574,13 @@ function render() {
       .attr('stroke-linejoin', 'round')
       .attr('paint-order', 'stroke')
       .attr('font-family', '\'Noto Sans SC\',sans-serif')
-      .attr('font-size', 11.5)
+      .attr('font-size', function(d) {
+        // 高亮态下蓝海标签是讲解焦点，放大加粗，播放时观众一眼可读
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? 13.5 : 11.5;
+      })
+      .attr('font-weight', function(d) {
+        return highlightBlueOcean && isBlueOcean(d, mx, my) ? 700 : 400;
+      })
       .attr('pointer-events', 'none')
       .text(function(d) {
         return d.tag;
@@ -597,19 +610,28 @@ function render() {
       return targetOps[i];
     });
   }
-  // 静态渲染（不播入场）时，入场结束回调不会触发，需立即应用蓝海高亮的暗化
-  if (!animateEntrance && highlightBlueOcean) applyBubbleState(0);
+  // 静态渲染（不播入场）时入场结束回调不会触发；此处用带时长的过渡应用蓝海暗化，
+  // 让「点亮蓝海」这一操作肉眼可见（非蓝海气泡平滑淡出），而不是瞬间切换看不出动作。
+  if (!animateEntrance && highlightBlueOcean) applyBubbleState(450);
 
   // 贪心碰撞：按市场总盘从大到小排序，依次尝试 4 个候选位置；全冲突则隐藏
   function resolveLabelCollisions() {
     var labels = node.select('text.genre-label').nodes();
     if (!labels.length) return;
-    // 按数据 total_owners_m 降序，重要的优先占位
+    // 按数据 total_owners_m 降序，重要的优先占位。
+    // 但蓝海高亮时：蓝海品类是讲解焦点，却往往市场总盘小、排序靠后被挤掉标签——
+    // 故高亮时让蓝海标签优先占位，确保播放讲解「蓝海机会」时这些品类一定有标签可读。
     var entries = labels.map(function(el) {
       var d3sel = d3.select(el);
       var datum = d3sel.datum();
       return { el: el, sel: d3sel, datum: datum, weight: datum.total_owners_m || 0 };
-    }).sort(function(a, b) { return b.weight - a.weight; });
+    }).sort(function(a, b) {
+      if (highlightBlueOcean) {
+        var ab = isBlueOcean(a.datum, mx, my), bb = isBlueOcean(b.datum, mx, my);
+        if (ab !== bb) return ab ? -1 : 1; // 蓝海优先
+      }
+      return b.weight - a.weight;
+    });
 
     var placed = []; // {x, y, w, h}
     entries.forEach(function(e) {
@@ -647,15 +669,24 @@ function render() {
                : 1);
         placed.push(found.box);
       } else {
-        // 全冲突 → 隐藏（hover 时仍由 tooltip 显示完整信息）
-        e.sel.attr('opacity', 0);
+        // 全冲突 → 隐藏（hover 时仍由 tooltip 显示完整信息）。
+        // 但蓝海高亮下的蓝海标签是讲解焦点，不能消失：退到默认上方位强制显示（宁可轻微重叠也要可读）。
+        if (highlightBlueOcean && isBlueOcean(e.datum, mx, my)) {
+          e.sel.attr('dy', cands[0].dy).attr('dx', 0).attr('opacity', 1);
+        } else {
+          e.sel.attr('opacity', 0);
+        }
       }
     });
   }
 
   node.on('mouseenter',
           function(ev, d) {
-            if (selectedGenre || highlightBlueOcean) return;  // 已钉选/蓝海模式时，悬浮不打断当前高亮
+            if (selectedGenre) return;            // 已钉选时悬浮不打断
+            if (highlightBlueOcean) {             // 蓝海讲解态下首次悬浮 → 退出，恢复完整地图
+              exitNarrative();
+              return;
+            }
             // 放大当前气泡，其余变暗
             d3.select(this)
                 .select('circle')
@@ -712,6 +743,10 @@ function render() {
       .on('click', function(ev, d) {
         ev.stopPropagation();  // 关键：阻止冒泡到 svg 的
                                // resetBubbles，否则“点击=重置”
+        if (highlightBlueOcean) {  // 讲解态下点击 → 先退出成完整地图，再点即可正常钉选
+          exitNarrative();
+          return;
+        }
         if (selectedGenre === d)
           resetBubbles();
         else
@@ -846,6 +881,33 @@ function syncPills() {
     b.classList.toggle('active', b.dataset.gs === scope);
   });
 }
+// 给当前激活的规模 pill 加一次脉冲动画（重排以重启），让导览切换规模的动作醒目可见
+function pulseActiveScopePill() {
+  var active = document.querySelector('#sec-genre [data-gs].active');
+  if (!active) return;
+  active.classList.remove('pill-pulse');
+  void active.offsetWidth;
+  active.classList.add('pill-pulse');
+}
+// 叙事旁注气泡：导览操作时在图表右上角提示「现在在做什么」（html=null 时淡出）
+var gcap = null;
+window._genreCaption = function(html) {
+  var box = document.querySelector('#sec-genre .chart-box');
+  if (!box) return;
+  if (!gcap || gcap.parentNode !== box) {
+    gcap = document.createElement('div');
+    gcap.className = 'genre-caption';
+    box.appendChild(gcap);
+  }
+  if (html) {
+    gcap.innerHTML = html;
+    gcap.classList.remove('show');
+    void gcap.offsetWidth; // 重排重启进入动画
+    gcap.classList.add('show');
+  } else {
+    gcap.classList.remove('show');
+  }
+};
 function setScope(s) {
   if (!MULT[s]) return;
   var sy = window.scrollY;
@@ -910,10 +972,15 @@ window._genreRedraw = function() { if (DATA_G) render(); };
 window._genreNarrative = function(opts) {
   opts = opts || {};
   if (!DATA_G) return;
-  if (opts.scope && MULT[opts.scope]) scope = opts.scope;
+  var scopeChanged = false;
+  if (opts.scope && MULT[opts.scope]) {
+    if (opts.scope !== scope) scopeChanged = true;
+    scope = opts.scope;
+  }
   if (opts.highlightBlueOcean != null) highlightBlueOcean = opts.highlightBlueOcean;
   if (opts.animate === false) suppressEntranceOnce = true;
   syncPills();
+  if (scopeChanged) pulseActiveScopePill(); // 切换规模时脉冲高亮新激活的 pill，让「切换标签」这一操作可见
   var sy = window.scrollY;
   render();
   requestAnimationFrame(function() { window.scrollTo(0, sy); });
@@ -925,6 +992,7 @@ window._genreApplyNarrative = function(opts) {
 };
 window._genreResetNarrative = function() {
   highlightBlueOcean = false;
+  if (window._genreCaption) window._genreCaption(null); // 退出 / 重置时收起旁注
   if (DATA_G) render();
 };
 })();

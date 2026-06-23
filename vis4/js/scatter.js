@@ -1050,10 +1050,19 @@ window.initScatter = function() {
         `<img class="detail-header-img" src="${defaultImg}" alt="default">`;
 
     // Check if this game exists in decay data
-    // 名称匹配：先精确，再模糊（去掉 ™/® 等商标符号，忽略大小写与冒号后缀）
-    const normName = s => s.replace(/[™®©]/g, '').replace(/:\s*.+$/, '').toLowerCase().trim();
-    const hasDecay = DATA.decay.some(x => x.name === d.name || normName(x.name) === normName(d.name));
-    const decayMatch = hasDecay ? DATA.decay.find(x => x.name === d.name || normName(x.name) === normName(d.name)) : null;
+    // 名称匹配：去商标符/标点、忽略大小写后做"相等或前缀"匹配。
+    // 旧实现 replace(/:\s*.+$/,'') 会把 "CS:GO / CS2" 坍缩成 "cs"，既漏匹配又可能误匹配
+    // 其他 "CS..." 游戏；改为字母数字归一 + 前缀（处理 "PUBG" ↔ "PUBG: BATTLEGROUNDS" 这类副标题）。
+    const normName = s => String(s).replace(/[™®©]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const nameMatch = (a, b) => {
+      const x = normName(a), y = normName(b);
+      if (!x || !y) return false;
+      if (x === y) return true;
+      const [s, l] = x.length <= y.length ? [x, y] : [y, x];
+      return s.length >= 4 && l.startsWith(s);   // 短名是长名前缀（副标题场景）
+    };
+    const hasDecay = DATA.decay.some(x => x.name === d.name || nameMatch(x.name, d.name));
+    const decayMatch = hasDecay ? DATA.decay.find(x => x.name === d.name || nameMatch(x.name, d.name)) : null;
     const decayBtnHtml = hasDecay ?
         `<button class="detail-decay-btn" id="btn-jump-decay">📉 查看生命周期曲线 ↓</button>` :
         '';

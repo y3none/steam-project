@@ -159,6 +159,18 @@ function initHeroCounters() {
   heroObserver.observe(ribbon);
 }
 
+// 供导览开场重放：把四个大数字重置为「—」后重新滚动计数（错落进入，吸睛开场）
+window._heroReplayStats = function() {
+  var ribbon = document.getElementById('stats-ribbon');
+  if (!ribbon) return;
+  var nums = ribbon.querySelectorAll('.stat-num');
+  nums.forEach(function(el, i) {
+    var target = el.getAttribute('data-target') || el.textContent.trim();
+    el.textContent = '—';
+    setTimeout(function() { animateCounter(el, target, 1400); }, 260 + i * 200);
+  });
+};
+
 // ── Update hero stats from data ──────────────────────
 function updateHeroStats() {
   var m = DATA.meta;

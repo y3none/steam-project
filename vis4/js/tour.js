@@ -12,23 +12,38 @@ window.initTour = function() {
     return bar.offsetHeight + 22 + 18; // 22 = bar 距底间距，再留 18 呼吸位
   }
 
-  // 把元素居中到「未被字幕条遮挡」的可视区（顶部留出吸顶图例条空间）
-  function centerInView(el) {
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
+  // 把分节滚到「字幕条之上」的可视区。定位策略：让图表框整张可见（底部贴字幕条上沿），
+  // 把上方多出来的空间尽量留给 section 标题；图表本身比可视区还高时退化为顶对齐（露出上半）。
+  function scrollChapterIntoView(section) {
+    if (!section) return;
+    const chart = section.querySelector(".chart-box") || section;
+    const cb = chart.getBoundingClientRect();
     const availTop = 80;                                   // 顶部下限（吸顶图例条）
     const availBottom = window.innerHeight - barReserve(); // 底部上限（字幕条之上）
-    const availH = Math.max(120, availBottom - availTop);
-    // 图表高于可视区时顶对齐（优先露出图表上半）；否则在可视区内垂直居中
-    const offset = rect.height > availH ? availTop : availTop + (availH - rect.height) / 2;
-    const desired = window.scrollY + rect.top - offset;
+    const availH = Math.max(160, availBottom - availTop);
+    const chartTopPage = window.scrollY + cb.top;
+    // 图表放得下 → 底部对齐到 availBottom（整图可见、上方留给标题）；放不下 → 顶部对齐（露出上半）
+    const desired = cb.height >= availH
+      ? chartTopPage - availTop
+      : chartTopPage + cb.height - availBottom;
     const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
     window.scrollTo({ top: Math.max(0, Math.min(desired, maxTop)), behavior: scrollOpt.behavior });
   }
-  // genre 图表在切换工作室规模时会重绘，重绘后再居中一次（高度稳定，通常无跳动）
+  // genre 图表在切换工作室规模时会重绘，重绘后再定位一次（保持整图可见 + 标题露出）
   function recenterGenre() {
-    const box = document.querySelector("#sec-genre .chart-box");
-    if (box) centerInView(box);
+    const sec = document.querySelector("#sec-genre");
+    if (sec) scrollChapterIntoView(sec);
+  }
+
+  // 开场动画：重放 hero 入场（标题 / 副标题 / 数字带）+ 大数字滚动计数，作为吸睛的开场
+  function heroReveal() {
+    const hero = document.querySelector(".hero");
+    if (hero) {
+      hero.classList.remove("tour-hero-in");
+      void hero.offsetWidth; // 强制重排以重启 CSS 入场动画
+      hero.classList.add("tour-hero-in");
+    }
+    if (window._heroReplayStats) window._heroReplayStats();
   }
 
   // ── narrative 复位（退出 / 开场时回到中性状态） ──
@@ -46,6 +61,12 @@ window.initTour = function() {
       text: "2004 到 2024，全球最大 PC 游戏生态被一群没有发行商、没有营销预算的独立开发者悄悄改写。我们用三个视图，讲清楚这件事是怎么发生的。",
       dur: 7000,
       action() { resetAll(); window.scrollTo({ top: 0, behavior: scrollOpt.behavior }); },
+      // 开场吸睛：滚回顶部后，hero 标题/副标题/数字带依次入场 + 四个大数字滚动计数
+      anim(A) {
+        resetAll();
+        window.scrollTo({ top: 0, behavior: scrollOpt.behavior });
+        A.later(() => heroReveal(), 200); // 等滚动落定再放开场动画
+      },
     },
     {
       sel: "#sec-stream", chapter: "01 · 数量", title: "平台开放，闸门打开",
@@ -93,11 +114,11 @@ window.initTour = function() {
       text: "先铺开全部曲线、再聚焦独立 vs 3A，最后一条时间游标从第 0 月扫到第 24 月——看两者留存差距如何在头几个月迅速拉开、并长期保持。决定总收入的不是首月，而是长尾。",
       dur: 10500,
       action() { window._decayApplyNarrative && window._decayApplyNarrative({ compareIndieAAA: true }); },
-      // 动态：全部曲线 → 聚焦 Indie/AAA → 时间游标扫描（差距实时拉开）
+      // 动态：全部曲线（沿用进入视口的描边入场，不打断）→ 聚焦 Indie/AAA → 时间游标扫描
       anim(A) {
-        A.decay({ compareIndieAAA: false });
-        A.later(() => A.decay({ compareIndieAAA: true }), 1000);
-        A.later(() => A.sweep(4800), 2300);
+        A.decay({ compareIndieAAA: false });                     // 同态不重绘，避免截断入场
+        A.later(() => A.decay({ compareIndieAAA: true }), 2400); // 留足入场时间再聚焦
+        A.later(() => A.sweep(4800), 3400);
       },
     },
     {
@@ -112,21 +133,21 @@ window.initTour = function() {
       sel: "#sec-genre", centerSel: ".chart-box", chapter: "尾声 · 给从业者", title: "那，该做一款什么游戏？",
       text: "我们把结论交回开发者手里：按玩法品类铺开供给与需求，左上角是需求高、对手少的蓝海。切到「独立」——地图重算成你这个段位的真实机会。这才是这套系统的落点：不止说明过去，更指向该做什么。",
       dur: 7500,
-      action() { window._genreNarrative && window._genreNarrative({ scope: "Indie", highlightBlueOcean: true, animate: false }); },
-      // 动态：入场动画只播一次（全貌）→ 点亮蓝海(瞬时) → 切到独立(瞬时重算)；
-      // 后两拍用 animate:false，避免气泡入场被反复重播（此前会连播多遍）。每次重算后重新居中。
+      action() { window._genreNarrative && window._genreNarrative({ scope: "Indie", highlightBlueOcean: true, animate: false }); window._genreCaption && window._genreCaption('独立段位 · 蓝海机会'); },
+      // 动态：入场只播一次（全貌）→ 点亮蓝海（动画暗化，看得见非蓝海淡出）→ 切独立（重绘入场，看得见地图重算）。
+      // 每拍在图表右上角弹出旁注，告诉观众「现在在做什么」。不再每拍 recenterGenre（高度稳定、且会拽回用户滚动）。
       anim(A) {
         A.later(function () {
           window._genreNarrative && window._genreNarrative({ scope: "All", highlightBlueOcean: false });
-          recenterGenre();
+          window._genreCaption && window._genreCaption('全部品类 · 供给（竞争）× 需求（拥有量）');
         }, 0);
         A.later(function () {
           window._genreNarrative && window._genreNarrative({ highlightBlueOcean: true, animate: false });
-          recenterGenre();
+          window._genreCaption && window._genreCaption('① 点亮<b>蓝海</b> · 左上＝需求高、对手少的机会区');
         }, 1500);
         A.later(function () {
-          window._genreNarrative && window._genreNarrative({ scope: "Indie", animate: false });
-          recenterGenre();
+          window._genreNarrative && window._genreNarrative({ scope: "Indie" });
+          window._genreCaption && window._genreCaption('② 切到「<b>独立</b>」段位 · 地图按你的规模重算');
         }, 3000);
       },
     },
@@ -283,27 +304,24 @@ window.initTour = function() {
       if (s.sel === ".hero") {
         window.scrollTo({ top: 0, behavior: scrollOpt.behavior });
       } else {
-        // 统一聚焦图表框，在「字幕条之上的可视区」内居中——避免图表下半截
-        // （坐标轴 / 图例）被底部字幕条遮挡；centerInView 内置高于可视区时顶对齐。
-        const focus = (s.centerSel && target.querySelector(s.centerSel))
-                   || target.querySelector(".chart-box")
-                   || target;
-        centerInView(focus);
+        // 让图表整张可见（底部贴字幕条上沿），上方空间尽量留给 section-header 标题——
+        // 既不再把标题顶出视区，也不会把图表下半截压到字幕条下面看不见。
+        scrollChapterIntoView(target);
       }
     }
-    // 等滚动落定再触发：非 reduced-motion 且该章有 anim() → 播放动态序列；否则直接到终态
-    // 用 later() 入队：暂停时随队列一起冻结（含这次 450ms 延迟触发），恢复时接着排程
+    const willPlay = (keepPlaying ?? playing);
+    // 等滚动落定再触发：仅在「播放态」跑动态序列；暂停态跳章（上一段/下一段、方向键）只到终态、
+    // 不播动画——避免出现「动画在播但按钮显示暂停」的错配。
+    // 用 later() 入队：暂停时随队列一起冻结（含这次 450ms 延迟触发），恢复时接着排程。
     later(() => {
       try {
-        if (!RM && s.anim) s.anim(A);
+        if (!RM && willPlay && s.anim) s.anim(A);
         else s.action();
       } catch (e) { console.warn("[tour]", e); }
     }, RM ? 0 : 450);
     // 当前进度点：播放中→倒计时动画；暂停→置空或冻结
     const curDot = progEl.querySelector(".tour-dot.current");
-    const willPlay = (keepPlaying ?? playing);
-    // 让 playing 与播放/暂停按钮始终跟导航后的真实状态一致，
-    // 修复「跳章后内容在播、按钮却停在暂停态」的错配。
+    // 让 playing 与播放/暂停按钮始终跟导航后的真实状态一致
     playing = willPlay;
     $("#tour-play").textContent = willPlay ? "⏸" : "▶";
     if (curDot) {

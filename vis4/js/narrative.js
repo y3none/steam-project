@@ -90,7 +90,7 @@ function initScatterNarrative() {
     controlsSelector: '.scatter-controls-left .scatter-row',
     insightId: 'insight-scatter',
     label: '聚焦 Indie',
-    tooltip: '高亮独立游戏的"神作象限"（好评>90% & CCU>100k）',
+    tooltip: '高亮独立游戏的"神作象限"（好评>90% & 高人气，阈值随数据自适应）',
     applyFn: function() {
       window._scatterApplyNarrative?.({ filter: 'Indie', highlightQuadrant: true });
     },

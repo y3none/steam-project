@@ -150,6 +150,43 @@ body::before {
 .stat-num.c-aaa   { color: var(--aaa);   text-shadow: var(--glow-aaa); }
 .stat-num.c-aa    { color: var(--aa);    }
 .stat-label { font-size: 12.5px; color: var(--muted); letter-spacing: 0.5px; }
+
+/* ── 导览开场动画：PROLOGUE 进入时 hero 各元素依次入场（吸睛开场） ── */
+@keyframes tourHeroUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes tourHeroTitle {
+  0%   { opacity: 0; transform: translateY(20px) scale(.985); letter-spacing: 6px; }
+  100% { opacity: 1; transform: none; letter-spacing: -2px; }
+}
+@keyframes tourYearGlow {
+  0%, 100% { text-shadow: var(--glow-indie); }
+  50%      { text-shadow: 0 0 26px var(--indie), 0 0 10px var(--indie); }
+}
+.hero.tour-hero-in .hero-eyebrow { animation: tourHeroUp .6s ease both; }
+.hero.tour-hero-in .hero-title   { animation: tourHeroTitle .85s cubic-bezier(.2,.7,.2,1) .08s both; }
+.hero.tour-hero-in .hero-title .year { animation: tourYearGlow 1.5s ease .95s 2, tourYearBreathe 3.6s ease-in-out 2.6s infinite; }
+.hero.tour-hero-in .hero-sub-row { animation: tourHeroUp .6s ease .24s both; }
+/* 数字带四格整条一起上浮——去掉原来「灰块自左向右逐格扫过」的观感 */
+.hero.tour-hero-in .stat-cell    { animation: tourHeroUp .6s ease .34s both; }
+
+/* 填补开场动画播完后的静止：「趋势上下文」在大数字滚完后整体淡入（同样不做左右错落） */
+.hero.tour-hero-in .stat-trend { animation: tourHeroUp .55s ease 1.8s both; }
+/*「二十年」持续微光呼吸——在停留期给标题主题（二十年跨度）一点存在感，
+   原地呼吸、不横向移动、不带「光标/加载」之类易误导的语义 */
+@keyframes tourYearBreathe {
+  0%, 100% { text-shadow: var(--glow-indie); }
+  50%      { text-shadow: 0 0 22px var(--indie), 0 0 8px var(--indie); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero.tour-hero-in .hero-eyebrow,
+  .hero.tour-hero-in .hero-title,
+  .hero.tour-hero-in .hero-title .year,
+  .hero.tour-hero-in .stat-trend,
+  .hero.tour-hero-in .hero-sub-row,
+  .hero.tour-hero-in .stat-cell { animation: none; }
+}
 .stat-trend { font-family: var(--mono); font-size: 11px; color: var(--indie); margin-top: 6px; }
 
 /* ── LEGEND ── */
@@ -289,6 +326,33 @@ svg { width: 100%; display: block; overflow: visible; }
 .pill.active.yellow { background: var(--aa); border-color: var(--aa); }
 .pill.active.green { background: var(--f2p); border-color: var(--f2p); }
 .pill.disabled { opacity: 0.35; pointer-events: none; }
+/* 导览切换工作室规模时，新激活的 pill 脉冲一下，让「切换标签」的操作醒目可见 */
+@keyframes pillPulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(29,233,182,0.55); }
+  35%  { transform: scale(1.16); box-shadow: 0 0 0 7px rgba(29,233,182,0.32); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 14px rgba(29,233,182,0); }
+}
+.pill.pill-pulse { animation: pillPulse 0.75s ease-out; }
+@media (prefers-reduced-motion: reduce) { .pill.pill-pulse { animation: none; } }
+
+/* 机会地图导览旁注：右上角弹出，提示「现在在做什么」 */
+.genre-caption {
+  position: absolute; top: 16px; right: 16px; z-index: 25;
+  max-width: 290px; padding: 9px 13px;
+  border-radius: 9px;
+  background: rgba(10, 11, 20, 0.92);
+  border: 1px solid rgba(29, 233, 182, 0.55);
+  color: var(--text); font-size: 13px; line-height: 1.55; letter-spacing: 0.2px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  opacity: 0; transform: translateY(-8px) scale(0.98);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+.genre-caption b { color: var(--indie); font-weight: 700; }
+.genre-caption.show { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .genre-caption { transition: opacity 0.2s; transform: none; }
+}
 /* 控件分组分隔符（维度 | 度量） */
 .ctrl-sep { width: 1px; align-self: stretch; margin: 2px 5px; background: var(--border2); }
 

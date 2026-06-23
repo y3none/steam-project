@@ -58,7 +58,7 @@
 <!-- ═══ DATA SOURCE BADGE ═══ -->
 <div class="data-badge" id="data-source-badge" style="display:none;border-bottom:1px solid var(--border);">
   <span class="badge-icon">⚠</span>
-  <span class="badge-text">使用内嵌示例数据 · 运行 03_preprocess.py 生成实时数据</span>
+  <span class="badge-text">使用内嵌示例数据 · 运行 05_preprocess.py 生成实时数据</span>
 </div>
 
 <!-- ═══ LEGEND ═══ -->
@@ -104,11 +104,11 @@
     <div class="insight">
       <div class="insight-icon">//</div>
       <div class="insight-text" id="insight-stream">
-        <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，推动独立游戏年发布量在次年首次超越 AA+3A 之和；
-        <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，Indie 年发布量从约 5,472 <em>跳升至 7,600（+39%）</em>；
+        <span class="event-chip">2012</span> <strong>Steam Greenlight</strong> — 开放第三方上架，独立游戏涌入加速，占比持续攀升；
+        <span class="event-chip">2017</span> <strong>Steam Direct</strong> — 取消审核门槛，独立年发布量再上一个台阶；
         <span class="event-chip">2020</span> <strong>COVID-19</strong> — 居家隔离驱动 Steam 月活激增，独立游戏销量创历史新高。
         <br><br>
-        <strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——2024年平均每天有 52 款新游戏上架，
+        <strong>深层洞察：</strong>平台开放带来了数量爆炸的同时，也引发了<em>"发现性危机"（Discoverability Crisis）</em>——近年平均每天有数十款新游戏上架，
         单款游戏的中位曝光机会反而低于2014年。数量增长并不等于生态健康，这一矛盾贯穿独立游戏崛起的全过程。
       </div>
     </div>
@@ -244,7 +244,7 @@
       <div class="insight-icon">//</div>
       <div class="insight-text">
         <strong>数据局限性：</strong>① SteamSpy 的 owners 字段为估算区间（如"200,000–500,000"），本项目取中值，实际误差可达 ±40%；
-        ② 游戏分类采用规则引擎（发行商名单 + 标签 + 价格 + 拥有量）+ 60 余款手动覆盖（按业界共识），边界案例可能与个人认知不一致；
+        ② 游戏分类采用规则引擎（发行商名单 + 标签 + 价格 + 拥有量）+ 54 款手动覆盖（按业界共识），边界案例可能与个人认知不一致；
         ③ 视图三衰减曲线来源于 SteamCharts 逐月实测 CCU，缺失月份以 ×0.95 衰减插值补齐，<em>整体趋势可信但个别月份为估计值</em>。
       </div>
     </div>

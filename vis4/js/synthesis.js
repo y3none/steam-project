@@ -6,6 +6,9 @@ window.initSynthesis = function() {
   const wrap = document.getElementById("synthesis-inner");
   if (!wrap) return;
 
+  // 所有结论数字封进 build()，每次调用都从最新 DATA 重新计算 —— 兑现"实时计算"承诺，
+  // 后台爬取热更新 DATA 后可再次调用刷新（见文件末 window._synthesisRefresh）。
+  function build() {
   const market = DATA.market || [];
   const lastYear = market[market.length - 1] || {};
   const meta = DATA.meta || {};
@@ -124,6 +127,10 @@ window.initSynthesis = function() {
       </div>
     </div>
   `;
+  }
+  build();
+  // 后台爬取热更新 DATA 后重算结论数字（与"所有数字均由数据实时计算"一致）
+  window._synthesisRefresh = build;
 
   // ── 动态重放：卡片交错浮现 + 大数字滚动计数 ──────────
   const RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
